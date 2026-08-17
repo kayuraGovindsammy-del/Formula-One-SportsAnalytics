@@ -1,0 +1,26 @@
+{
+  "_source": "Jolpica-F1 API (api.jolpi.ca/ergast/f1/2025/drivers), cross-checked against team lineups",
+  "_note": "2025 season race-seat drivers only (reserve/test drivers from the API response excluded for this sample)",
+  "drivers": [
+    { "driver_id": "VER", "permanent_number": 1,  "given_name": "Max",       "family_name": "Verstappen", "nationality": "Dutch",       "date_of_birth": "1997-09-30", "constructor_id": "RBR" },
+    { "driver_id": "TSU", "permanent_number": 22, "given_name": "Yuki",      "family_name": "Tsunoda",    "nationality": "Japanese",    "date_of_birth": "2000-05-11", "constructor_id": "RBR" },
+    { "driver_id": "NOR", "permanent_number": 4,  "given_name": "Lando",     "family_name": "Norris",     "nationality": "British",     "date_of_birth": "1999-11-13", "constructor_id": "MCL" },
+    { "driver_id": "PIA", "permanent_number": 81, "given_name": "Oscar",     "family_name": "Piastri",    "nationality": "Australian",  "date_of_birth": "2001-04-06", "constructor_id": "MCL" },
+    { "driver_id": "LEC", "permanent_number": 16, "given_name": "Charles",   "family_name": "Leclerc",    "nationality": "Monegasque",  "date_of_birth": "1997-10-16", "constructor_id": "FER" },
+    { "driver_id": "HAM", "permanent_number": 44, "given_name": "Lewis",     "family_name": "Hamilton",   "nationality": "British",     "date_of_birth": "1985-01-07", "constructor_id": "FER" },
+    { "driver_id": "RUS", "permanent_number": 63, "given_name": "George",    "family_name": "Russell",    "nationality": "British",     "date_of_birth": "1998-02-15", "constructor_id": "MER" },
+    { "driver_id": "ANT", "permanent_number": 12, "given_name": "Andrea Kimi","family_name": "Antonelli", "nationality": "Italian",     "date_of_birth": "2006-08-25", "constructor_id": "MER" },
+    { "driver_id": "ALO", "permanent_number": 14, "given_name": "Fernando",  "family_name": "Alonso",     "nationality": "Spanish",     "date_of_birth": "1981-07-29", "constructor_id": "AMR" },
+    { "driver_id": "STR", "permanent_number": 18, "given_name": "Lance",     "family_name": "Stroll",     "nationality": "Canadian",    "date_of_birth": "1998-10-29", "constructor_id": "AMR" },
+    { "driver_id": "ALB", "permanent_number": 23, "given_name": "Alexander","family_name": "Albon",      "nationality": "Thai",        "date_of_birth": "1996-03-23", "constructor_id": "WIL" },
+    { "driver_id": "SAI", "permanent_number": 55, "given_name": "Carlos",    "family_name": "Sainz",      "nationality": "Spanish",     "date_of_birth": "1994-09-01", "constructor_id": "WIL" },
+    { "driver_id": "HAD", "permanent_number": 6,  "given_name": "Isack",     "family_name": "Hadjar",     "nationality": "French",      "date_of_birth": "2004-09-28", "constructor_id": "RB"  },
+    { "driver_id": "LAW", "permanent_number": 30, "given_name": "Liam",      "family_name": "Lawson",     "nationality": "New Zealander","date_of_birth": "2002-02-11", "constructor_id": "RB"  },
+    { "driver_id": "OCO", "permanent_number": 31, "given_name": "Esteban",   "family_name": "Ocon",       "nationality": "French",      "date_of_birth": "1996-09-17", "constructor_id": "HAA" },
+    { "driver_id": "BEA", "permanent_number": 87, "given_name": "Oliver",    "family_name": "Bearman",    "nationality": "British",     "date_of_birth": "2005-05-08", "constructor_id": "HAA" },
+    { "driver_id": "GAS", "permanent_number": 10, "given_name": "Pierre",    "family_name": "Gasly",      "nationality": "French",      "date_of_birth": "1996-02-07", "constructor_id": "ALP" },
+    { "driver_id": "COL", "permanent_number": 43, "given_name": "Franco",    "family_name": "Colapinto",  "nationality": "Argentine",   "date_of_birth": "2003-05-27", "constructor_id": "ALP" },
+    { "driver_id": "HUL", "permanent_number": 27, "given_name": "Nico",      "family_name": "Hulkenberg", "nationality": "German",      "date_of_birth": "1987-08-19", "constructor_id": "SAU" },
+    { "driver_id": "BOR", "permanent_number": 5,  "given_name": "Gabriel",   "family_name": "Bortoleto",  "nationality": "Brazilian",   "date_of_birth": "2004-10-14", "constructor_id": "SAU" }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "_note": "Illustrative subset of laps (not all 44) for the top 3 finishers, showing the LAP_COMPLETED record shape. Positions/timestamps at laps 1, 5, 32 and 44 reflect real race facts (start order, lap-5 lead change, lap-32 fastest lap, final classification); intermediate lap times are synthetic placeholders. Replace with real OpenF1 lap data for production use.",
+  "session_id": "2025_R13_RACE",
+  "laps": [
+    { "driver_id": "NOR", "lap_number": 1,  "position": 1, "lap_time_ms": 107980, "is_pit_lap": false, "is_valid": true, "source": "illustrative" },
+    { "driver_id": "PIA", "lap_number": 1,  "position": 2, "lap_time_ms": 108250, "is_pit_lap": false, "is_valid": true, "source": "illustrative" },
+    { "driver_id": "LEC", "lap_number": 1,  "position": 3, "lap_time_ms": 108790, "is_pit_lap": false, "is_valid": true, "source": "illustrative" },
+
+    { "driver_id": "PIA", "lap_number": 5,  "position": 1, "lap_time_ms": 107100, "is_pit_lap": false, "is_valid": true, "source": "real", "note": "Piastri takes the lead from Norris this lap" },
+    { "driver_id": "NOR", "lap_number": 5,  "position": 2, "lap_time_ms": 107300, "is_pit_lap": false, "is_valid": true, "source": "illustrative" },
+    { "driver_id": "LEC", "lap_number": 5,  "position": 3, "lap_time_ms": 108100, "is_pit_lap": false, "is_valid": true, "source": "illustrative" },
+
+    { "driver_id": "PIA", "lap_number": 18, "position": 1, "lap_time_ms": 128400, "is_pit_lap": true,  "is_valid": true, "source": "illustrative" },
+    { "driver_id": "NOR", "lap_number": 19, "position": 2, "lap_time_ms": 128100, "is_pit_lap": true,  "is_valid": true, "source": "illustrative" },
+    { "driver_id": "LEC", "lap_number": 17, "position": 3, "lap_time_ms": 128900, "is_pit_lap": true,  "is_valid": true, "source": "illustrative" },
+
+    { "driver_id": "ANT", "lap_number": 32, "position": 8, "lap_time_ms": 104861, "is_pit_lap": false, "is_valid": true, "source": "real", "note": "Official fastest lap of the race, 1:44.861" },
+
+    { "driver_id": "PIA", "lap_number": 44, "position": 1, "lap_time_ms": 106900, "is_pit_lap": false, "is_valid": true, "source": "illustrative", "note": "Race winner, 44 laps total" },
+    { "driver_id": "NOR", "lap_number": 44, "position": 2, "lap_time_ms": 106500, "is_pit_lap": false, "is_valid": true, "source": "illustrative", "note": "Finished +3.415s behind winner (real gap)" },
+    { "driver_id": "LEC", "lap_number": 44, "position": 3, "lap_time_ms": 107200, "is_pit_lap": false, "is_valid": true, "source": "illustrative", "note": "Finished +20.185s behind winner (real gap)" }
+  ]
+}
