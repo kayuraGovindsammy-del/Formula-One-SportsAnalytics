@@ -61,6 +61,7 @@ function Drivers() {
       <section className="drivers-grid">
         {filteredDrivers.map((driver) => (
           <DriverCard
+            id={driver.id}
             key={driver.number}
             name={driver.name}
             team={driver.team}

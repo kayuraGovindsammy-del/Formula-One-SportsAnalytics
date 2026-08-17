@@ -1,4 +1,7 @@
+import { Link } from "react-router-dom";
+
 type DriverCardProps = {
+  id: number;  
   name: string;
   team: string;
   number: number;
@@ -8,6 +11,7 @@ type DriverCardProps = {
 };
 
 function DriverCard({
+  id,  
   name,
   team,
   number,
@@ -16,6 +20,7 @@ function DriverCard({
   podiums,
 }: DriverCardProps) {
   return (
+    <Link to={`/drivers/${id}`} className="driver-card-link">
     <article className="driver-card">
       <div className="driver-header">
         <div className="driver-number">{number}</div>
@@ -43,6 +48,7 @@ function DriverCard({
         </div>
       </div>
     </article>
+    </Link>
   );
 }
 
