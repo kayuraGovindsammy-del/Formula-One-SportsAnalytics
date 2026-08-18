@@ -1,11 +1,11 @@
 import { useParams } from "react-router-dom";
 import StatCard from "../../components/StatCard";
-import { races } from "../../data/races";
+import { races } from "../../data/f1Data";
 
 function RaceDetails() {
   const { id } = useParams();
 
-  const race = races.find((race) => race.id === Number(id));
+  const race = races.find((race) => race.round === Number(id));
 
   if (!race) {
     return (
@@ -21,13 +21,13 @@ function RaceDetails() {
         <p className="race-round">Round {race.round}</p>
         <h1>{race.name}</h1>
         <p>
-          {race.circuit}, {race.country}
+          {race.circuitName}, {race.locality}, {race.country}
         </p>
         <time dateTime={race.date}>{race.date}</time>
       </section>
 
       <section className="stats-grid">
-        <StatCard title="Winner" value={race.winner} />
+        <StatCard title="Format" value={race.hasSprint ? "Sprint Weekend" : "Standard Weekend"} />
         <StatCard title="Fastest Lap" value="--" />
         <StatCard title="DNFs" value="--" />
         <StatCard title="Pit Stops" value="--" />

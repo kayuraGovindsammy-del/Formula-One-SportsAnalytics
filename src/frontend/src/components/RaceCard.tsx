@@ -1,26 +1,26 @@
 import { Link } from "react-router-dom";
 
 type RaceCardProps = {
-  id: number;
   round: number;
   name: string;
-  circuit: string;
+  circuitName: string;
+  locality: string;
   country: string;
   date: string;
-  winner: string;
+  hasSprint: boolean;
 };
 
 function RaceCard({
-  id,
   round,
   name,
-  circuit,
+  circuitName,
+  locality,
   country,
   date,
-  winner,
+  hasSprint,
 }: RaceCardProps) {
   return (
-    <Link to={`/races/${id}`} className="race-card-link">
+    <Link to={`/races/${round}`} className="race-card-link">
     <article className="race-list-card">
       <header className="race-list-header">
         <span>Round {round}</span>
@@ -30,14 +30,14 @@ function RaceCard({
       <h2>{name}</h2>
 
       <p>
-       <strong>Venue:</strong> {circuit}
+       <strong>Venue:</strong> {circuitName}, {locality}
       </p>
 
       <p>{country}</p>
 
       <div className="race-winner">
-        <span>Winner</span>
-        <strong>{winner}</strong>
+        <span>Format</span>
+        <strong>{hasSprint ? "Sprint Weekend" : "Standard Weekend"}</strong>
       </div>
     </article>
     </Link>

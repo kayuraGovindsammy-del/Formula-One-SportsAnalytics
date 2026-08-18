@@ -1,6 +1,6 @@
 import { useState } from "react";
 import DriverCard from "../../components/DriverCard";
-import { drivers } from "../../data/drivers";
+import { drivers } from "../../data/f1Data";
 
 function Drivers() {
 
@@ -61,14 +61,13 @@ function Drivers() {
       <section className="drivers-grid">
         {filteredDrivers.map((driver) => (
           <DriverCard
-            id={driver.id}
-            key={driver.number}
+            driverId={driver.driverId}
+            key={driver.driverId}
             name={driver.name}
             team={driver.team}
             number={driver.number}
-            wins={driver.wins}
-            points={driver.points}
-            podiums={driver.podiums}
+            nationality={driver.nationality}
+            dateOfBirth={driver.dateOfBirth}
           />
         ))}
       </section>
