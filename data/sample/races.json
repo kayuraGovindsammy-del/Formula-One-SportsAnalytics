@@ -1,0 +1,30 @@
+{
+  "_source": "Jolpica-F1 API (api.jolpi.ca/ergast/f1/2025/races)",
+  "season": 2025,
+  "races": [
+    { "round": 1,  "race_name": "Australian Grand Prix",   "circuit_id": "albert_park",   "circuit_name": "Albert Park Grand Prix Circuit",      "locality": "Melbourne",  "country": "Australia",     "date": "2025-03-16", "has_sprint": false },
+    { "round": 2,  "race_name": "Chinese Grand Prix",       "circuit_id": "shanghai",      "circuit_name": "Shanghai International Circuit",      "locality": "Shanghai",   "country": "China",         "date": "2025-03-23", "has_sprint": true },
+    { "round": 3,  "race_name": "Japanese Grand Prix",      "circuit_id": "suzuka",        "circuit_name": "Suzuka Circuit",                       "locality": "Suzuka",     "country": "Japan",         "date": "2025-04-06", "has_sprint": false },
+    { "round": 4,  "race_name": "Bahrain Grand Prix",       "circuit_id": "bahrain",       "circuit_name": "Bahrain International Circuit",        "locality": "Sakhir",     "country": "Bahrain",       "date": "2025-04-13", "has_sprint": false },
+    { "round": 5,  "race_name": "Saudi Arabian Grand Prix", "circuit_id": "jeddah",        "circuit_name": "Jeddah Corniche Circuit",              "locality": "Jeddah",     "country": "Saudi Arabia",  "date": "2025-04-20", "has_sprint": false },
+    { "round": 6,  "race_name": "Miami Grand Prix",         "circuit_id": "miami",         "circuit_name": "Miami International Autodrome",        "locality": "Miami",      "country": "USA",           "date": "2025-05-04", "has_sprint": true },
+    { "round": 7,  "race_name": "Emilia Romagna Grand Prix","circuit_id": "imola",         "circuit_name": "Autodromo Enzo e Dino Ferrari",        "locality": "Imola",      "country": "Italy",         "date": "2025-05-18", "has_sprint": false },
+    { "round": 8,  "race_name": "Monaco Grand Prix",        "circuit_id": "monaco",        "circuit_name": "Circuit de Monaco",                    "locality": "Monte Carlo","country": "Monaco",        "date": "2025-05-25", "has_sprint": false },
+    { "round": 9,  "race_name": "Spanish Grand Prix",       "circuit_id": "catalunya",     "circuit_name": "Circuit de Barcelona-Catalunya",       "locality": "Barcelona",  "country": "Spain",         "date": "2025-06-01", "has_sprint": false },
+    { "round": 10, "race_name": "Canadian Grand Prix",      "circuit_id": "villeneuve",    "circuit_name": "Circuit Gilles Villeneuve",            "locality": "Montreal",   "country": "Canada",        "date": "2025-06-15", "has_sprint": false },
+    { "round": 11, "race_name": "Austrian Grand Prix",      "circuit_id": "red_bull_ring", "circuit_name": "Red Bull Ring",                        "locality": "Spielberg",  "country": "Austria",       "date": "2025-06-29", "has_sprint": false },
+    { "round": 12, "race_name": "British Grand Prix",       "circuit_id": "silverstone",   "circuit_name": "Silverstone Circuit",                  "locality": "Silverstone","country": "UK",            "date": "2025-07-06", "has_sprint": false },
+    { "round": 13, "race_name": "Belgian Grand Prix",       "circuit_id": "spa",           "circuit_name": "Circuit de Spa-Francorchamps",         "locality": "Spa",        "country": "Belgium",       "date": "2025-07-27", "has_sprint": true },
+    { "round": 14, "race_name": "Hungarian Grand Prix",     "circuit_id": "hungaroring",   "circuit_name": "Hungaroring",                          "locality": "Budapest",   "country": "Hungary",       "date": "2025-08-03", "has_sprint": false },
+    { "round": 15, "race_name": "Dutch Grand Prix",         "circuit_id": "zandvoort",     "circuit_name": "Circuit Park Zandvoort",               "locality": "Zandvoort",  "country": "Netherlands",   "date": "2025-08-31", "has_sprint": false },
+    { "round": 16, "race_name": "Italian Grand Prix",       "circuit_id": "monza",         "circuit_name": "Autodromo Nazionale di Monza",         "locality": "Monza",      "country": "Italy",         "date": "2025-09-07", "has_sprint": false },
+    { "round": 17, "race_name": "Azerbaijan Grand Prix",    "circuit_id": "baku",          "circuit_name": "Baku City Circuit",                    "locality": "Baku",       "country": "Azerbaijan",    "date": "2025-09-21", "has_sprint": false },
+    { "round": 18, "race_name": "Singapore Grand Prix",     "circuit_id": "marina_bay",    "circuit_name": "Marina Bay Street Circuit",            "locality": "Marina Bay", "country": "Singapore",     "date": "2025-10-05", "has_sprint": false },
+    { "round": 19, "race_name": "United States Grand Prix", "circuit_id": "americas",      "circuit_name": "Circuit of the Americas",              "locality": "Austin",     "country": "USA",           "date": "2025-10-19", "has_sprint": true },
+    { "round": 20, "race_name": "Mexico City Grand Prix",   "circuit_id": "rodriguez",     "circuit_name": "Autodromo Hermanos Rodriguez",         "locality": "Mexico City","country": "Mexico",        "date": "2025-10-26", "has_sprint": false },
+    { "round": 21, "race_name": "Sao Paulo Grand Prix",     "circuit_id": "interlagos",    "circuit_name": "Autodromo Jose Carlos Pace",           "locality": "Sao Paulo",  "country": "Brazil",        "date": "2025-11-09", "has_sprint": true },
+    { "round": 22, "race_name": "Las Vegas Grand Prix",     "circuit_id": "vegas",         "circuit_name": "Las Vegas Strip Street Circuit",       "locality": "Las Vegas",  "country": "USA",           "date": "2025-11-23", "has_sprint": false },
+    { "round": 23, "race_name": "Qatar Grand Prix",         "circuit_id": "losail",        "circuit_name": "Losail International Circuit",         "locality": "Lusail",     "country": "Qatar",         "date": "2025-11-30", "has_sprint": true },
+    { "round": 24, "race_name": "Abu Dhabi Grand Prix",     "circuit_id": "yas_marina",    "circuit_name": "Yas Marina Circuit",                   "locality": "Abu Dhabi",  "country": "UAE",           "date": "2025-12-07", "has_sprint": false }
+  ]
+}

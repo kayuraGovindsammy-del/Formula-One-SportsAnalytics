@@ -1,0 +1,45 @@
+{
+  "_source": "Race facts (result order, points, pit counts, pole time, fastest lap) from Jolpica API, ESPN and RaceFans race reports for the 2025 Belgian Grand Prix. Lap-by-lap timing not covered by these sources is marked \"illustrative\" below and should be replaced with real OpenF1 lap data before this is used for anything beyond schema demonstration.",
+  "session": {
+    "session_id": "2025_R13_RACE",
+    "round": 13,
+    "race_name": "Belgian Grand Prix",
+    "type": "RACE",
+    "date": "2025-07-27",
+    "total_laps": 44
+  },
+  "events": [
+    { "event_id": "evt_001", "session_id": "2025_R13_RACE", "type": "SESSION_START", "timestamp": "2025-07-27T13:00:00Z", "payload": {}, "source": "real" },
+
+    { "event_id": "evt_002", "session_id": "2025_R13_RACE", "driver_id": "PIA", "type": "LAP_COMPLETED", "lap_number": 1, "payload": { "lap_time_ms": 108250, "position": 2, "is_pit_lap": false, "is_valid": true }, "source": "illustrative" },
+    { "event_id": "evt_003", "session_id": "2025_R13_RACE", "driver_id": "NOR", "type": "LAP_COMPLETED", "lap_number": 1, "payload": { "lap_time_ms": 107980, "position": 1, "is_pit_lap": false, "is_valid": true }, "source": "illustrative" },
+
+    { "event_id": "evt_004", "session_id": "2025_R13_RACE", "driver_id": "PIA", "type": "POSITION_CHANGE", "lap_number": 5, "payload": { "overtaken_driver_id": "NOR", "position_before": 2, "position_after": 1 }, "source": "real", "note": "Piastri passed Norris for the race lead on lap 5" },
+
+    { "event_id": "evt_005", "session_id": "2025_R13_RACE", "driver_id": "PIA", "type": "PIT_STOP", "lap_number": 18, "payload": { "duration_ms": 2400 }, "source": "illustrative", "note": "Real source confirms 1 pit stop for this driver; exact lap/duration not sourced" },
+    { "event_id": "evt_006", "session_id": "2025_R13_RACE", "driver_id": "NOR", "type": "PIT_STOP", "lap_number": 19, "payload": { "duration_ms": 2350 }, "source": "illustrative" },
+    { "event_id": "evt_007", "session_id": "2025_R13_RACE", "driver_id": "LEC", "type": "PIT_STOP", "lap_number": 17, "payload": { "duration_ms": 2500 }, "source": "illustrative" },
+
+    { "event_id": "evt_008", "session_id": "2025_R13_RACE", "driver_id": "ANT", "type": "LAP_COMPLETED", "lap_number": 32, "payload": { "lap_time_ms": 104861, "is_pit_lap": false, "is_valid": true }, "source": "real" },
+    { "event_id": "evt_009", "session_id": "2025_R13_RACE", "driver_id": "ANT", "type": "FASTEST_LAP_SET", "lap_number": 32, "payload": { "lap_time_ms": 104861 }, "source": "real", "note": "1:44.861, official fastest lap of the race" },
+
+    { "event_id": "evt_010", "session_id": "2025_R13_RACE", "type": "SESSION_END", "timestamp": "2025-07-27T14:30:00Z", "payload": {}, "source": "real" }
+  ],
+  "session_result": {
+    "_note": "This is a DERIVED table, not raw event data - shown here to demonstrate what the event log above should be able to reconstruct. Source: ESPN / RaceFans 2025 Belgian GP results.",
+    "pole_position": { "driver_id": "NOR", "time_ms": 100562 },
+    "fastest_lap": { "driver_id": "ANT", "lap_number": 32, "time_ms": 104861 },
+    "classification": [
+      { "position": 1,  "driver_id": "PIA", "constructor_id": "MCL", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 0 },
+      { "position": 2,  "driver_id": "NOR", "constructor_id": "MCL", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 3415 },
+      { "position": 3,  "driver_id": "LEC", "constructor_id": "FER", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 20185 },
+      { "position": 4,  "driver_id": "VER", "constructor_id": "RBR", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 21731 },
+      { "position": 5,  "driver_id": "RUS", "constructor_id": "MER", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 34863 },
+      { "position": 6,  "driver_id": "ALB", "constructor_id": "WIL", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 39926 },
+      { "position": 7,  "driver_id": "HAM", "constructor_id": "FER", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 40679 },
+      { "position": 8,  "driver_id": "LAW", "constructor_id": "RB",  "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 52033 },
+      { "position": 9,  "driver_id": "BOR", "constructor_id": "SAU", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 56434 },
+      { "position": 10, "driver_id": "GAS", "constructor_id": "ALP", "laps": 44, "pit_stops": 1, "gap_to_winner_ms": 72714 }
+    ]
+  }
+}
