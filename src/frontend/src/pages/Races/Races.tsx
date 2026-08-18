@@ -1,6 +1,6 @@
 import { useState } from "react";
 import RaceCard from "../../components/RaceCard";
-import { races } from "../../data/races";
+import { races } from "../../data/f1Data";
 
 function Races() {
 
@@ -12,7 +12,7 @@ function Races() {
     return (
       race.name.toLowerCase().includes(search) ||
       race.country.toLowerCase().includes(search) ||
-      race.circuit.toLowerCase().includes(search)
+      race.circuitName.toLowerCase().includes(search)
     );
     });
   return (
@@ -39,14 +39,14 @@ function Races() {
       <section className="races-grid">
         {filteredRaces.map((race) => (
           <RaceCard
-            id={race.id}
-            key={race.id}
+            key={race.round}
             round={race.round}
             name={race.name}
-            circuit={race.circuit}
+            circuitName={race.circuitName}
+            locality={race.locality}
             country={race.country}
             date={race.date}
-            winner={race.winner}
+            hasSprint={race.hasSprint}
           />
         ))}
       </section>

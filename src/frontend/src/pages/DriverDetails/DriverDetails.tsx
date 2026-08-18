@@ -1,11 +1,11 @@
 import { useParams } from "react-router-dom";
 import StatCard from "../../components/StatCard";
-import { drivers } from "../../data/drivers";
+import { drivers } from "../../data/f1Data";
 
 function DriverDetails() {
   const { id } = useParams();
 
-  const driver = drivers.find((driver) => driver.id === Number(id));
+  const driver = drivers.find((driver) => driver.driverId === id);
 
   if (!driver) {
     return (
@@ -26,9 +26,9 @@ function DriverDetails() {
       </section>
 
       <section className="stats-grid">
-        <StatCard title="Points" value={driver.points} />
-        <StatCard title="Wins" value={driver.wins} />
-        <StatCard title="Podiums" value={driver.podiums} />
+        <StatCard title="Nationality" value={driver.nationality} />
+        <StatCard title="Date of Birth" value={driver.dateOfBirth} />
+        <StatCard title="Wins" value="--" />
         <StatCard title="DNFs" value="--" />
       </section>
 

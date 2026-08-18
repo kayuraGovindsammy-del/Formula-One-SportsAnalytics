@@ -1,26 +1,24 @@
 import { Link } from "react-router-dom";
 
 type DriverCardProps = {
-  id: number;  
+  driverId: string;
   name: string;
   team: string;
   number: number;
-  wins: number;
-  points: number;
-  podiums: number;
+  nationality: string;
+  dateOfBirth: string;
 };
 
 function DriverCard({
-  id,  
+  driverId,
   name,
   team,
   number,
-  wins,
-  points,
-  podiums,
+  nationality,
+  dateOfBirth,
 }: DriverCardProps) {
   return (
-    <Link to={`/drivers/${id}`} className="driver-card-link">
+    <Link to={`/drivers/${driverId}`} className="driver-card-link">
     <article className="driver-card">
       <div className="driver-header">
         <div className="driver-number">{number}</div>
@@ -33,18 +31,13 @@ function DriverCard({
 
       <div className="driver-stats">
         <div>
-          <span>Wins</span>
-          <strong>{wins}</strong>
+          <span>Nationality</span>
+          <strong>{nationality}</strong>
         </div>
 
         <div>
-          <span>Points</span>
-          <strong>{points}</strong>
-        </div>
-
-        <div>
-          <span>Podiums</span>
-          <strong>{podiums}</strong>
+          <span>Born</span>
+          <strong>{dateOfBirth}</strong>
         </div>
       </div>
     </article>

@@ -4,7 +4,7 @@ import Dashboard from "./pages/Dashboard/Dashboard";
 import Drivers from "./pages/Drivers/Drivers";
 import Races from "./pages/Races/Races";
 import DriverDetails from "./pages/DriverDetails/DriverDetails";
-import RaceDetails from "./pages/RaceDetails/Racedetails";
+import RaceDetails from "./pages/RaceDetails/RaceDetails";
 
 
 function App() {
