@@ -1,0 +1,229 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------
+    // Helper functions
+    // ---------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function userExists() {
+      return isSignedIn() && exists(userPath());
+    }
+
+    function currentUser() {
+      return get(userPath());
+    }
+
+    function isAdmin() {
+      return userExists()
+        && currentUser().data.role == "ADMIN";
+    }
+
+    function isApprovedSubmitter() {
+      return userExists()
+        && currentUser().data.role == "SUBMITTER"
+        && currentUser().data.submitterStatus == "approved";
+    }
+
+    function canSubmit() {
+      return isAdmin() || isApprovedSubmitter();
+    }
+
+
+    // =========================================================
+    // USERS
+    // =========================================================
+
+    match /users/{userId} {
+
+      // Users may read their own profile.
+      // Administrators may read all user profiles.
+      allow read: if isSignedIn()
+        && (
+          request.auth.uid == userId
+          || isAdmin()
+        );
+
+
+      // -------------------------------------------------------
+      // New account creation
+      // -------------------------------------------------------
+      // A newly authenticated user may create only their own
+      // profile and must start as a normal USER.
+
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == "USER"
+        && request.resource.data.submitterStatus == "none";
+
+
+      // -------------------------------------------------------
+      // User updates
+      // -------------------------------------------------------
+      // Normal users may NOT change their own role.
+      //
+      // They may keep their existing submitter status or
+      // request submitter access:
+      //
+      // none -> pending
+
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+
+        // Role cannot be changed by the user.
+        && request.resource.data.role
+          == resource.data.role
+
+        // UID cannot be changed.
+        && request.resource.data.uid
+          == resource.data.uid
+
+        && (
+          // No change to submitter status.
+          request.resource.data.submitterStatus
+            == resource.data.submitterStatus
+
+          ||
+
+          // Submitter access request.
+          (
+            resource.data.role == "USER"
+            && resource.data.submitterStatus == "none"
+            && request.resource.data.submitterStatus == "pending"
+          )
+        );
+
+
+      // -------------------------------------------------------
+      // Administrator updates
+      // -------------------------------------------------------
+      // Administrators may approve/reject submitter requests
+      // and manage user roles.
+
+      allow update: if isAdmin();
+
+
+      // -------------------------------------------------------
+      // Account deletion
+      // -------------------------------------------------------
+      // A user may delete their own Firestore profile.
+      // Administrators may also delete user profiles.
+
+      allow delete: if isSignedIn()
+        && (
+          request.auth.uid == userId
+          || isAdmin()
+        );
+    }
+
+
+    // =========================================================
+    // SUBMISSIONS
+    // =========================================================
+
+    match /submissions/{submissionId} {
+
+      // -------------------------------------------------------
+      // Create submission
+      // -------------------------------------------------------
+      // Only:
+      //
+      // ADMIN
+      //
+      // OR
+      //
+      // SUBMITTER + approved
+      //
+      // may create submissions.
+
+      allow create: if canSubmit()
+
+        // A user can only submit as themselves.
+        && request.resource.data.submittedBy
+          == request.auth.uid
+
+        // All new submissions must enter the review workflow.
+        && request.resource.data.status == "pending"
+
+        // New submissions cannot begin with validation errors.
+        && request.resource.data.validationErrors is list
+        && request.resource.data.validationErrors.size() == 0
+
+        // Event information must exist.
+        && request.resource.data.event is map
+
+        // Required common event fields.
+        && request.resource.data.event.event_id is string
+        && request.resource.data.event.session_id is string
+        && request.resource.data.event.type is string
+        && request.resource.data.event.timestamp is string
+        && request.resource.data.event.payload is map
+
+        // Only event types defined by the project are accepted.
+        && request.resource.data.event.type in [
+          "SESSION_START",
+          "SESSION_END",
+          "LAP_COMPLETED",
+          "PIT_STOP",
+          "POSITION_CHANGE",
+          "PENALTY_ISSUED",
+          "RETIREMENT",
+          "FASTEST_LAP_SET"
+        ];
+
+
+      // -------------------------------------------------------
+      // Read submissions
+      // -------------------------------------------------------
+      // A submitter may read submissions that they created.
+      //
+      // Administrators may read all submissions.
+
+      allow read: if isSignedIn()
+        && (
+          resource.data.submittedBy == request.auth.uid
+          || isAdmin()
+        );
+
+
+      // -------------------------------------------------------
+      // Review submissions
+      // -------------------------------------------------------
+      // Only administrators can modify a submission after
+      // creation.
+
+      allow update: if isAdmin()
+        && request.resource.data.status in [
+          "pending",
+          "accepted",
+          "rejected"
+        ];
+
+
+      // Only administrators may delete submissions.
+      allow delete: if isAdmin();
+    }
+
+
+    // =========================================================
+    // DEFAULT DENY
+    // =========================================================
+
+    // Any Firestore collection not explicitly defined above
+    // is denied.
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
