@@ -3,10 +3,10 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyBnqvmX575rW3vuSE4cgWV-YAeI9mois0s",
+  authDomain: "sports-analytics-f1.firebaseapp.com",
+  projectId: "sports-analytics-f1",
+  appId: "1:754958851474:web:669ea55cbce9ed9b1bf54b",
 };
 
 const app = initializeApp(firebaseConfig);
