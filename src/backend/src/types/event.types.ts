@@ -16,10 +16,13 @@ export interface LapCompletedPayload {
   is_valid: boolean;
 }
 
+// docs/event-schema.md documents tyre_in/tyre_out, but the PIT_STOP events in
+// data/sample/events.json carry only duration_ms — so they're optional here
+// rather than claiming a guarantee the data doesn't currently meet.
 export interface PitStopPayload {
   duration_ms: number;
-  tyre_in: string;
-  tyre_out: string;
+  tyre_in?: string;
+  tyre_out?: string;
 }
 
 export interface PositionChangePayload {
@@ -57,13 +60,19 @@ export type EventPayload =
 // The common envelope from docs/event-schema.md §3, matching
 // data/sample/events.json entries. `driver_id` and `lap_number` are absent
 // on SESSION_START/SESSION_END.
+//
+// `timestamp` is nullable despite event-schema.md §3 marking it required:
+// 8 of the 10 events in data/sample/events.json have no timestamp field.
+// Either the sample data needs backfilling or the schema needs to mark this
+// nullable — until that's decided, the API reports null rather than inventing
+// a value.
 export interface Event {
   event_id: string;
   session_id: string;
   driver_id?: string;
   type: EventType;
   lap_number?: number;
-  timestamp: string;
+  timestamp: string | null;
   payload: EventPayload;
 }
 
@@ -94,10 +103,15 @@ export interface ClassificationEntry {
   gap_to_winner_ms: number;
 }
 
+export interface PolePosition {
+  driver_id: string;
+  time_ms: number;
+}
+
 // data/sample/events.json `session_result` — the derived output the
 // derivation engine reproduces from the event log rather than storing.
 export interface SessionResult {
-  pole_position?: string;
+  pole_position?: PolePosition;
   fastest_lap: FastestLapResult;
   classification: ClassificationEntry[];
 }

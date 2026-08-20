@@ -10,6 +10,14 @@ export interface Driver {
   constructor_id: string;
 }
 
+/**
+ * A driver as returned by the API — the stored driver plus the server-resolved
+ * `constructor_name`, per docs/api-design.md §4.1.
+ */
+export interface DriverRecord extends Driver {
+  constructor_name: string;
+}
+
 // database/schema.sql `constructors` table.
 export interface Constructor {
   constructor_id: string;
