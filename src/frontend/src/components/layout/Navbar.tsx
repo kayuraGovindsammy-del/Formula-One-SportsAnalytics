@@ -32,6 +32,17 @@ function Navbar() {
             </NavLink>
           </li>
 
+          <li>
+            <NavLink to="/constructors">
+              Constructors
+            </NavLink>
+          
+          </li>
+
+          <li>
+             <NavLink to="/statistics">Statistics</NavLink>
+          </li>
+
           {canSubmit && (
             <li>
               <NavLink to="/submit">

@@ -27,6 +27,8 @@ nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 nav h2 {
@@ -35,7 +37,8 @@ nav h2 {
 
 nav ul {
   display: flex;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -61,7 +64,36 @@ nav a:hover {
 }
 
 nav a.active {
+  color: #e10600;
   font-weight: bold;
+}
+
+nav a:focus-visible {
+  outline: 2px solid #e10600;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+@media (max-width: 700px) {
+  header {
+    padding: 1rem;
+  }
+
+  nav {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  nav ul {
+    width: 100%;
+  }
+}
+
+@media (max-width: 450px) {
+  nav ul {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 }
 
 .stats-grid {
@@ -585,4 +617,152 @@ nav a.active {
   .race-details-grid {
     grid-template-columns: 1fr;
   }
+}
+.constructor-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 2rem 0 1rem;
+}
+
+.constructor-controls label {
+  font-weight: bold;
+}
+
+.constructor-controls input {
+  width: 100%;
+  max-width: 500px;
+  background-color: #1c1c1c;
+  border: 1px solid #333;
+  border-radius: 8px;
+  color: white;
+  padding: 0.8rem 1rem;
+}
+
+.constructor-controls input:focus {
+  outline: 2px solid #e10600;
+  outline-offset: 2px;
+}
+
+.constructors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.constructor-card {
+  background-color: #1c1c1c;
+  border: 1px solid #333;
+  border-top: 3px solid #e10600;
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.constructor-card h2 {
+  margin: 0;
+}
+
+.constructor-drivers {
+  margin-top: 1.5rem;
+}
+
+.constructor-drivers h3 {
+  color: #aaa;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.constructor-drivers ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.constructor-drivers li {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #333;
+}
+
+.constructor-drivers li:last-child {
+  border-bottom: none;
+}
+
+.constructor-drivers li span {
+  color: #e10600;
+  font-weight: bold;
+}
+
+.statistics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.statistics-card {
+  background-color: #1c1c1c;
+  border: 1px solid #333;
+  border-top: 3px solid #e10600;
+  border-radius: 10px;
+  padding: 1.5rem;
+}
+
+.statistics-card h2 {
+  margin-top: 0;
+}
+
+.statistics-list {
+  margin: 0;
+}
+
+.statistics-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid #333;
+}
+
+.statistics-list div:last-child {
+  border-bottom: none;
+}
+
+.statistics-list dt {
+  color: #aaa;
+}
+
+.statistics-list dd {
+  margin: 0;
+  font-weight: bold;
+  text-align: right;
+}
+
+.statistics-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.statistics-ranking li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #333;
+}
+
+.statistics-ranking li:last-child {
+  border-bottom: none;
+}
+
+.statistics-ranking strong {
+  color: #aaa;
+  text-align: right;
+}
+
+.statistics-chart-section {
+  margin-top: 2rem;
 }
