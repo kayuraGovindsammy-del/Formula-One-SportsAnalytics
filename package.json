@@ -1,0 +1,12 @@
+{
+  "name": "f1-sport-analytics",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm install --prefix src/backend && npm run build --prefix src/backend",
+    "start": "npm start --prefix src/backend"
+  }
+}

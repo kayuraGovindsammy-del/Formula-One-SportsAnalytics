@@ -83,9 +83,30 @@ export interface RawSessionSummary {
   total_laps: number;
 }
 
+export interface RawClassificationResult {
+  position: number;
+  driver_id: string;
+  constructor_id: string;
+  laps: number;
+  pit_stops: number;
+  gap_to_winner_ms: number;
+}
+
+export interface RawFastestLapResult {
+  driver_id: string;
+  lap_number: number;
+  time_ms: number;
+}
+
+export interface RawSessionResult {
+  fastest_lap: RawFastestLapResult;
+  classification: RawClassificationResult[];
+}
+
 interface EventsFile {
   session: RawSessionSummary;
   events: RawEvent[];
+  session_result: RawSessionResult;
 }
 
 // -- Repo-root resolution ---------------------------------------------------
@@ -145,6 +166,9 @@ export const lapsSessionId: string = lapsFile.session_id;
 
 /** The single session summary described by events.json. */
 export const rawSessionSummary: RawSessionSummary = eventsFile.session;
+
+export const rawSessionResult: RawSessionResult =
+  eventsFile.session_result;
 
 /** races.json stores the season as a number; season_id is its string form. */
 export const seasonId: string = String(racesFile.season);

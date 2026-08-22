@@ -1,12 +1,10 @@
 import { useState } from "react";
-import {
-  addDoc,
-  collection,
-  serverTimestamp,
-} from "firebase/firestore";
 
-import { db } from "../../auth/firebase";
 import { useAuth } from "../../auth/AuthContext";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  "https://f1-sport-analytics-api-production.up.railway.app/api/v1";
 
 type EventType =
   | "SESSION_START"
@@ -432,21 +430,33 @@ function SubmitData() {
         payload: buildPayload(),
       };
 
-      await addDoc(
-        collection(db, "submissions"),
+      const token = await user.getIdToken();
+
+      const response = await fetch(
+        `${API_BASE_URL}/submissions`,
         {
-          submittedBy: user.uid,
-          submittedByEmail:
-            user.email ?? "",
-          submittedAt: serverTimestamp(),
-
-          status: "pending",
-
-          event: eventData,
-
-          validationErrors: [],
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            event: eventData,
+          }),
         }
       );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error?.message ||
+            result?.error ||
+            "Failed to submit event data."
+        );
+      }
+
+      console.log("Submission created:", result);
 
       setMessage(
         "Event submitted successfully and is pending review."

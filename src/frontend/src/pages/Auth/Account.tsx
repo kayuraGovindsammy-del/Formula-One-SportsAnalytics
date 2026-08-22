@@ -127,7 +127,8 @@ function Account() {
       </p>
 
       <p>
-        <strong>Role:</strong> {role ?? "Loading..."}
+        <strong>Role:</strong>{" "}
+        {role ?? "Loading..."}
       </p>
 
       <p>
@@ -135,53 +136,53 @@ function Account() {
         {submitterStatus ?? "Loading..."}
       </p>
 
-      {role === "USER" && submitterStatus === "none" && (
-        <div style={{ marginTop: "30px" }}>
-          <h2>Submitter Access</h2>
+      {role === "USER" &&
+        submitterStatus === "none" && (
+          <div style={{ marginTop: "30px" }}>
+            <h2>Submitter Access</h2>
 
-          <p>
-            Request permission to submit Formula 1 event data
-            to the platform.
-          </p>
+            <p>
+              Request permission to submit Formula 1 event
+              data to the platform.
+            </p>
 
-          <button
-            onClick={handleSubmitterRequest}
-            disabled={requestLoading}
-          >
-            {requestLoading
-              ? "Sending Request..."
-              : "Request Submitter Access"}
-          </button>
-        </div>
-      )}
+            <button
+              onClick={handleSubmitterRequest}
+              disabled={requestLoading}
+            >
+              {requestLoading
+                ? "Sending Request..."
+                : "Request Submitter Access"}
+            </button>
+          </div>
+        )}
 
-      {role === "USER" && submitterStatus === "pending" && (
-        <div style={{ marginTop: "30px" }}>
-          <h2>Submitter Access</h2>
+      {role === "USER" &&
+        submitterStatus === "pending" && (
+          <div style={{ marginTop: "30px" }}>
+            <h2>Submitter Access</h2>
 
-          <p>
-            Your submitter request is pending admin approval.
-          </p>
-        </div>
-      )}
+            <p>
+              Your submitter request is pending admin
+              approval.
+            </p>
+          </div>
+        )}
 
-      {role === "USER" && submitterStatus === "rejected" && (
-        <div style={{ marginTop: "30px" }}>
-          <h2>Submitter Access</h2>
+      {role === "USER" &&
+        submitterStatus === "rejected" && (
+          <div style={{ marginTop: "30px" }}>
+            <h2>Submitter Access</h2>
 
-          <p>
-            Your submitter request was rejected.
-          </p>
-        </div>
-      )}
+            <p>Your submitter request was rejected.</p>
+          </div>
+        )}
 
       {role === "SUBMITTER" && (
         <div style={{ marginTop: "30px" }}>
           <h2>Submitter Access</h2>
 
-          <p>
-            You are an approved submitter.
-          </p>
+          <p>You are an approved submitter.</p>
         </div>
       )}
 
@@ -189,9 +190,7 @@ function Account() {
         <div style={{ marginTop: "30px" }}>
           <h2>Administrator</h2>
 
-          <p>
-            You have administrator access.
-          </p>
+          <p>You have administrator access.</p>
         </div>
       )}
 

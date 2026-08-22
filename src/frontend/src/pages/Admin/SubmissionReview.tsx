@@ -1,21 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  doc,
-  updateDoc,
-} from "firebase/firestore";
+import { useAuth } from "../../auth/AuthContext";
 
-import { db } from "../../auth/firebase";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ??
+  "https://f1-sport-analytics-api-production.up.railway.app/api/v1";
 
 interface Submission {
-  id: string;
-  submittedBy: string;
-  submittedByEmail: string;
-  submittedAt?: any;
+  submission_id: number;
+  submitted_by: string;
+  submitted_by_email: string;
+  submitted_at?: string;
   status: string;
 
   event?: {
@@ -28,77 +23,148 @@ interface Submission {
     payload?: Record<string, unknown>;
   };
 
-  validationErrors?: string[];
+  validation_errors?: string[];
 }
 
 function SubmissionReview() {
+  const { user } = useAuth();
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const [processingId, setProcessingId] =
+    useState<number | null>(null);
+
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const submissionsQuery = query(
-      collection(db, "submissions"),
-      where("status", "==", "pending")
-    );
+  const loadSubmissions = useCallback(async () => {
+    if (!user) {
+      setError("You must be signed in.");
+      setLoading(false);
+      return;
+    }
 
-    const unsubscribe = onSnapshot(
-      submissionsQuery,
-      (snapshot) => {
-        const pendingSubmissions: Submission[] = snapshot.docs.map(
-          (document) => {
-            const data = document.data();
+    try {
+      setError("");
+      setLoading(true);
 
-            return {
-              id: document.id,
-              submittedBy: data.submittedBy ?? "",
-              submittedByEmail: data.submittedByEmail ?? "",
-              submittedAt: data.submittedAt,
-              status: data.status ?? "pending",
-              event: data.event ?? {},
-              validationErrors: data.validationErrors ?? [],
-            };
-          }
+      const token = await user.getIdToken();
+
+      const response = await fetch(
+        `${API_BASE_URL}/submissions`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error?.message ||
+            result?.error ||
+            "Failed to load submissions."
+        );
+      }
+
+      const allSubmissions: Submission[] =
+        Array.isArray(result.data)
+          ? result.data
+          : [];
+
+      const pendingSubmissions =
+        allSubmissions.filter(
+          (submission) =>
+            submission.status.toLowerCase() === "pending"
         );
 
-        setSubmissions(pendingSubmissions);
-        setLoading(false);
-      },
-      (err) => {
-        console.error(err);
-        setError("Failed to load submissions.");
-        setLoading(false);
-      }
-    );
+      setSubmissions(pendingSubmissions);
+    } catch (err) {
+      console.error("Failed to load submissions:", err);
 
-    return unsubscribe;
-  }, []);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load submissions."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
-  const handleAccept = async (submissionId: string) => {
+  useEffect(() => {
+    void loadSubmissions();
+  }, [loadSubmissions]);
+
+  const handleAccept = async (
+    submissionId: number
+  ) => {
+    if (!user) {
+      setError("You must be signed in.");
+      return;
+    }
+
     try {
       setError("");
       setProcessingId(submissionId);
 
-      const submissionRef = doc(
-        db,
-        "submissions",
-        submissionId
+      const token = await user.getIdToken();
+
+      const response = await fetch(
+        `${API_BASE_URL}/submissions/${submissionId}`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            status: "accepted",
+            validation_errors: [],
+          }),
+        }
       );
 
-      await updateDoc(submissionRef, {
-        status: "accepted",
-        validationErrors: [],
-      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error?.message ||
+            result?.error ||
+            "Failed to accept submission."
+        );
+      }
+
+      await loadSubmissions();
     } catch (err) {
-      console.error(err);
-      setError("Failed to accept submission.");
+      console.error(
+        "Failed to accept submission:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to accept submission."
+      );
     } finally {
       setProcessingId(null);
     }
   };
 
-  const handleReject = async (submissionId: string) => {
+  const handleReject = async (
+    submissionId: number
+  ) => {
+    if (!user) {
+      setError("You must be signed in.");
+      return;
+    }
+
     const reason = window.prompt(
       "Enter the reason for rejecting this submission:"
     );
@@ -116,19 +182,49 @@ function SubmissionReview() {
       setError("");
       setProcessingId(submissionId);
 
-      const submissionRef = doc(
-        db,
-        "submissions",
-        submissionId
+      const token = await user.getIdToken();
+
+      const response = await fetch(
+        `${API_BASE_URL}/submissions/${submissionId}`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            status: "rejected",
+            validation_errors: [
+              reason.trim(),
+            ],
+          }),
+        }
       );
 
-      await updateDoc(submissionRef, {
-        status: "rejected",
-        validationErrors: [reason.trim()],
-      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          result?.error?.message ||
+            result?.error ||
+            "Failed to reject submission."
+        );
+      }
+
+      await loadSubmissions();
     } catch (err) {
-      console.error(err);
-      setError("Failed to reject submission.");
+      console.error(
+        "Failed to reject submission:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to reject submission."
+      );
     } finally {
       setProcessingId(null);
     }
@@ -177,7 +273,7 @@ function SubmissionReview() {
         <div style={{ marginTop: "30px" }}>
           {submissions.map((submission) => (
             <div
-              key={submission.id}
+              key={submission.submission_id}
               style={{
                 border: "1px solid #444",
                 borderRadius: "10px",
@@ -186,19 +282,34 @@ function SubmissionReview() {
               }}
             >
               <h2>
-                {submission.event?.type ?? "Unknown Event"}
+                {submission.event?.type ??
+                  "Unknown Event"}
               </h2>
 
               <p>
+                <strong>Submission ID:</strong>{" "}
+                {submission.submission_id}
+              </p>
+
+              <p>
                 <strong>Submitted By:</strong>{" "}
-                {submission.submittedByEmail ||
-                  submission.submittedBy}
+                {submission.submitted_by_email ||
+                  submission.submitted_by}
               </p>
 
               <p>
                 <strong>Status:</strong>{" "}
                 {submission.status}
               </p>
+
+              {submission.submitted_at && (
+                <p>
+                  <strong>Submitted At:</strong>{" "}
+                  {new Date(
+                    submission.submitted_at
+                  ).toLocaleString()}
+                </p>
+              )}
 
               <hr />
 
@@ -253,23 +364,30 @@ function SubmissionReview() {
               >
                 <button
                   onClick={() =>
-                    handleAccept(submission.id)
+                    handleAccept(
+                      submission.submission_id
+                    )
                   }
                   disabled={
-                    processingId === submission.id
+                    processingId ===
+                    submission.submission_id
                   }
                 >
-                  {processingId === submission.id
+                  {processingId ===
+                  submission.submission_id
                     ? "Processing..."
                     : "Accept"}
                 </button>
 
                 <button
                   onClick={() =>
-                    handleReject(submission.id)
+                    handleReject(
+                      submission.submission_id
+                    )
                   }
                   disabled={
-                    processingId === submission.id
+                    processingId ===
+                    submission.submission_id
                   }
                 >
                   Reject

@@ -1,23 +1,56 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DriverCard from "../../components/DriverCard";
-import { drivers } from "../../data/f1Data";
+import { fetchDrivers, type Driver } from "../../data/f1Data";
 
 function Drivers() {
-
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedTeam, setSelectedTeam] = useState("All Teams");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadDrivers = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        setDrivers(await fetchDrivers());
+      } catch (err) {
+        console.error("Failed to load drivers:", err);
+        setError("Failed to load drivers from the API.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadDrivers();
+  }, []);
+
+  const teams = useMemo(
+    () => Array.from(new Set(drivers.map((driver) => driver.team))).sort(),
+    [drivers]
+  );
 
   const filteredDrivers = drivers.filter((driver) => {
-  const matchesSearch = driver.name
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase());
+    const matchesSearch = driver.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
 
-  const matchesTeam =
-    selectedTeam === "All Teams" || driver.team === selectedTeam;
+    const matchesTeam =
+      selectedTeam === "All Teams" || driver.team === selectedTeam;
 
-  return matchesSearch && matchesTeam;
+    return matchesSearch && matchesTeam;
   });
-  
+
+  if (loading) {
+    return (
+      <main>
+        <h1>2025 Drivers</h1>
+        <p>Loading drivers...</p>
+      </main>
+    );
+  }
+
   return (
     <main>
       <section>
@@ -25,13 +58,15 @@ function Drivers() {
         <p>Browse drivers competing in the 2025 Formula 1 season.</p>
       </section>
 
+      {error && <p style={{ color: "red" }}>{error}</p>}
+
       <section className="driver-controls">
         <input
-            type="search"
-            placeholder="Search drivers..."
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            aria-label="Search drivers"
+          type="search"
+          placeholder="Search drivers..."
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+          aria-label="Search drivers"
         />
 
         <select
@@ -40,22 +75,17 @@ function Drivers() {
           aria-label="Filter drivers by team"
         >
           <option value="All Teams">All Teams</option>
-          <option value="Alpine">Alpine</option>
-          <option value="Aston Martin">Aston Martin</option>
-          <option value="Ferrari">Ferrari</option>
-          <option value="Haas F1 Team">Haas F1 Team</option>
-          <option value="Kick Sauber">Kick Sauber</option>
-          <option value="McLaren">McLaren</option>
-          <option value="Mercedes">Mercedes</option>
-          <option value="Racing Bulls">Racing Bulls</option>
-          <option value="Red Bull Racing">Red Bull Racing</option>
-          <option value="Williams">Williams</option>
+          {teams.map((team) => (
+            <option key={team} value={team}>
+              {team}
+            </option>
+          ))}
         </select>
       </section>
 
       <p className="results-count">
-       Showing {filteredDrivers.length} driver
-       {filteredDrivers.length !== 1 ? "s" : ""}
+        Showing {filteredDrivers.length} driver
+        {filteredDrivers.length !== 1 ? "s" : ""}
       </p>
 
       <section className="drivers-grid">

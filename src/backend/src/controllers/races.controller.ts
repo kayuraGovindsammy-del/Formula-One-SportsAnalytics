@@ -2,7 +2,8 @@ import { z } from "zod";
 import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";
-import * as racesModel from "../models/races.model.js";
+import * as racesModel from "../models/races.model.js"; 
+import * as raceResultsModel from "../models/raceResults.model.js";
 import { buildRaceStatistics } from "../services/raceStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
@@ -127,15 +128,36 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
   // Everything below this line is derived from the logs above — the
   // session_result block in the sample data is never read.
   const statistics = buildRaceStatistics({
-    grand_prix_id: race.grand_prix_id,
-    session_id: session.session_id,
-    total_laps: session.total_laps,
-    laps,
-    events,
-    constructor_id_by_driver: constructorIdByDriver,
-  });
+  grand_prix_id: race.grand_prix_id,
+  session_id: session.session_id,
+  total_laps: session.total_laps,
+  laps,
+  events,
+  constructor_id_by_driver: constructorIdByDriver,
+});
 
-  res.status(200).json({ data: statistics, meta: {} });
+const raceResult =
+  await raceResultsModel.findByRace(
+    race.grand_prix_id
+  );
+
+const completeStatistics = raceResult
+  ? {
+      ...statistics,
+
+      fastest_lap:
+        raceResult.fastest_lap,
+
+      classification:
+        raceResult.classification,
+    }
+  : statistics;
+
+res.status(200).json({
+  data: completeStatistics,
+  meta: {},
+});
+
 });
 
 /** GET /api/v1/races/:grand_prix_id/laps — docs/api-design.md §4.6 */
