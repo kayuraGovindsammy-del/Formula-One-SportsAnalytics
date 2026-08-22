@@ -81,8 +81,26 @@ Implemented (`docs/api-design.md` §4):
 | `GET /api/v1/races/:grand_prix_id` | — |
 | `GET /api/v1/races/:grand_prix_id/laps` | `driver_id`, `session_type` |
 | `GET /api/v1/races/:grand_prix_id/events` | `driver_id`, `type`, `session_type` |
+| `GET /api/v1/drivers/:driver_id/stats` | `season` (required) |
+| `GET /api/v1/races/:grand_prix_id/statistics` | — |
 
-All list endpoints take `page` and `per_page` (max 100, clamped). Not yet implemented: §4.3 driver stats and §4.8 race statistics — the derived endpoints.
+All list endpoints take `page` and `per_page` (max 100, clamped).
+
+## Derivation engine
+
+The last two endpoints above are computed, not stored. `services/` holds pure functions — no express, no `req`/`res`, no file or database access — that take arrays of laps or events and return computed values:
+
+| File | Functions |
+|---|---|
+| `services/lapStatistics.ts` | `averageLapTime`, `fastestLap`, `lapConsistency` |
+| `services/pitStatistics.ts` | `pitStopCount`, `totalPitTime` |
+| `services/runningOrder.ts` | `runningOrderAtLap` |
+| `services/raceStatistics.ts` | composes `GET /races/:id/statistics` |
+| `services/driverStatistics.ts` | composes `GET /drivers/:id/stats` |
+
+See [`../../docs/derivation.md`](../../docs/derivation.md) for how each statistic is derived and what the known gaps are (no safety car flag; points and positions-gained not derivable; `gap_to_winner_ms` null while the lap log is incomplete).
+
+The `session_result` block in `data/sample/events.json` is a **reference for checking derivations against, never a source** — no model serves it and no service reads it.
 
 ## Data source
 

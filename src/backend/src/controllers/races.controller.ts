@@ -1,7 +1,9 @@
 import { z } from "zod";
+import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";
 import * as racesModel from "../models/races.model.js";
+import { buildRaceStatistics } from "../services/raceStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import {
@@ -96,6 +98,44 @@ export const getRace = asyncHandler(async (req, res) => {
   }
 
   res.status(200).json({ data: race, meta: {} });
+});
+
+/** GET /api/v1/races/:grand_prix_id/statistics — docs/api-design.md §4.8 */
+export const getRaceStatistics = asyncHandler(async (req, res) => {
+  const grandPrixId = pathParam(req.params.grand_prix_id);
+  const race = await racesModel.findById(grandPrixId);
+
+  if (!race) {
+    throw ApiError.notFound(`Race '${grandPrixId}' was not found.`);
+  }
+
+  const session = race.sessions.find((candidate) => candidate.type === "RACE");
+
+  // §4.8: a race with no event log 404s rather than returning an empty body.
+  if (!session) {
+    throw ApiError.notFound(
+      `No race session with event data exists for '${race.grand_prix_id}'.`
+    );
+  }
+
+  const [laps, events, constructorIdByDriver] = await Promise.all([
+    lapsModel.findAllBySession(session.session_id),
+    eventsModel.findAllBySession(session.session_id),
+    driversModel.getConstructorIdByDriver(),
+  ]);
+
+  // Everything below this line is derived from the logs above — the
+  // session_result block in the sample data is never read.
+  const statistics = buildRaceStatistics({
+    grand_prix_id: race.grand_prix_id,
+    session_id: session.session_id,
+    total_laps: session.total_laps,
+    laps,
+    events,
+    constructor_id_by_driver: constructorIdByDriver,
+  });
+
+  res.status(200).json({ data: statistics, meta: {} });
 });
 
 /** GET /api/v1/races/:grand_prix_id/laps — docs/api-design.md §4.6 */
