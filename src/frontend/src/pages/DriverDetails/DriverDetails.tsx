@@ -1,16 +1,65 @@
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import StatCard from "../../components/StatCard";
-import { drivers } from "../../data/f1Data";
+import {
+  fetchDriver,
+  fetchDriverStatistics,
+  millisecondsToLapTime,
+  type Driver,
+  type DriverStatistics,
+} from "../../data/f1Data";
 
 function DriverDetails() {
   const { id } = useParams();
+  const [driver, setDriver] = useState<Driver | null>(null);
+  const [statistics, setStatistics] = useState<DriverStatistics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const driver = drivers.find((driver) => driver.driverId === id);
+  useEffect(() => {
+    const loadDriver = async () => {
+      if (!id) {
+        setError("Driver not found.");
+        setLoading(false);
+        return;
+      }
 
-  if (!driver) {
+      try {
+        setLoading(true);
+        setError("");
+
+        const [driverData, statsData] = await Promise.all([
+          fetchDriver(id),
+          fetchDriverStatistics(id, "2025"),
+        ]);
+
+        setDriver(driverData);
+        setStatistics(statsData);
+      } catch (err) {
+        console.error("Failed to load driver:", err);
+        setError("Failed to load driver details from the API.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadDriver();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <main>
+        <h1>Driver Details</h1>
+        <p>Loading driver...</p>
+      </main>
+    );
+  }
+
+  if (error || !driver || !statistics) {
     return (
       <main>
         <h1>Driver not found</h1>
+        <p style={{ color: "red" }}>{error}</p>
       </main>
     );
   }
@@ -27,18 +76,35 @@ function DriverDetails() {
 
       <section className="stats-grid">
         <StatCard title="Nationality" value={driver.nationality} />
-        <StatCard title="Date of Birth" value={driver.dateOfBirth} />
-        <StatCard title="Wins" value="--" />
-        <StatCard title="DNFs" value="--" />
+        <StatCard title="Wins" value={String(statistics.wins)} />
+        <StatCard title="Podiums" value={String(statistics.podiums)} />
+        <StatCard title="DNFs" value={String(statistics.dnfCount)} />
       </section>
 
       <section className="driver-details-grid">
         <article className="driver-detail-card">
-          <h2>Race Performance</h2>
+          <h2>Driver Information</h2>
 
-          <div className="placeholder-chart">
-            <p>Race pace chart will be displayed here.</p>
-          </div>
+          <dl className="performance-list">
+            <div>
+              <dt>Date of Birth</dt>
+              <dd>{driver.dateOfBirth}</dd>
+            </div>
+
+            <div>
+              <dt>Races Entered</dt>
+              <dd>{statistics.racesEntered}</dd>
+            </div>
+
+            <div>
+              <dt>DNF Rate</dt>
+              <dd>
+                {statistics.dnfRate === null
+                  ? "Not available"
+                  : `${(statistics.dnfRate * 100).toFixed(1)}%`}
+              </dd>
+            </div>
+          </dl>
         </article>
 
         <article className="driver-detail-card">
@@ -47,32 +113,43 @@ function DriverDetails() {
           <dl className="performance-list">
             <div>
               <dt>Average Finish</dt>
-              <dd>--</dd>
+              <dd>
+                {statistics.averageFinishPosition ?? "Not available"}
+              </dd>
             </div>
 
             <div>
               <dt>Fastest Laps</dt>
-              <dd>--</dd>
+              <dd>{statistics.fastestLaps}</dd>
             </div>
 
             <div>
-              <dt>Positions Gained</dt>
-              <dd>--</dd>
+              <dt>Average Race Pace</dt>
+              <dd>
+                {statistics.averageRacePaceMs === null
+                  ? "Not available"
+                  : millisecondsToLapTime(statistics.averageRacePaceMs)}
+              </dd>
             </div>
 
             <div>
-              <dt>Consistency</dt>
-              <dd>--</dd>
+              <dt>Positions Gained/Lost</dt>
+              <dd>
+                {statistics.positionsGainedLostAvg ?? "Not available"}
+              </dd>
             </div>
           </dl>
         </article>
       </section>
 
       <section className="driver-results-section">
-        <h2>Recent Race Results</h2>
+        <h2>Season Data</h2>
 
         <article className="driver-detail-card">
-          <p>Race result data will be displayed here.</p>
+          <p>
+            Statistics are derived by the backend from the available 2025 lap
+            and event data.
+          </p>
         </article>
       </section>
     </main>

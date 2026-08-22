@@ -87,6 +87,7 @@ CREATE TABLE submissions (
   submitter_user_id BIGINT NOT NULL REFERENCES users(user_id),
   session_id VARCHAR(70) NOT NULL REFERENCES sessions(session_id),
   status submission_status NOT NULL DEFAULT 'PENDING',
+  event_data JSONB NOT NULL,
   source_filename VARCHAR(255),
   validation_message TEXT,
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -155,6 +156,8 @@ CREATE TABLE race_results (
   position INTEGER CHECK (position IS NULL OR position > 0),
   points NUMERIC(6,2) NOT NULL DEFAULT 0,
   laps_completed INTEGER NOT NULL DEFAULT 0,
+  pit_stops INTEGER NOT NULL DEFAULT 0 CHECK (pit_stops >= 0),
+  gap_to_winner_ms INTEGER CHECK (gap_to_winner_ms IS NULL OR gap_to_winner_ms >= 0),
   status result_status NOT NULL,
   PRIMARY KEY (session_id, driver_id)
 );
