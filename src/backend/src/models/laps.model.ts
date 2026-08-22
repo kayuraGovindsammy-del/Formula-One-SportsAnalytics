@@ -45,6 +45,23 @@ function toLap(raw: RawLap, sessionId: string): Lap {
 }
 
 /**
+ * Every lap in a session, unpaginated — the derivation engine needs the whole
+ * set, not a page of it. Ordered the same way as findByRace.
+ */
+export async function findAllBySession(sessionId: string): Promise<Lap[]> {
+  if (sessionId !== lapsSessionId) {
+    return [];
+  }
+
+  return [...rawLaps]
+    .sort(
+      (a, b) =>
+        a.driver_id.localeCompare(b.driver_id) || a.lap_number - b.lap_number
+    )
+    .map((raw) => toLap(raw, lapsSessionId));
+}
+
+/**
  * Returns `null` when the race itself doesn't exist, so the controller can map
  * that to a 404. A race that exists but has no laps for the requested session
  * returns an empty page, not a 404.

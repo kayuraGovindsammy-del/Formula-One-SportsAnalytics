@@ -55,6 +55,17 @@ function toEvent(raw: RawEvent): Event {
 }
 
 /**
+ * Every event in a session, unpaginated — the derivation engine replays the
+ * whole log, not a page of it. Ordered the same way as findByRace.
+ */
+export async function findAllBySession(sessionId: string): Promise<Event[]> {
+  return rawEvents
+    .filter((raw) => raw.session_id === sessionId)
+    .sort((a, b) => a.event_id.localeCompare(b.event_id))
+    .map(toEvent);
+}
+
+/**
  * Returns `null` when the race itself doesn't exist, so the controller can map
  * that to a 404. A race that exists but has no events for the requested
  * session returns an empty page, not a 404.

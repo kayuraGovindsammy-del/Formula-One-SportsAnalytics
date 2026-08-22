@@ -86,6 +86,23 @@ export async function findAll(
   };
 }
 
+/**
+ * driver_id -> constructor_id for the whole grid. The derivation services are
+ * pure and do no data access, so the constructor lookup is fetched here and
+ * handed to them.
+ */
+export async function getConstructorIdByDriver(): Promise<
+  Record<string, string>
+> {
+  const lookup: Record<string, string> = {};
+
+  for (const raw of rawDrivers) {
+    lookup[raw.driver_id] = raw.constructor_id;
+  }
+
+  return lookup;
+}
+
 export async function findById(
   driverId: string
 ): Promise<DriverRecord | null> {

@@ -44,6 +44,16 @@ export async function findByRace(grandPrixId: string): Promise<Session[]> {
   );
 }
 
+/**
+ * Every session in a season, across all race weekends — the unit the driver
+ * statistics endpoint aggregates over.
+ */
+export async function findBySeason(season: string): Promise<Session[]> {
+  return sessions.filter((session) =>
+    session.grand_prix_id.startsWith(`${season}_`)
+  );
+}
+
 /** Resolves the single session of a given type within a race weekend. */
 export async function findOneByRaceAndType(
   grandPrixId: string,
