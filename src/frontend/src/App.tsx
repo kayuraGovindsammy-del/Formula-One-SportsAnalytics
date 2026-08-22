@@ -19,6 +19,8 @@ import AdminRoute from "./auth/AdminRoute";
 import SubmitterRoute from "./auth/SubmitterRoute";
 
 import Layout from "./components/layout/Layout";
+import Constructors from "./pages/Constructors/Constructors";
+import Statistics from "./pages/Statistics/Statistics";
 
 function App() {
   return (
@@ -136,7 +138,32 @@ function App() {
           </SubmitterRoute>
         }
       />
+      
+      <Route
+  path="/constructors"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <Constructors />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/statistics"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <Statistics />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+      
+
     </Routes>
+
   );
 }
 
