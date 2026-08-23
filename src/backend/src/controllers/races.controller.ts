@@ -136,25 +136,8 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
   constructor_id_by_driver: constructorIdByDriver,
 });
 
-const raceResult =
-  await raceResultsModel.findByRace(
-    race.grand_prix_id
-  );
-
-const completeStatistics = raceResult
-  ? {
-      ...statistics,
-
-      fastest_lap:
-        raceResult.fastest_lap,
-
-      classification:
-        raceResult.classification,
-    }
-  : statistics;
-
 res.status(200).json({
-  data: completeStatistics,
+  data: statistics,
   meta: {},
 });
 

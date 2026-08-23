@@ -5,8 +5,8 @@ import type {
 } from "express";
 
 import {
-  adminAuth,
-  adminDb,
+  getAdminAuth,
+  getAdminDb,
 } from "../config/firebaseAdmin.js";
 
 import type {
@@ -71,6 +71,8 @@ export async function authenticate(
     }
 
     const token = authorization.slice("Bearer ".length);
+    const adminAuth = getAdminAuth();
+    const adminDb = getAdminDb();
 
     const decodedToken =
       await adminAuth.verifyIdToken(token);
