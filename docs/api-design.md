@@ -6,9 +6,9 @@ This document is the contract for the backend API. It exists so that:
 
 - **Member 3** (frontend) knows exactly what to fetch and what shape comes back.
 - **Member 4** knows exactly what the backend expects from them.
-- The six files currently talking to Firestore directly ([`AuthContext.tsx`](../src/frontend/src/auth/AuthContext.tsx), [`SubmitData.tsx`](../src/frontend/src/pages/Submit/SubmitData.tsx), [`Account.tsx`](../src/frontend/src/pages/Auth/Account.tsx), [`SubmissionReview.tsx`](../src/frontend/src/pages/Admin/SubmissionReview.tsx), [`SubmitterRequests.tsx`](../src/frontend/src/pages/Admin/SubmitterRequests.tsx), [`firebase.ts`](../src/frontend/src/auth/firebase.ts)) have somewhere to migrate to.
+- The six files currently talking to Firestore directly (`AuthContext.tsx`, `SubmitData.tsx`, `Account.tsx`, `SubmissionReview.tsx`, `SubmitterRequests.tsx`, `firebase.ts`) have somewhere to migrate to.
 
-It reflects the entities in [`data-model.md`](data-model.md), the event log in [`event-schema.md`](event-schema.md), the formulas in [`f1-statistics.md`](f1-statistics.md), the tables in [`../database/schema.sql`](../database/schema.sql), and the actual read shapes the frontend already consumes via [`f1Data.ts`](../src/frontend/src/data/f1Data.ts).
+It reflects the entities in [`data-model.md`](data-model.md), the event log in [`event-schema.md`](event-schema.md), the formulas in [`f1-statistics.md`](f1-statistics.md), the tables in `schema.sql`, and the actual read shapes the frontend already consumes via `f1Data.ts`.
 
 Read endpoints (§4–6) are **Sprint 1**. Write endpoints and auth (§7–8) are **Sprint 2** — designed now so nobody blocks on the contract later, not implemented yet.
 
@@ -70,21 +70,21 @@ Sprint-2-specific codes are listed in §7–8 where they apply.
 
 **snake_case end to end. No camelCase transformation at the API boundary.**
 
-Every field name in every request and response body matches [`database/schema.sql`](../database/schema.sql) and `data/sample/*.json` exactly: `driver_id`, `lap_time_ms`, `is_pit_lap`, `submitted_by`, and so on. The backend does not rename fields for the frontend's convenience, and the frontend does not send camelCase and expect the backend to cope.
+Every field name in every request and response body matches `schema.sql` and `data/sample/*.json` exactly: `driver_id`, `lap_time_ms`, `is_pit_lap`, `submitted_by`, and so on. The backend does not rename fields for the frontend's convenience, and the frontend does not send camelCase and expect the backend to cope.
 
-This is deliberate, not an oversight: [`f1Data.ts`](../src/frontend/src/data/f1Data.ts) already does this translation client-side today — it imports raw snake_case JSON and maps it into camelCase types (`Driver.driverId`, `Race.hasSprint`, etc.) for the components. That seam already exists and already works. When `f1Data.ts` moves from static JSON imports to `fetch()` calls against this API, it keeps doing exactly the same mapping job it does now — just from a network response instead of a bundled file. Components (`Drivers.tsx`, `RaceDetails.tsx`, etc.) don't change at all.
+This is deliberate, not an oversight: `f1Data.ts` already does this translation client-side today — it imports raw snake_case JSON and maps it into camelCase types (`Driver.driverId`, `Race.hasSprint`, etc.) for the components. That seam already exists and already works. When `f1Data.ts` moves from static JSON imports to `fetch()` calls against this API, it keeps doing exactly the same mapping job it does now — just from a network response instead of a bundled file. Components (`Drivers.tsx`, `RaceDetails.tsx`, etc.) don't change at all.
 
 ---
 
 ## 4. Read endpoints
 
-Designed directly from what [`f1Data.ts`](../src/frontend/src/data/f1Data.ts) and its consuming pages ([`Dashboard.tsx`](../src/frontend/src/pages/Dashboard/Dashboard.tsx), [`Drivers.tsx`](../src/frontend/src/pages/Drivers/Drivers.tsx), [`Races.tsx`](../src/frontend/src/pages/Races/Races.tsx), [`DriverDetails.tsx`](../src/frontend/src/pages/DriverDetails/DriverDetails.tsx), [`RaceDetails.tsx`](../src/frontend/src/pages/RaceDetails/RaceDetails.tsx)) actually need today.
+Designed directly from what `f1Data.ts` and its consuming pages (`Dashboard.tsx`, `Drivers.tsx`, `Races.tsx`, `DriverDetails.tsx`, `RaceDetails.tsx`) actually need today.
 
 One identifier note up front: races are identified by `grand_prix_id` (e.g. `"2025_R13"`), matching `data-model.md` and `schema.sql`, **not** by bare `round`. The current frontend route (`RaceDetails.tsx`) matches on `race.round` alone, which breaks the moment two seasons share round numbers. Endpoints below use `grand_prix_id`; Member 3 will need a small routing change (`/races/:round` → `/races/:grand_prix_id`) when wiring this up — flagging it here rather than quietly designing around it.
 
 ### 4.1 `GET /api/v1/drivers` — driver list
 
-Backs [`Drivers.tsx`](../src/frontend/src/pages/Drivers/Drivers.tsx). `constructor_name` is resolved server-side via a join against `constructors`, so the frontend's hardcoded [`constructors.ts`](../src/frontend/src/data/constructors.ts) lookup table becomes unnecessary once this is wired up.
+Backs `Drivers.tsx`. `constructor_name` is resolved server-side via a join against `constructors`, so the frontend's hardcoded `constructors.ts` lookup table becomes unnecessary once this is wired up.
 
 ```json
 {
@@ -106,7 +106,7 @@ Backs [`Drivers.tsx`](../src/frontend/src/pages/Drivers/Drivers.tsx). `construct
 
 ### 4.2 `GET /api/v1/drivers/{driver_id}` — driver detail
 
-Backs [`DriverDetails.tsx`](../src/frontend/src/pages/DriverDetails/DriverDetails.tsx). Same shape as one list item.
+Backs `DriverDetails.tsx`. Same shape as one list item.
 
 ```json
 {
@@ -128,7 +128,7 @@ Backs [`DriverDetails.tsx`](../src/frontend/src/pages/DriverDetails/DriverDetail
 
 ### 4.3 `GET /api/v1/drivers/{driver_id}/stats?season=2025`
 
-Backs the "Wins / DNFs / Average Finish / Fastest Laps / Positions Gained / Consistency" stat placeholders in [`DriverDetails.tsx`](../src/frontend/src/pages/DriverDetails/DriverDetails.tsx) (currently hardcoded `"--"`). Per-season aggregation, computed per the formulas in [`f1-statistics.md`](f1-statistics.md) §3. Some fields are `null` — see §9 for why.
+Backs the "Wins / DNFs / Average Finish / Fastest Laps / Positions Gained / Consistency" stat placeholders in `DriverDetails.tsx` (currently hardcoded `"--"`). Per-season aggregation, computed per the formulas in [`f1-statistics.md`](f1-statistics.md) §3. Some fields are `null` — see §9 for why.
 
 ```json
 {
@@ -154,7 +154,7 @@ Backs the "Wins / DNFs / Average Finish / Fastest Laps / Positions Gained / Cons
 
 ### 4.4 `GET /api/v1/races` — race list
 
-Backs [`Races.tsx`](../src/frontend/src/pages/Races/Races.tsx). `has_results` tells the frontend whether a statistics/results endpoint call for this race will return real data or an empty derivation — this replaces the frontend's current hardcoded `race.round === belgianGpStatistics.round` check in `RaceDetails.tsx`.
+Backs `Races.tsx`. `has_results` tells the frontend whether a statistics/results endpoint call for this race will return real data or an empty derivation — this replaces the frontend's current hardcoded `race.round === belgianGpStatistics.round` check in `RaceDetails.tsx`.
 
 ```json
 {
@@ -179,7 +179,7 @@ Backs [`Races.tsx`](../src/frontend/src/pages/Races/Races.tsx). `has_results` te
 
 ### 4.5 `GET /api/v1/races/{grand_prix_id}` — race detail
 
-Backs the header of [`RaceDetails.tsx`](../src/frontend/src/pages/RaceDetails/RaceDetails.tsx). Includes the weekend's sessions so the frontend can find the session it needs (e.g. the `RACE` session's `session_id`) without a second round trip.
+Backs the header of `RaceDetails.tsx`. Includes the weekend's sessions so the frontend can find the session it needs (e.g. the `RACE` session's `session_id`) without a second round trip.
 
 ```json
 {
@@ -212,7 +212,7 @@ Backs the header of [`RaceDetails.tsx`](../src/frontend/src/pages/RaceDetails/Ra
 
 ### 4.6 `GET /api/v1/races/{grand_prix_id}/laps` — laps for a race
 
-Defaults to the `RACE` session (override with `?session_type=`, see §6). Raw `LAP_COMPLETED`-derived rows, matching [`laps.json`](../data/sample/laps.json) exactly.
+Defaults to the `RACE` session (override with `?session_type=`, see §6). Raw `LAP_COMPLETED`-derived rows, matching `laps.json` exactly.
 
 ```json
 {
@@ -242,7 +242,7 @@ Defaults to the `RACE` session (override with `?session_type=`, see §6). Raw `L
 
 ### 4.7 `GET /api/v1/races/{grand_prix_id}/events` — events for a race
 
-Defaults to the `RACE` session. Raw event log, matching [`events.json`](../data/sample/events.json) and the envelope in [`event-schema.md`](event-schema.md) §3.
+Defaults to the `RACE` session. Raw event log, matching `events.json` and the envelope in [`event-schema.md`](event-schema.md) §3.
 
 ```json
 {
@@ -343,7 +343,7 @@ Unknown query params are ignored, not rejected — keeps this forward-compatible
 
 ## 7. Write endpoints — submission workflow (Sprint 2)
 
-> **Sprint 2.** These replace the direct Firestore writes in [`SubmitData.tsx`](../src/frontend/src/pages/Submit/SubmitData.tsx), [`SubmissionReview.tsx`](../src/frontend/src/pages/Admin/SubmissionReview.tsx), and [`SubmitterRequests.tsx`](../src/frontend/src/pages/Admin/SubmitterRequests.tsx). Designed now so the contract is settled; not implemented in Sprint 1.
+> **Sprint 2.** These replace the direct Firestore writes in `SubmitData.tsx`, `SubmissionReview.tsx`, and `SubmitterRequests.tsx`. Designed now so the contract is settled; not implemented in Sprint 1.
 
 All require auth (§8). The event envelope inside a submission is exactly the shape in [`event-schema.md`](event-schema.md) §3 — the backend does not define a second, competing event shape.
 
@@ -413,7 +413,7 @@ A `SUBMITTER` sees only their own submissions; an `ADMIN` sees all. Filters: `st
 
 ## 8. Auth (Sprint 2)
 
-> **Sprint 2.** Firebase Auth stays for identity — only Firestore-as-database goes away. This is what replaces the direct `getAuth`/`onAuthStateChanged`/Firestore-user-doc pattern in [`AuthContext.tsx`](../src/frontend/src/auth/AuthContext.tsx).
+> **Sprint 2.** Firebase Auth stays for identity — only Firestore-as-database goes away. This is what replaces the direct `getAuth`/`onAuthStateChanged`/Firestore-user-doc pattern in `AuthContext.tsx`.
 
 **Contract:**
 
