@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, updateDoc } from "firebase/firestore";
 
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 import { db } from "../../auth/firebase";
 
 function Account() {
@@ -42,10 +42,15 @@ function Account() {
     try {
       await deleteAccount();
       navigate("/login");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
 
-      if (err.code === "auth/requires-recent-login") {
+      if (
+        typeof err === "object" &&
+        err !== null &&
+        "code" in err &&
+        err.code === "auth/requires-recent-login"
+      ) {
         setError(
           "For security reasons, please sign out, sign back in, and try deleting your account again."
         );

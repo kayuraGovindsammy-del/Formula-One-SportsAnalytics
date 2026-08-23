@@ -1,7 +1,7 @@
 import { Navigate } from "react-router-dom";
 import type { ReactNode } from "react";
 
-import { useAuth } from "./AuthContext";
+import { useAuth } from "./useAuth";
 
 interface SubmitterRouteProps {
   children: ReactNode;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ??
@@ -96,8 +96,18 @@ function SubmissionReview() {
   }, [user]);
 
   useEffect(() => {
-    void loadSubmissions();
-  }, [loadSubmissions]);
+    if (!user) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadSubmissions();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [loadSubmissions, user]);
 
   const handleAccept = async (
     submissionId: number

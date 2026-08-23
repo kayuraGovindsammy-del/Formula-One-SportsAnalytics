@@ -124,13 +124,15 @@ function Statistics() {
         }
       >
     >((accumulator, result) => {
+      const constructorKey =
+        result.constructorId ?? "unknown";
       const existing =
-        accumulator[result.constructorId];
+        accumulator[constructorKey];
 
       if (!existing) {
-        accumulator[result.constructorId] = {
+        accumulator[constructorKey] = {
           constructorId:
-            result.constructorId,
+            result.constructorId ?? "unknown",
 
           constructorName:
             result.constructorName,
