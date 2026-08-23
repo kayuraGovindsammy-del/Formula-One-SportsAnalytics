@@ -22,3 +22,6 @@ firebase-admin.json
 .DS_Store
 Thumbs.db
 .vscode/
+
+# MkDocs build output
+site/
