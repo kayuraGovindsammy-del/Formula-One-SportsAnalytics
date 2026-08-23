@@ -8,31 +8,28 @@ import {
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
-let firebaseApp: App;
+let firebaseApp: App | undefined;
 
-const existingApps = getApps();
+function getFirebaseApp(): App {
+  if (firebaseApp) {
+    return firebaseApp;
+  }
 
-if (existingApps.length > 0) {
-  firebaseApp = existingApps[0]!;
-} else {
-  const projectId =
-    process.env.FIREBASE_PROJECT_ID;
+  const existingApps = getApps();
 
-  const clientEmail =
-    process.env.FIREBASE_CLIENT_EMAIL;
+  if (existingApps.length > 0) {
+    firebaseApp = existingApps[0]!;
+    return firebaseApp;
+  }
 
-  const privateKey =
-    process.env.FIREBASE_PRIVATE_KEY?.replace(
-      /\\n/g,
-      "\n"
-    );
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(
+    /\\n/g,
+    "\n"
+  );
 
-
-  if (
-    !projectId ||
-    !clientEmail ||
-    !privateKey
-  ) {
+  if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
       "Firebase Admin environment variables are missing."
     );
@@ -45,10 +42,14 @@ if (existingApps.length > 0) {
       privateKey,
     }),
   });
+
+  return firebaseApp;
 }
 
-export const adminAuth =
-  getAuth(firebaseApp);
+export function getAdminAuth() {
+  return getAuth(getFirebaseApp());
+}
 
-export const adminDb =
-  getFirestore(firebaseApp);
+export function getAdminDb() {
+  return getFirestore(getFirebaseApp());
+}

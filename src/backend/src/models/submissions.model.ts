@@ -1,4 +1,4 @@
-import { pool } from "../config/database.js";
+import { getPool } from "../config/database.js";
 
 import type { AuthenticatedUser } from "../types/auth.types.js";
 import type {
@@ -14,7 +14,7 @@ interface UserRow {
 async function ensureDatabaseUser(
   user: AuthenticatedUser
 ): Promise<number> {
-  const result = await pool.query<UserRow>(
+  const result = await getPool().query<UserRow>(
     `
       INSERT INTO users (
         auth_uid,
@@ -53,7 +53,7 @@ export async function create(
 ): Promise<SubmissionRecord> {
   const userId = await ensureDatabaseUser(user);
 
-  const result = await pool.query<SubmissionRecord>(
+  const result = await getPool().query<SubmissionRecord>(
     `
       INSERT INTO submissions (
         submitter_user_id,
@@ -89,7 +89,7 @@ export async function create(
 }
 
 export async function findAll(): Promise<SubmissionRecord[]> {
-  const result = await pool.query<SubmissionRecord>(
+  const result = await getPool().query<SubmissionRecord>(
     `
       SELECT
         s.submission_id,
@@ -116,7 +116,7 @@ export async function findAll(): Promise<SubmissionRecord[]> {
 export async function findById(
   submissionId: number
 ): Promise<SubmissionRecord | null> {
-  const result = await pool.query<SubmissionRecord>(
+  const result = await getPool().query<SubmissionRecord>(
     `
       SELECT
         s.submission_id,
@@ -149,7 +149,7 @@ export async function review(
 ): Promise<SubmissionRecord | null> {
   const adminUserId = await ensureDatabaseUser(admin);
 
-  const result = await pool.query<SubmissionRecord>(
+  const result = await getPool().query<SubmissionRecord>(
     `
       UPDATE submissions
       SET
