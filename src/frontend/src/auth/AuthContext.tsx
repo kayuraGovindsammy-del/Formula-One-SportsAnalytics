@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
   type ReactNode,
@@ -25,6 +23,7 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "./firebase";
+import { AuthContext } from "./context";
 
 type UserRole = "USER" | "SUBMITTER" | "ADMIN";
 
@@ -33,20 +32,6 @@ type SubmitterStatus =
   | "pending"
   | "approved"
   | "rejected";
-
-interface AuthContextType {
-  user: User | null;
-  role: UserRole | null;
-  submitterStatus: SubmitterStatus | null;
-  loading: boolean;
-  loginWithGoogle: () => Promise<void>;
-  logout: () => Promise<void>;
-  deleteAccount: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-);
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -228,14 +213,3 @@ export function AuthProvider({
   );
 }
 
-export function useAuth() {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error(
-      "useAuth must be used inside an AuthProvider"
-    );
-  }
-
-  return context;
-}
