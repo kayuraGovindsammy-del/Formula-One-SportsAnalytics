@@ -2,6 +2,8 @@
 
 This project uses a simple Git workflow built around the default branch `main` and short-lived `feature/...` branches.
 
+The repository also includes a Gitea CI pipeline in `.gitea/workflows/ci.yml`. It runs frontend lint/build checks, backend build and tests, and a strict MkDocs documentation build on pushes to `main` and pull requests targeting `main`.
+
 The goal is to keep work organised, reviewable, and easy to merge for a five-person university project without overcomplicating the process.
 
 ## 1. Start from an issue

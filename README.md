@@ -227,13 +227,15 @@ The full process is documented in `docs/git-workflow.md`. This project does not 
 
 ## CI and Automation
 
-A Gitea Actions workflow has been prepared for frontend, backend, and documentation validation. The expected checks are:
+The repository includes a Gitea CI workflow at `.gitea/workflows/ci.yml`. It is configured to run on pushes to `main` and on pull requests targeting `main`.
 
-- frontend lint and build checks
+The workflow defines three validation jobs:
+
+- frontend lint and build
 - backend build and tests
-- strict MkDocs documentation builds
+- MkDocs strict documentation build
 
-Gitea recognises the workflow definition, and the project validation commands have been verified locally. Hosted execution depends on runner infrastructure available in the Gitea environment, so the repository is prepared for CI-based validation once that infrastructure is available for the project.
+This gives the project a repeatable validation pipeline for the main branch and pull-request review flow.
 
 ## Deployment
 
