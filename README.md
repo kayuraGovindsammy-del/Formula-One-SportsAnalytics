@@ -227,27 +227,27 @@ The full process is documented in `docs/git-workflow.md`. This project does not 
 
 ## CI and Automation
 
-A Gitea Actions workflow has been prepared and configured for frontend, backend, and documentation validation. The project checks are structured to validate:
+A Gitea Actions workflow has been prepared for frontend, backend, and documentation validation. The expected checks are:
 
 - frontend lint and build checks
 - backend build and tests
 - strict MkDocs documentation builds
 
-Runner infrastructure for the project environment is currently being finalised before Git-hosted automation is fully operational.
+Gitea recognises the workflow definition, and the project validation commands have been verified locally. Hosted execution depends on runner infrastructure available in the Gitea environment, so the repository is prepared for CI-based validation once that infrastructure is available for the project.
 
 ## Deployment
 
-The project uses a mixed deployment model based on the repository's current verified configuration:
+The repository currently proves a frontend deployment to Azure App Service. The workflow in `workflows/deploy-azure.yml` builds the frontend from `src/frontend`, then deploys the packaged app to the Azure Web App named `f1-sport-analytics` on pushes to `main` and via manual workflow dispatch.
 
-- Express backend hosted on Railway
-- shared Neon PostgreSQL database
-- MkDocs project documentation publicly deployed at https://eagle-stack-documentation.netlify.app/
+The public documentation site remains deployed at https://eagle-stack-documentation.netlify.app/.
 
-Frontend deployment details will be documented once the team's final hosting setup is confirmed.
+The current source tree does not provide evidence for a separate Railway deployment for this project. The verified deployment statements in this repository are the Azure frontend deployment and the Netlify documentation site.
 
 ## Project Management
 
-The project follows a lightweight Agile/Scrum-style approach appropriate for a small university team. Work is organised around issues, feature branches, Pull Requests, peer review, and short delivery cycles. The project process is described in `docs/methodology.md` and `docs/git-workflow.md`.
+The project uses Taiga for Agile/Scrum planning, backlog management, Sprint tracking, and task ownership. Gitea is used for source control, feature branches, Pull Requests, peer review, and repository-level validation. The detailed division of responsibilities is described in `docs/methodology.md` and `docs/git-workflow.md`.
+
+Taiga project: https://tree.taiga.io/project/andrianos-mastrokolias-f1-analytics-system/
 
 ## AI Usage
 
