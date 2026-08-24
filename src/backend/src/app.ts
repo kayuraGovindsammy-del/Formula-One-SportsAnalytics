@@ -5,11 +5,6 @@ import apiV1Router from "./routes/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { notFoundHandler } from "./middleware/notFoundHandler.js";
 
-/**
- * Builds the Express app without binding a port, so tests can exercise routes
- * over supertest without starting a listener. index.ts is the only place that
- * calls listen().
- */
 export function createApp(): Express {
   const app = express();
 
@@ -24,8 +19,7 @@ export function createApp(): Express {
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow requests without an Origin header,
-        // such as Postman, curl, or server-to-server requests.
+        // Requests such as Postman/curl may not send an Origin header.
         if (!origin) {
           callback(null, true);
           return;
@@ -42,6 +36,7 @@ export function createApp(): Express {
           )
         );
       },
+      credentials: true,
     })
   );
 
@@ -49,7 +44,6 @@ export function createApp(): Express {
 
   app.use("/api/v1", apiV1Router);
 
-  // Registered last: unmatched routes first, then the error handler.
   app.use(notFoundHandler);
   app.use(errorHandler);
 
