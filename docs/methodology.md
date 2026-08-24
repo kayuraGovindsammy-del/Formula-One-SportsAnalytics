@@ -92,15 +92,15 @@ The team uses automated validation as a normal part of delivery rather than as a
 
 ## 9. CI and automated project checks
 
-The project includes the necessary frontend, backend, and documentation validation commands, and a Gitea CI workflow has been configured to represent them. Gitea recognises the workflow definition for project validation, and the project checks have been verified locally.
+The repository includes a Gitea CI workflow in `.gitea/workflows/ci.yml`. It is configured to run when changes are pushed to `main` and when a pull request targets `main`.
 
-The relevant validation includes:
+The workflow contains three validation jobs:
 
 - frontend lint and build
 - backend build and tests
 - MkDocs strict documentation build
 
-Hosted execution depends on runner infrastructure provided by the Gitea environment. The workflow is therefore configured and ready for the project environment, while the actual hosted job execution depends on the available runner capability.
+This gives the team automated project checks for branch delivery and pull-request review. The checks are designed to support a controlled review workflow before changes are merged into `main`.
 
 ## 10. Stakeholder interaction and requirement flow
 
