@@ -1,5 +1,6 @@
 import cors from "cors";
 import express, { type Express } from "express";
+
 import apiV1Router from "./routes/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { notFoundHandler } from "./middleware/notFoundHandler.js";
@@ -12,7 +13,38 @@ import { notFoundHandler } from "./middleware/notFoundHandler.js";
 export function createApp(): Express {
   const app = express();
 
-  app.use(cors({ origin: process.env.CORS_ORIGIN }));
+  const allowedOrigins = (
+    process.env.CORS_ORIGINS ??
+    "http://localhost:5173"
+  )
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  app.use(
+    cors({
+      origin: (origin, callback) => {
+        // Allow requests without an Origin header,
+        // such as Postman, curl, or server-to-server requests.
+        if (!origin) {
+          callback(null, true);
+          return;
+        }
+
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(
+          new Error(
+            `CORS blocked request from origin: ${origin}`
+          )
+        );
+      },
+    })
+  );
+
   app.use(express.json());
 
   app.use("/api/v1", apiV1Router);
