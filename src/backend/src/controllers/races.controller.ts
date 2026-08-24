@@ -104,43 +104,84 @@ export const getRace = asyncHandler(async (req, res) => {
 /** GET /api/v1/races/:grand_prix_id/statistics — docs/api-design.md §4.8 */
 export const getRaceStatistics = asyncHandler(async (req, res) => {
   const grandPrixId = pathParam(req.params.grand_prix_id);
+
   const race = await racesModel.findById(grandPrixId);
 
   if (!race) {
-    throw ApiError.notFound(`Race '${grandPrixId}' was not found.`);
+    throw ApiError.notFound(
+      `Race '${grandPrixId}' was not found.`
+    );
   }
 
-  const session = race.sessions.find((candidate) => candidate.type === "RACE");
+  const session = race.sessions.find(
+    (candidate) => candidate.type === "RACE"
+  );
 
-  // §4.8: a race with no event log 404s rather than returning an empty body.
   if (!session) {
     throw ApiError.notFound(
       `No race session with event data exists for '${race.grand_prix_id}'.`
     );
   }
 
-  const [laps, events, constructorIdByDriver] = await Promise.all([
+  const [
+    laps,
+    events,
+    constructorIdByDriver,
+    storedRaceResults,
+  ] = await Promise.all([
     lapsModel.findAllBySession(session.session_id),
     eventsModel.findAllBySession(session.session_id),
     driversModel.getConstructorIdByDriver(),
+    raceResultsModel.findByRace(grandPrixId),
   ]);
 
-  // Everything below this line is derived from the logs above — the
-  // session_result block in the sample data is never read.
-  const statistics = buildRaceStatistics({
-  grand_prix_id: race.grand_prix_id,
-  session_id: session.session_id,
-  total_laps: session.total_laps,
-  laps,
-  events,
-  constructor_id_by_driver: constructorIdByDriver,
-});
+  const derivedStatistics =
+    buildRaceStatistics({
+      grand_prix_id: race.grand_prix_id,
+      session_id: session.session_id,
+      total_laps: session.total_laps,
+      laps,
+      events,
+      constructor_id_by_driver:
+        constructorIdByDriver,
+    });
 
-res.status(200).json({
-  data: statistics,
-  meta: {},
-});
+  /*
+   * Lap/event data is still used for the derived
+   * statistics such as overtakes, retirements and
+   * pit-stop counts.
+   *
+   * The stored race-result classification is used
+   * when available because the sample event log is
+   * intentionally only a partial lap log.
+   */
+  const statistics = storedRaceResults
+    ? {
+        ...derivedStatistics,
 
+        fastest_lap:
+          storedRaceResults.fastest_lap,
+
+        classification:
+          storedRaceResults.classification.map(
+            (result) => ({
+              position: result.position,
+              driver_id: result.driver_id,
+              constructor_id:
+                result.constructor_id,
+              laps: result.laps,
+              pit_stops: result.pit_stops,
+              gap_to_winner_ms:
+                result.gap_to_winner_ms,
+            })
+          ),
+      }
+    : derivedStatistics;
+
+  res.status(200).json({
+    data: statistics,
+    meta: {},
+  });
 });
 
 /** GET /api/v1/races/:grand_prix_id/laps — docs/api-design.md §4.6 */
