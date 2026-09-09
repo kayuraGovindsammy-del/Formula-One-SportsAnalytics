@@ -1,414 +1,149 @@
 import { useCallback, useEffect, useState } from "react";
-
 import { useAuth } from "../../auth/useAuth";
+import { submissionRequest, type SubmissionRecord } from "../../api/submissions";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ??
-  "https://f1-sport-analytics-api-production.up.railway.app/api/v1";
-
-interface Submission {
-  submission_id: number;
-  submitted_by: string;
-  submitted_by_email: string;
-  submitted_at?: string;
-  status: string;
-
-  event?: {
-    event_id?: string;
-    session_id?: string;
-    driver_id?: string;
-    type?: string;
-    lap_number?: number;
-    timestamp?: string;
-    payload?: Record<string, unknown>;
-  };
-
-  validation_errors?: string[];
-}
-
-function SubmissionReview() {
+export default function SubmissionReview() {
   const { user } = useAuth();
-
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [records, setRecords] = useState<SubmissionRecord[]>([]);
+  const [status, setStatus] = useState("pending");
+  const [reasons, setReasons] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
-
-  const [processingId, setProcessingId] =
-    useState<number | null>(null);
-
+  const [processingId, setProcessingId] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
 
-  const loadSubmissions = useCallback(async () => {
-    if (!user) {
-      setError("You must be signed in.");
-      setLoading(false);
-      return;
-    }
-
+  const load = useCallback(async (signal?: AbortSignal) => {
+    if (!user) return;
+    setLoading(true);
+    setError("");
     try {
-      setError("");
-      setLoading(true);
-
-      const token = await user.getIdToken();
-
-      const response = await fetch(
-        `${API_BASE_URL}/submissions`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const records = await submissionRequest<SubmissionRecord[]>(
+        user, `/submissions${status === "all" ? "" : `?status=${status}`}`, { signal }
       );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result?.error?.message ||
-            result?.error ||
-            "Failed to load submissions."
-        );
-      }
-
-      const allSubmissions: Submission[] =
-        Array.isArray(result.data)
-          ? result.data
-          : [];
-
-      const pendingSubmissions =
-        allSubmissions.filter(
-          (submission) =>
-            submission.status.toLowerCase() === "pending"
-        );
-
-      setSubmissions(pendingSubmissions);
+      if (!signal?.aborted) setRecords(records);
     } catch (err) {
-      console.error("Failed to load submissions:", err);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load submissions."
-      );
+      if (!signal?.aborted) {
+        setError(err instanceof Error ? err.message : "Could not load submissions.");
+      }
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }, [user]);
+  }, [user, status]);
 
   useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      void loadSubmissions();
-    }, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [loadSubmissions, user]);
-
-  const handleAccept = async (
-    submissionId: number
-  ) => {
-    if (!user) {
-      setError("You must be signed in.");
-      return;
-    }
-
-    try {
-      setError("");
-      setProcessingId(submissionId);
-
-      const token = await user.getIdToken();
-
-      const response = await fetch(
-        `${API_BASE_URL}/submissions/${submissionId}`,
-        {
-          method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-
-          body: JSON.stringify({
-            status: "accepted",
-            validation_errors: [],
-          }),
+    if (!user) return;
+    const controller = new AbortController();
+    submissionRequest<SubmissionRecord[]>(user, `/submissions${status === "all" ? "" : `?status=${status}`}`, { signal: controller.signal })
+      .then((records) => {
+        if (!controller.signal.aborted) {
+          setRecords(records);
+          setError("");
         }
-      );
+      })
+      .catch((err: unknown) => {
+        if (!controller.signal.aborted) {
+          setError(err instanceof Error ? err.message : "Could not load submissions.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [user, status]);
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result?.error?.message ||
-            result?.error ||
-            "Failed to accept submission."
-        );
-      }
-
-      await loadSubmissions();
+  const review = async (record: SubmissionRecord, decision: "accepted" | "rejected") => {
+    if (!user || processingId !== null) return;
+    const reason = (reasons[record.submission_id] ?? "").trim();
+    if (decision === "rejected" && !reason) {
+      setError("Enter a rejection reason.");
+      return;
+    }
+    if (!window.confirm(`${decision === "accepted" ? "Accept" : "Reject"} submission #${record.submission_id}?`))
+      return;
+    setProcessingId(record.submission_id);
+    setError("");
+    setMessage("");
+    try {
+      await submissionRequest(user, `/submissions/${record.submission_id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: decision,
+          validation_errors: decision === "rejected" ? [reason] : [],
+        }),
+      });
+      setMessage(`Submission #${record.submission_id} ${decision}.`);
+      await load();
     } catch (err) {
-      console.error(
-        "Failed to accept submission:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to accept submission."
-      );
+      setError(err instanceof Error ? err.message : "Review failed.");
     } finally {
       setProcessingId(null);
     }
   };
-
-  const handleReject = async (
-    submissionId: number
-  ) => {
-    if (!user) {
-      setError("You must be signed in.");
-      return;
-    }
-
-    const reason = window.prompt(
-      "Enter the reason for rejecting this submission:"
-    );
-
-    if (reason === null) {
-      return;
-    }
-
-    if (!reason.trim()) {
-      setError("A rejection reason is required.");
-      return;
-    }
-
-    try {
-      setError("");
-      setProcessingId(submissionId);
-
-      const token = await user.getIdToken();
-
-      const response = await fetch(
-        `${API_BASE_URL}/submissions/${submissionId}`,
-        {
-          method: "PATCH",
-
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-
-          body: JSON.stringify({
-            status: "rejected",
-            validation_errors: [
-              reason.trim(),
-            ],
-          }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result?.error?.message ||
-            result?.error ||
-            "Failed to reject submission."
-        );
-      }
-
-      await loadSubmissions();
-    } catch (err) {
-      console.error(
-        "Failed to reject submission:",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to reject submission."
-      );
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{ padding: "40px" }}>
-        <h1>Submission Review</h1>
-        <p>Loading submissions...</p>
-      </div>
-    );
-  }
 
   return (
-    <div
-      style={{
-        maxWidth: "1000px",
-        margin: "40px auto",
-        padding: "30px",
-      }}
-    >
+    <div style={{ maxWidth: 1000, margin: "40px auto", padding: 24 }}>
       <h1>Submission Review</h1>
-
-      <p>
-        Review Formula 1 event submissions before they are
-        accepted into the platform.
-      </p>
-
-      {error && (
-        <p
-          style={{
-            color: "red",
-            marginTop: "20px",
-          }}
-        >
-          {error}
-        </p>
-      )}
-
-      {submissions.length === 0 ? (
-        <p style={{ marginTop: "30px" }}>
-          No pending submissions.
-        </p>
-      ) : (
-        <div style={{ marginTop: "30px" }}>
-          {submissions.map((submission) => (
-            <div
-              key={submission.submission_id}
-              style={{
-                border: "1px solid #444",
-                borderRadius: "10px",
-                padding: "20px",
-                marginBottom: "25px",
-              }}
-            >
-              <h2>
-                {submission.event?.type ??
-                  "Unknown Event"}
-              </h2>
-
-              <p>
-                <strong>Submission ID:</strong>{" "}
-                {submission.submission_id}
-              </p>
-
-              <p>
-                <strong>Submitted By:</strong>{" "}
-                {submission.submitted_by_email ||
-                  submission.submitted_by}
-              </p>
-
-              <p>
-                <strong>Status:</strong>{" "}
-                {submission.status}
-              </p>
-
-              {submission.submitted_at && (
-                <p>
-                  <strong>Submitted At:</strong>{" "}
-                  {new Date(
-                    submission.submitted_at
-                  ).toLocaleString()}
-                </p>
-              )}
-
-              <hr />
-
-              <p>
-                <strong>Event ID:</strong>{" "}
-                {submission.event?.event_id ?? "-"}
-              </p>
-
-              <p>
-                <strong>Session ID:</strong>{" "}
-                {submission.event?.session_id ?? "-"}
-              </p>
-
-              <p>
-                <strong>Driver ID:</strong>{" "}
-                {submission.event?.driver_id ?? "N/A"}
-              </p>
-
-              <p>
-                <strong>Lap Number:</strong>{" "}
-                {submission.event?.lap_number ?? "N/A"}
-              </p>
-
-              <p>
-                <strong>Timestamp:</strong>{" "}
-                {submission.event?.timestamp ?? "-"}
-              </p>
-
-              <h3>Payload</h3>
-
-              <pre
-                style={{
-                  background: "#111",
-                  padding: "15px",
-                  borderRadius: "8px",
-                  overflowX: "auto",
-                }}
-              >
-                {JSON.stringify(
-                  submission.event?.payload ?? {},
-                  null,
-                  2
-                )}
-              </pre>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  marginTop: "20px",
-                }}
-              >
-                <button
-                  onClick={() =>
-                    handleAccept(
-                      submission.submission_id
-                    )
-                  }
-                  disabled={
-                    processingId ===
-                    submission.submission_id
-                  }
-                >
-                  {processingId ===
-                  submission.submission_id
-                    ? "Processing..."
-                    : "Accept"}
+      <p>Review F1 event data before it is published to Neon. Acceptance is permanent and may require a correction workflow to change later.</p>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+        <label>Show{" "}
+          <select value={status} onChange={event => { setLoading(true); setStatus(event.target.value); }}>
+            <option value="pending">Pending</option>
+            <option value="all">All</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </label>
+        <button onClick={() => void load()} disabled={loading}>Refresh</button>
+      </div>
+      {error && <p role="alert" style={{ color: "#ff7373" }}>{error}</p>}
+      {message && <p role="status" style={{ color: "#86efac" }}>{message}</p>}
+      {loading && <p>Loading submissions...</p>}
+      {!loading && !error && records.length === 0 && <p>No submissions found.</p>}
+      {!loading && records.map(record => (
+        <article key={record.submission_id} style={{
+          border: "1px solid #444", borderRadius: 10, padding: 20, marginBottom: 20
+        }}>
+          <h2>{record.event.type}</h2>
+          <p><strong>Submission ID:</strong> {record.submission_id}</p>
+          <p><strong>Event ID:</strong> {record.event.event_id}</p>
+          <p><strong>Session:</strong> {record.event.session_id}</p>
+          <p><strong>Submitted by:</strong> {record.submitted_by_email ?? record.submitted_by ?? "Unknown"}</p>
+          <p><strong>Submitted:</strong> {new Date(record.submitted_at).toLocaleString()}</p>
+          <p><strong>Status:</strong> {record.status}</p>
+          {record.reviewed_at && <p><strong>Reviewed:</strong> {new Date(record.reviewed_at).toLocaleString()}
+            {record.reviewed_by_email ? ` by ${record.reviewed_by_email}` : ""}</p>}
+          {record.validation_errors.map((reason, index) => <p key={index}><strong>Review reason:</strong> {reason}</p>)}
+          <details>
+            <summary>Inspect event payload</summary>
+            <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+              {JSON.stringify(record.event, null, 2)}
+            </pre>
+          </details>
+          {record.status === "pending" && (
+            <div style={{ marginTop: 20 }}>
+              <label style={{ display: "block" }}>Rejection reason
+                <textarea rows={3} maxLength={2000}
+                  value={reasons[record.submission_id] ?? ""}
+                  onChange={event => setReasons(previous => ({
+                    ...previous, [record.submission_id]: event.target.value,
+                  }))}
+                  disabled={processingId !== null}
+                  style={{ display: "block", width: "100%", boxSizing: "border-box", marginTop: 8, padding: 10 }}
+                />
+              </label>
+              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                <button onClick={() => void review(record, "accepted")} disabled={processingId !== null}>
+                  {processingId === record.submission_id ? "Processing..." : "Accept"}
                 </button>
-
-                <button
-                  onClick={() =>
-                    handleReject(
-                      submission.submission_id
-                    )
-                  }
-                  disabled={
-                    processingId ===
-                    submission.submission_id
-                  }
-                >
+                <button onClick={() => void review(record, "rejected")}
+                  disabled={processingId !== null || !(reasons[record.submission_id] ?? "").trim()}>
                   Reject
                 </button>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          )}
+        </article>
+      ))}
     </div>
   );
 }
-
-export default SubmissionReview;
