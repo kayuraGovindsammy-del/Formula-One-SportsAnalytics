@@ -1,233 +1,103 @@
 import { z } from "zod";
-
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-
 import type { AuthenticatedRequest } from "../middleware/authenticate.js";
-
 import * as submissionsModel from "../models/submissions.model.js";
+import { submissionSchema, validationMessage } from "../services/submissionValidation.js";
+import type { SubmissionRecord, SubmissionStatus } from "../types/submission.types.js";
 
-const eventTypeSchema = z.enum([
-  "SESSION_START",
-  "SESSION_END",
-  "LAP_COMPLETED",
-  "PIT_STOP",
-  "POSITION_CHANGE",
-  "PENALTY_ISSUED",
-  "RETIREMENT",
-  "FASTEST_LAP_SET",
-]);
-
-const submissionSchema = z.object({
-  event: z.object({
-    event_id: z.string().trim().min(1),
-    session_id: z.string().trim().min(1),
-    driver_id: z.string().trim().min(1).optional(),
-    type: eventTypeSchema,
-    lap_number: z.number().int().positive().optional(),
-    timestamp: z.string().datetime(),
-    payload: z.record(z.string(), z.unknown()),
-  }),
-});
-
-const reviewSchema = z.object({
+const reviewSchema = z.strictObject({
   status: z.enum(["accepted", "rejected"]),
-  validation_errors: z
-    .array(z.string().trim().min(1))
-    .default([]),
+  validation_errors: z.array(z.string().trim().min(1).max(2000)).max(1).default([]),
+});
+const listSchema = z.strictObject({
+  status: z.enum(["pending", "accepted", "rejected"]).optional(),
 });
 
-function getAuthenticatedRequest(
-  req: Parameters<
-    Parameters<typeof asyncHandler>[0]
-  >[0]
-): AuthenticatedRequest {
+function auth(req: unknown): AuthenticatedRequest {
   return req as AuthenticatedRequest;
 }
 
-function submissionIdFromParam(
-  value: string | string[] | undefined
-): number {
+function submissionIdFromParam(value: string | string[] | undefined): number {
   const raw = Array.isArray(value) ? value[0] : value;
   const id = Number(raw);
-
-  if (!Number.isInteger(id) || id <= 0) {
-    throw ApiError.validationError(
-      "submission_id must be a positive integer."
-    );
-  }
-
+  if (!raw || !/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(id))
+    throw ApiError.validationError("submission_id must be a positive integer.");
   return id;
 }
 
-function toApiRecord(
-  submission: Awaited<
-    ReturnType<typeof submissionsModel.findById>
-  > extends infer T
-    ? Exclude<T, null>
-    : never
-) {
+function toApiRecord(record: SubmissionRecord, viewer: AuthenticatedRequest["authenticatedUser"]) {
+  const canSeeIdentity = viewer?.role === "ADMIN" || viewer?.uid === record.submitted_by;
   return {
-    submission_id: submission.submission_id,
-    submitted_by: submission.submitted_by,
-    submitted_by_email: submission.submitted_by_email,
-    submitted_at: submission.submitted_at,
-    status: submission.status.toLowerCase(),
-    validation_errors: submission.validation_message
-      ? [submission.validation_message]
-      : [],
-    event: submission.event_data,
+    submission_id: record.submission_id,
+    submitted_by: canSeeIdentity ? record.submitted_by : null,
+    submitted_by_email: canSeeIdentity ? record.submitted_by_email : null,
+    submitted_at: record.submitted_at,
+    reviewed_at: record.reviewed_at,
+    reviewed_by: viewer?.role === "ADMIN" ? record.reviewed_by_uid : null,
+    reviewed_by_email: viewer?.role === "ADMIN" ? record.reviewed_by_email : null,
+    status: record.status.toLowerCase(),
+    validation_errors: record.validation_message ? [record.validation_message] : [],
+    event: record.event_data,
   };
 }
 
+function parseStatus(query: unknown): SubmissionStatus | undefined {
+  const parsed = listSchema.safeParse(query);
+  if (!parsed.success) throw ApiError.validationError(validationMessage(parsed.error));
+  return parsed.data.status?.toUpperCase() as SubmissionStatus | undefined;
+}
+
 /** POST /api/v1/submissions */
-export const createSubmission = asyncHandler(
-  async (req, res) => {
-    const authReq = getAuthenticatedRequest(req);
+export const createSubmission = asyncHandler(async (req, res) => {
+  const parsed = submissionSchema.safeParse(req.body);
+  if (!parsed.success) throw ApiError.validationError(validationMessage(parsed.error));
+  const user = auth(req).authenticatedUser!;
+  const record = await submissionsModel.create(user, parsed.data.event);
+  res.status(201).json({ data: toApiRecord(record, user), meta: {} });
+});
 
-    const parsed = submissionSchema.safeParse(req.body);
+/** GET /api/v1/submissions: admin queue, or the caller's own records. */
+export const listSubmissions = asyncHandler(async (req, res) => {
+  const user = auth(req).authenticatedUser!;
+  const status = parseStatus(req.query);
+  const records = await submissionsModel.findAll(user.role === "ADMIN" ? undefined : user.uid, status);
+  res.status(200).json({ data: records.map(row => toApiRecord(row, user)), meta: {} });
+});
 
-    if (!parsed.success) {
-      throw ApiError.validationError(
-        parsed.error.issues
-          .map(
-            (issue) =>
-              `${issue.path.join(".")}: ${issue.message}`
-          )
-          .join("; ")
-      );
-    }
-
-    const submission = await submissionsModel.create(
-      authReq.authenticatedUser!,
-      parsed.data.event
-    );
-
-    res.status(201).json({
-      data: toApiRecord(submission),
-      meta: {},
-    });
-  }
-);
-
-/** GET /api/v1/submissions */
-export const listSubmissions = asyncHandler(
-  async (req, res) => {
-    const authReq = getAuthenticatedRequest(req);
-    const user = authReq.authenticatedUser!;
-
-    const submissions = await submissionsModel.findAll();
-
-    const visible =
-      user.role === "ADMIN"
-        ? submissions
-        : submissions.filter(
-            (submission) =>
-              submission.submitted_by === user.uid
-          );
-
-    res.status(200).json({
-      data: visible.map(toApiRecord),
-      meta: {},
-    });
-  }
-);
+/** GET /api/v1/submissions/mine: history remains available after role revocation. */
+export const listMySubmissions = asyncHandler(async (req, res) => {
+  const user = auth(req).authenticatedUser!;
+  const records = await submissionsModel.findAll(user.uid, parseStatus(req.query));
+  res.status(200).json({ data: records.map(row => toApiRecord(row, user)), meta: {} });
+});
 
 /** GET /api/v1/submissions/:submission_id */
-export const getSubmission = asyncHandler(
-  async (req, res) => {
-    const authReq = getAuthenticatedRequest(req);
-
-    const submissionId = submissionIdFromParam(
-      req.params.submission_id
-    );
-
-    const submission =
-      await submissionsModel.findById(submissionId);
-
-    if (!submission) {
-      throw ApiError.notFound(
-        "Submission was not found."
-      );
-    }
-
-    const user = authReq.authenticatedUser!;
-
-    if (
-      user.role !== "ADMIN" &&
-      submission.submitted_by !== user.uid
-    ) {
-      throw ApiError.forbidden(
-        "You cannot access this submission."
-      );
-    }
-
-    res.status(200).json({
-      data: toApiRecord(submission),
-      meta: {},
-    });
-  }
-);
+export const getSubmission = asyncHandler(async (req, res) => {
+  const user = auth(req).authenticatedUser!;
+  const id = submissionIdFromParam(req.params.submission_id);
+  const record = await submissionsModel.findById(id);
+  if (!record) throw ApiError.notFound("Submission was not found.");
+  if (user.role !== "ADMIN" && record.submitted_by !== user.uid)
+    throw ApiError.forbidden("You cannot access this submission.");
+  res.status(200).json({ data: toApiRecord(record, user), meta: {} });
+});
 
 /** PATCH /api/v1/submissions/:submission_id */
-export const reviewSubmission = asyncHandler(
-  async (req, res) => {
-    const authReq = getAuthenticatedRequest(req);
-
-    const submissionId = submissionIdFromParam(
-      req.params.submission_id
-    );
-
-    const parsed = reviewSchema.safeParse(req.body);
-
-    if (!parsed.success) {
-      throw ApiError.validationError(
-        parsed.error.issues
-          .map(
-            (issue) =>
-              `${issue.path.join(".")}: ${issue.message}`
-          )
-          .join("; ")
-      );
-    }
-
-    if (
-      parsed.data.status === "rejected" &&
-      parsed.data.validation_errors.length === 0
-    ) {
-      throw ApiError.validationError(
-        "A rejection reason is required."
-      );
-    }
-
-    const updated = await submissionsModel.review(
-      submissionId,
-      authReq.authenticatedUser!,
-      parsed.data.status === "accepted"
-        ? "ACCEPTED"
-        : "REJECTED",
-      parsed.data.validation_errors[0] ?? null
-    );
-
-    if (!updated) {
-      const existing =
-        await submissionsModel.findById(submissionId);
-
-      if (!existing) {
-        throw ApiError.notFound(
-          "Submission was not found."
-        );
-      }
-
-      throw ApiError.conflict(
-        "SUBMISSION_ALREADY_REVIEWED",
-        "This submission has already been reviewed."
-      );
-    }
-
-    res.status(200).json({
-      data: toApiRecord(updated),
-      meta: {},
-    });
-  }
-);
+export const reviewSubmission = asyncHandler(async (req, res) => {
+  const user = auth(req).authenticatedUser!;
+  if (user.role !== "ADMIN") throw ApiError.forbidden("Administrator access required.");
+  const id = submissionIdFromParam(req.params.submission_id);
+  const parsed = reviewSchema.safeParse(req.body);
+  if (!parsed.success) throw ApiError.validationError(validationMessage(parsed.error));
+  if (parsed.data.status === "rejected" && parsed.data.validation_errors.length === 0)
+    throw ApiError.validationError("A rejection reason is required.");
+  if (parsed.data.status === "accepted" && parsed.data.validation_errors.length)
+    throw ApiError.validationError("Accepted submissions cannot have rejection reasons.");
+  const record = await submissionsModel.review(
+    id, user, parsed.data.status.toUpperCase() as SubmissionStatus,
+    parsed.data.validation_errors[0] ?? null
+  );
+  if (!record) throw ApiError.notFound("Submission was not found.");
+  res.status(200).json({ data: toApiRecord(record, user), meta: {} });
+});
