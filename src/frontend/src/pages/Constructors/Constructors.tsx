@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+import { getTeamStyle } from "../../data/teamStyles";
 
 import {
   fetchDrivers,
   type Driver,
 } from "../../data/f1Data";
 
-import {
-  CONSTRUCTOR_TEAM_NAMES,
-} from "../../data/constructors";
 
 function Constructors() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,13 +40,21 @@ function Constructors() {
     void loadDrivers();
   }, []);
 
-  const constructors =
-    CONSTRUCTOR_TEAM_NAMES.filter(
-      (constructorName) =>
-        constructorName
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())
-    );
+  const constructors = Array.from(
+  new Map(
+    drivers.map((driver) => [
+      driver.constructorId,
+      {
+        constructorId: driver.constructorId,
+        name: driver.team,
+      },
+    ])
+  ).values()
+).filter((constructor) =>
+  constructor.name
+    .toLowerCase()
+    .includes(searchTerm.toLowerCase())
+);
 
   if (loading) {
     return (
@@ -104,54 +111,62 @@ function Constructors() {
       </p>
 
       <section className="constructors-grid">
-        {constructors.map(
-          (constructorName) => {
-            const teamDrivers = drivers.filter(
-              (driver) =>
-                driver.team === constructorName
-            );
+  {constructors.map((constructor) => {
+    const teamStyle = getTeamStyle(constructor.constructorId);
 
-            return (
-              <article
-                className="constructor-card"
-                key={constructorName}
-              >
-                <header>
-                  <h2>{constructorName}</h2>
-                </header>
+    const teamDrivers = drivers.filter(
+      (driver) =>
+        driver.constructorId === constructor.constructorId
+    );
 
-                <section className="constructor-drivers">
-                  <h3>Drivers</h3>
+    return (
+      <article
+        className="constructor-card"
+        key={constructor.constructorId}
+        style={
+          {
+            "--team-color": teamStyle.primary,
+            "--team-text-color": teamStyle.secondary,
+          } as CSSProperties
+        }
+      >
+        <div className="constructor-card-accent" />
 
-                  {teamDrivers.length > 0 ? (
-                    <ul>
-                      {teamDrivers.map(
-                        (driver) => (
-                          <li
-                            key={driver.driverId}
-                          >
-                            <span>
-                              #{driver.number}
-                            </span>
+        <header className="constructor-card-header">
+          <p className="constructor-label">
+            Formula 1 Team
+          </p>
 
-                            <strong>
-                              {driver.name}
-                            </strong>
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  ) : (
-                    <p>
-                      Driver information unavailable.
-                    </p>
-                  )}
-                </section>
-              </article>
-            );
-          }
-        )}
-      </section>
+          <h2>{constructor.name}</h2>
+
+          <span className="constructor-code">
+            {constructor.constructorId}
+          </span>
+        </header>
+
+        <section className="constructor-drivers">
+          <h3>Drivers</h3>
+
+          {teamDrivers.length > 0 ? (
+            <ul>
+              {teamDrivers.map((driver) => (
+                <li key={driver.driverId}>
+                  <span className="constructor-driver-number">
+                    #{driver.number}
+                  </span>
+
+                  <strong>{driver.name}</strong>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>Driver information unavailable.</p>
+          )}
+        </section>
+      </article>
+    );
+  })}
+</section>
     </main>
   );
 }
