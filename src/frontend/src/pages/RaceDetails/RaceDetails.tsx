@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import StatCard from "../../components/StatCard";
+import { getCircuitImage } from "../../data/circuitImages";
 import {
   fetchRace,
   fetchRaceStatistics,
@@ -65,16 +66,37 @@ function RaceDetails() {
     );
   }
 
+  const circuitImage = getCircuitImage(race.country);
+
   return (
     <main>
       <section className="race-detail-header">
-        <p className="race-round">Round {race.round}</p>
-        <h1>{race.name}</h1>
-        <p>
-          {race.circuitName}, {race.locality}, {race.country}
-        </p>
-        <time dateTime={race.date}>{race.date}</time>
-      </section>
+  <div className="race-detail-info">
+    <p className="race-round">Round {race.round}</p>
+
+    <h1>{race.name}</h1>
+
+    <p className="race-detail-circuit">
+      {race.circuitName}
+    </p>
+
+    <p className="race-detail-location">
+      {race.locality}, {race.country}
+    </p>
+
+    <time dateTime={race.date}>{race.date}</time>
+  </div>
+
+  {circuitImage && (
+    <div className="race-detail-image-container">
+      <img
+        src={circuitImage}
+        alt={`${race.name} circuit layout`}
+        className="race-detail-image"
+      />
+    </div>
+  )}
+</section>
 
       {statistics ? (
         <>

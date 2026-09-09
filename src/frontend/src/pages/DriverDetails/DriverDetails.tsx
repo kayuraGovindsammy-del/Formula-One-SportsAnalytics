@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import StatCard from "../../components/StatCard";
+import type { CSSProperties } from "react";
+import { getDriverImage } from "../../data/driverImages";
+import { getTeamStyle } from "../../data/teamStyles";
 import {
   fetchDriver,
   fetchDriverStatistics,
@@ -64,20 +67,61 @@ function DriverDetails() {
     );
   }
 
-  return (
-    <main>
-      <section className="driver-profile-header">
-        <div>
-          <p className="driver-profile-number">#{driver.number}</p>
-          <h1>{driver.name}</h1>
-          <p>{driver.team}</p>
-        </div>
-      </section>
+  const driverImage = getDriverImage(driver.driverId); 
+  const teamStyle = getTeamStyle(driver.constructorId);
 
-      <section className="stats-grid">
-        <StatCard title="Nationality" value={driver.nationality} />
+  return (
+  <main
+    className="driver-details-page"
+    style={
+      {
+        "--team-color": teamStyle.primary,
+      } as CSSProperties
+    }
+  >
+
+    <div className="driver-page-content">
+      <section className="driver-detail-hero">
+  <div className="driver-detail-info">
+    <p className="driver-profile-number">
+      #{driver.number}
+    </p>
+
+    <h1>{driver.name}</h1>
+
+    <p className="driver-profile-team">
+      {driver.team}
+    </p>
+
+    <div className="driver-profile-meta">
+      <div>
+        <span>Nationality</span>
+        <strong>{driver.nationality}</strong>
+      </div>
+
+      <div>
+        <span>Date of Birth</span>
+        <strong>{driver.dateOfBirth}</strong>
+      </div>
+    </div>
+  </div>
+
+  <div className="driver-detail-image-container">
+    <img
+      src={driverImage}
+      alt={driver.name}
+      className="driver-detail-image"
+    />
+  </div>
+</section>
+
+      <section className="stats-grid driver-stats-grid">
         <StatCard title="Wins" value={String(statistics.wins)} />
         <StatCard title="Podiums" value={String(statistics.podiums)} />
+        <StatCard
+          title="Fastest Laps"
+          value={String(statistics.fastestLaps)}
+        />
         <StatCard title="DNFs" value={String(statistics.dnfCount)} />
       </section>
 
@@ -87,22 +131,23 @@ function DriverDetails() {
 
           <dl className="performance-list">
             <div>
+              <dt>Nationality</dt>
+              <dd>{driver.nationality}</dd>
+            </div>
+
+            <div>
               <dt>Date of Birth</dt>
               <dd>{driver.dateOfBirth}</dd>
             </div>
 
             <div>
-              <dt>Races Entered</dt>
-              <dd>{statistics.racesEntered}</dd>
+              <dt>Team</dt>
+              <dd>{driver.team}</dd>
             </div>
 
             <div>
-              <dt>DNF Rate</dt>
-              <dd>
-                {statistics.dnfRate === null
-                  ? "Not available"
-                  : `${(statistics.dnfRate * 100).toFixed(1)}%`}
-              </dd>
+              <dt>Driver Number</dt>
+              <dd>{driver.number}</dd>
             </div>
           </dl>
         </article>
@@ -111,6 +156,11 @@ function DriverDetails() {
           <h2>2025 Performance</h2>
 
           <dl className="performance-list">
+            <div>
+              <dt>Races Entered</dt>
+              <dd>{statistics.racesEntered}</dd>
+            </div>
+
             <div>
               <dt>Average Finish</dt>
               <dd>
@@ -138,6 +188,15 @@ function DriverDetails() {
                 {statistics.positionsGainedLostAvg ?? "Not available"}
               </dd>
             </div>
+
+            <div>
+              <dt>DNF Rate</dt>
+              <dd>
+                {statistics.dnfRate === null
+                  ? "Not available"
+                  : `${(statistics.dnfRate * 100).toFixed(1)}%`}
+              </dd>
+            </div>
           </dl>
         </article>
       </section>
@@ -152,8 +211,9 @@ function DriverDetails() {
           </p>
         </article>
       </section>
-    </main>
-  );
+    </div>
+  </main>
+);
 }
 
 export default DriverDetails;
