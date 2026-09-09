@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import StatCard from "../../components/StatCard";
+import { Link } from "react-router-dom";
+
 import {
   fetchFeaturedRace,
   fetchSeasonSummary,
-  type ConstructorStanding,
-  type DriverStanding,
   type RecentRace,
 } from "../../data/f1Data";
+
+import { getCircuitImage } from "../../data/circuitImages";
 
 interface SeasonSummary {
   season: string;
@@ -16,12 +17,12 @@ interface SeasonSummary {
 }
 
 function Dashboard() {
-  const [seasonSummary, setSeasonSummary] = useState<SeasonSummary | null>(null);
-  const [featuredRace, setFeaturedRace] = useState<RecentRace | null>(null);
-  const [driverStandings, setDriverStandings] = useState<DriverStanding[]>([]);
-  const [constructorStandings, setConstructorStandings] = useState<
-    ConstructorStanding[]
-  >([]);
+  const [seasonSummary, setSeasonSummary] =
+    useState<SeasonSummary | null>(null);
+
+  const [featuredRace, setFeaturedRace] =
+    useState<RecentRace | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -38,11 +39,12 @@ function Dashboard() {
 
         setSeasonSummary(summary);
         setFeaturedRace(featured.race);
-        setDriverStandings(featured.driverStandings);
-        setConstructorStandings(featured.constructorStandings);
       } catch (err) {
         console.error("Failed to load dashboard:", err);
-        setError("Failed to load Formula 1 dashboard data from the API.");
+
+        setError(
+          "Failed to load Formula 1 dashboard data from the API."
+        );
       } finally {
         setLoading(false);
       }
@@ -53,8 +55,8 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <main>
-        <section>
+      <main className="dashboard-page">
+        <section className="dashboard-status">
           <h1>Formula 1 Analytics</h1>
           <p>Loading dashboard data...</p>
         </section>
@@ -64,10 +66,11 @@ function Dashboard() {
 
   if (error || !seasonSummary || !featuredRace) {
     return (
-      <main>
-        <section>
+      <main className="dashboard-page">
+        <section className="dashboard-status">
           <h1>Formula 1 Analytics</h1>
-          <p style={{ color: "red" }}>
+
+          <p className="dashboard-error">
             {error || "Dashboard data is unavailable."}
           </p>
         </section>
@@ -75,89 +78,245 @@ function Dashboard() {
     );
   }
 
+  const circuitImage = getCircuitImage(featuredRace.country);
+
   return (
-    <main>
-      <section>
-        <h1>{seasonSummary.season} Formula 1 Season</h1>
-        <p>Season overview and performance analytics.</p>
-      </section>
+    <main className="dashboard-page">
 
-      <section className="stats-grid">
-        <StatCard title="Races" value={String(seasonSummary.raceCount)} />
-        <StatCard title="Drivers" value={String(seasonSummary.driverCount)} />
-        <StatCard
-          title="Constructors"
-          value={String(seasonSummary.constructorCount)}
-        />
-        <StatCard title="Season" value={String(seasonSummary.season)} />
-      </section>
+      {/* HERO */}
 
-      <section className="standings-grid">
-        <article className="standings-card">
-          <h2>{featuredRace.name} Top Finishers</h2>
+      <section className="dashboard-hero">
+        <div className="dashboard-hero-content">
+          <p className="dashboard-eyebrow">
+            {seasonSummary.season} Season
+          </p>
 
-          <ol className="standings-list">
-            {driverStandings.map((driver) => (
-              <li key={driver.driverId}>
-                <span>
-                  {driver.position}. {driver.name}
-                </span>
-                <strong>{driver.team}</strong>
-              </li>
-            ))}
-          </ol>
-        </article>
+          <h1>
+            Formula 1
+            <span> Analytics</span>
+          </h1>
 
-        <article className="standings-card">
-          <h2>{featuredRace.name} Constructors</h2>
+          <p className="dashboard-hero-description">
+            Explore drivers, constructors, races and performance
+            statistics from the {seasonSummary.season} Formula 1
+            season.
+          </p>
 
-          <ol className="standings-list">
-            {constructorStandings.map((constructor) => (
-              <li key={constructor.constructorId}>
-                <span>
-                  {constructor.position}. {constructor.name}
-                </span>
-                <strong>
-                  {constructor.finishes} finish
-                  {constructor.finishes !== 1 ? "es" : ""}
-                </strong>
-              </li>
-            ))}
-          </ol>
-        </article>
-      </section>
+          <div className="dashboard-hero-actions">
+            <Link
+              to="/races"
+              className="dashboard-primary-button"
+            >
+              Explore Races
+            </Link>
 
-      <section className="race-overview">
-        <h2>Featured Race</h2>
+            <Link
+              to="/statistics"
+              className="dashboard-secondary-button"
+            >
+              View Statistics
+            </Link>
+          </div>
+        </div>
 
-        <article className="race-card">
-          <header className="race-card-header">
+        <div className="dashboard-season-panel">
+          <p>Season Overview</p>
+
+          <div className="dashboard-season-number">
+            {seasonSummary.season}
+          </div>
+
+          <div className="dashboard-season-stats">
             <div>
-              <p>Round {featuredRace.round}</p>
-              <h3>{featuredRace.name}</h3>
-            </div>
-            <span>{new Date(featuredRace.date).getFullYear()}</span>
-          </header>
-
-          <div className="race-details">
-            <div>
-              <p>Winner</p>
-              <strong>{featuredRace.winner}</strong>
+              <strong>{seasonSummary.raceCount}</strong>
+              <span>Races</span>
             </div>
 
             <div>
-              <p>Fastest Lap</p>
-              <strong>{featuredRace.fastestLapDriver}</strong>
-              <p>{featuredRace.fastestLapTime}</p>
+              <strong>{seasonSummary.driverCount}</strong>
+              <span>Drivers</span>
             </div>
 
             <div>
-              <p>Circuit</p>
-              <strong>{featuredRace.circuitName}</strong>
+              <strong>{seasonSummary.constructorCount}</strong>
+              <span>Teams</span>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* NAVIGATION */}
+
+      <section className="dashboard-navigation">
+        <header className="dashboard-section-heading">
+          <p>Explore</p>
+          <h2>Formula 1 Analytics</h2>
+        </header>
+
+        <div className="dashboard-navigation-grid">
+
+          <Link
+            to="/drivers"
+            className="dashboard-navigation-card"
+          >
+            <span className="dashboard-card-number">
+              01
+            </span>
+
+            <div>
+              <h3>Drivers</h3>
+
+              <p>
+                Explore the drivers competing throughout the
+                season and analyse their performance.
+              </p>
+            </div>
+
+            <span className="dashboard-card-arrow">
+              →
+            </span>
+          </Link>
+
+          <Link
+            to="/races"
+            className="dashboard-navigation-card"
+          >
+            <span className="dashboard-card-number">
+              02
+            </span>
+
+            <div>
+              <h3>Races</h3>
+
+              <p>
+                View race weekends, circuits, classifications
+                and event statistics.
+              </p>
+            </div>
+
+            <span className="dashboard-card-arrow">
+              →
+            </span>
+          </Link>
+
+          <Link
+            to="/constructors"
+            className="dashboard-navigation-card"
+          >
+            <span className="dashboard-card-number">
+              03
+            </span>
+
+            <div>
+              <h3>Constructors</h3>
+
+              <p>
+                Discover Formula 1 teams and the drivers
+                representing each constructor.
+              </p>
+            </div>
+
+            <span className="dashboard-card-arrow">
+              →
+            </span>
+          </Link>
+
+          <Link
+            to="/statistics"
+            className="dashboard-navigation-card"
+          >
+            <span className="dashboard-card-number">
+              04
+            </span>
+
+            <div>
+              <h3>Statistics</h3>
+
+              <p>
+                Compare race and season performance using
+                calculated analytics.
+              </p>
+            </div>
+
+            <span className="dashboard-card-arrow">
+              →
+            </span>
+          </Link>
+
+        </div>
+      </section>
+
+      {/* FEATURED RACE */}
+
+      <section className="dashboard-featured-section">
+        <header className="dashboard-section-heading">
+          <p>Featured</p>
+          <h2>Race Spotlight</h2>
+        </header>
+
+        <article className="dashboard-featured-race">
+
+          <div className="dashboard-featured-info">
+            <p className="dashboard-featured-round">
+              Round {featuredRace.round}
+            </p>
+
+            <h3>{featuredRace.name}</h3>
+
+            <p className="dashboard-featured-circuit">
+              {featuredRace.circuitName}
+            </p>
+
+            <p className="dashboard-featured-location">
+              {featuredRace.locality}, {featuredRace.country}
+            </p>
+
+            <Link
+              to={`/races/${featuredRace.grandPrixId}`}
+              className="dashboard-primary-button"
+            >
+              View Race
+            </Link>
+          </div>
+
+          {circuitImage && (
+            <div className="dashboard-featured-image">
+              <img
+                src={circuitImage}
+                alt={`${featuredRace.name} circuit layout`}
+              />
+            </div>
+          )}
+
         </article>
       </section>
+
+      {/* CONTRIBUTOR ACCESS */}
+
+<section className="dashboard-contributor-section">
+  <div className="dashboard-contributor-content">
+    <div>
+      <p className="dashboard-contributor-label">
+        Contribute
+      </p>
+
+      <h2>Help Build the Race Data</h2>
+
+      <p>
+        Approved contributors can submit Formula 1 race data
+        for review by an administrator.
+      </p>
+    </div>
+
+    <Link
+      to="/account"
+      className="dashboard-contributor-button"
+    >
+      Request Submitter Access
+    </Link>
+  </div>
+</section>
+
     </main>
   );
 }

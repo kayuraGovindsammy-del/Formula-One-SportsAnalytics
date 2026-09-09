@@ -105,114 +105,221 @@ function Login() {
     }
   };
 
-  const fieldStyle = {
-    width: "100%",
-    padding: "12px",
-    boxSizing: "border-box" as const,
-    borderRadius: "6px",
-    border: "1px solid #555",
-    background: "#252525",
-    color: "#fff",
-    fontSize: "16px",
-  };
-
-  const buttonStyle = {
-    width: "100%",
-    padding: "12px",
-    border: "none",
-    borderRadius: "6px",
-    cursor: loading ? "not-allowed" : "pointer",
-    fontSize: "16px",
-    fontWeight: "bold" as const,
-  };
 
   return (
-    <div style={{
-      minHeight: "100vh", display: "flex", justifyContent: "center",
-      alignItems: "center", background: "#111", color: "white", padding: "20px",
-      boxSizing: "border-box",
-    }}>
-      <div style={{
-        width: "100%", maxWidth: "400px", padding: "32px",
-        background: "#1c1c1c", borderRadius: "12px", textAlign: "center",
-      }}>
-        <h1>F1 Analytics</h1>
-        <p style={{ marginBottom: "24px", color: "#aaa" }}>
-          {mode === "login" ? "Sign in to continue" :
-            mode === "register" ? "Create your account" : "Reset your password"}
+  <main className="login-page">
+    <section className="login-shell">
+      <div className="login-brand-panel">
+        <p className="login-eyebrow">
+          Formula 1 Analytics
         </p>
 
-        {error && <p role="alert" style={{ color: "#ff7373" }}>{error}</p>}
-        {message && <p role="status" style={{ color: "#86efac" }}>{message}</p>}
+        <h1>
+          Race Data.
+          <br />
+          Driver Insight.
+          <br />
+          Better Analysis.
+        </h1>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "14px", textAlign: "left" }}>
-          <label>
-            <span style={{ display: "block", marginBottom: "6px" }}>Email</span>
-            <input style={fieldStyle} type="email" autoComplete="email"
-              value={email} onChange={e => setEmail(e.target.value)}
-              required disabled={loading} />
+        <p className="login-brand-description">
+          Explore Formula 1 drivers, races,
+          constructors and performance analytics
+          in one place.
+        </p>
+
+        <div className="login-brand-line" />
+      </div>
+
+      <div className="login-form-panel">
+        <div className="login-form-header">
+          <p className="login-form-label">
+            {mode === "login"
+              ? "Welcome Back"
+              : mode === "register"
+                ? "Join the Grid"
+                : "Account Recovery"}
+          </p>
+
+          <h2>
+            {mode === "login"
+              ? "Sign In"
+              : mode === "register"
+                ? "Create Account"
+                : "Reset Password"}
+          </h2>
+
+          <p>
+            {mode === "login"
+              ? "Sign in to access your account and contributor tools."
+              : mode === "register"
+                ? "Create an account to get started."
+                : "Enter your email and we'll send password-reset instructions."}
+          </p>
+        </div>
+
+        {error && (
+          <p
+            role="alert"
+            className="login-message login-message-error"
+          >
+            {error}
+          </p>
+        )}
+
+        {message && (
+          <p
+            role="status"
+            className="login-message login-message-success"
+          >
+            {message}
+          </p>
+        )}
+
+        <form
+          onSubmit={handleSubmit}
+          className="login-form"
+        >
+          <label className="login-field">
+            <span>Email</span>
+
+            <input
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
+              required
+              disabled={loading}
+              placeholder="you@example.com"
+            />
           </label>
 
           {mode !== "reset" && (
-            <label>
-              <span style={{ display: "block", marginBottom: "6px" }}>Password</span>
-              <input style={fieldStyle} type="password"
-                autoComplete={mode === "register" ? "new-password" : "current-password"}
-                value={password} onChange={e => setPassword(e.target.value)}
-                minLength={mode === "register" ? 8 : undefined}
-                required disabled={loading} />
+            <label className="login-field">
+              <span>Password</span>
+
+              <input
+                type="password"
+                autoComplete={
+                  mode === "register"
+                    ? "new-password"
+                    : "current-password"
+                }
+                value={password}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
+                minLength={
+                  mode === "register"
+                    ? 8
+                    : undefined
+                }
+                required
+                disabled={loading}
+                placeholder="Enter your password"
+              />
             </label>
           )}
 
           {mode === "register" && (
-            <label>
-              <span style={{ display: "block", marginBottom: "6px" }}>Confirm password</span>
-              <input style={fieldStyle} type="password" autoComplete="new-password"
-                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                minLength={8} required disabled={loading} />
+            <label className="login-field">
+              <span>
+                Confirm Password
+              </span>
+
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) =>
+                  setConfirmPassword(
+                    e.target.value
+                  )
+                }
+                minLength={8}
+                required
+                disabled={loading}
+                placeholder="Confirm your password"
+              />
             </label>
           )}
 
-          <button type="submit" disabled={loading} style={buttonStyle}>
-            {loading ? "Please wait..." :
-              mode === "login" ? "Sign in" :
-              mode === "register" ? "Create account" : "Send reset email"}
+          <button
+            type="submit"
+            disabled={loading}
+            className="login-primary-button"
+          >
+            {loading
+              ? "Please wait..."
+              : mode === "login"
+                ? "Sign in"
+                : mode === "register"
+                  ? "Create account"
+                  : "Send reset email"}
           </button>
         </form>
 
         {mode !== "reset" && (
           <>
-            <p style={{ color: "#aaa", margin: "20px 0" }}>or</p>
-            <button type="button" onClick={handleGoogleLogin} disabled={loading}
-              style={buttonStyle}>
+            <div className="login-divider">
+              <span>or</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              className="login-google-button"
+            >
               Sign in with Google
             </button>
           </>
         )}
 
-        <div style={{ marginTop: "22px", display: "grid", gap: "10px" }}>
+        <div className="login-links">
           {mode === "login" && (
             <>
-              <button type="button" onClick={() => changeMode("reset")} disabled={loading}
-                style={{ background: "none", border: "none", color: "#93c5fd", cursor: "pointer" }}>
+              <button
+                type="button"
+                onClick={() =>
+                  changeMode("reset")
+                }
+                disabled={loading}
+              >
                 Forgot password?
               </button>
-              <button type="button" onClick={() => changeMode("register")} disabled={loading}
-                style={{ background: "none", border: "none", color: "#93c5fd", cursor: "pointer" }}>
-                Don't have an account? Register
+
+              <button
+                type="button"
+                onClick={() =>
+                  changeMode("register")
+                }
+                disabled={loading}
+              >
+                Don't have an account?{" "}
+                <strong>Register</strong>
               </button>
             </>
           )}
+
           {mode !== "login" && (
-            <button type="button" onClick={() => changeMode("login")} disabled={loading}
-              style={{ background: "none", border: "none", color: "#93c5fd", cursor: "pointer" }}>
-              Back to sign in
+            <button
+              type="button"
+              onClick={() =>
+                changeMode("login")
+              }
+              disabled={loading}
+            >
+              ← Back to sign in
             </button>
           )}
         </div>
       </div>
-    </div>
-  );
+    </section>
+  </main>
+);
 }
 
 export default Login;
