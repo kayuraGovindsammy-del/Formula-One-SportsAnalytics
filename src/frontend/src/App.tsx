@@ -13,6 +13,7 @@ import SubmitterRequests from "./pages/Admin/SubmitterRequests";
 import SubmissionReview from "./pages/Admin/SubmissionReview";
 
 import SubmitData from "./pages/Submit/SubmitData";
+import MySubmissions from "./pages/Submit/MySubmissions";
 
 import ProtectedRoute from "./auth/ProtectedRoute";
 import AdminRoute from "./auth/AdminRoute";
@@ -124,6 +125,15 @@ function App() {
               <SubmissionReview />
             </Layout>
           </AdminRoute>
+        }
+      />
+
+      <Route
+        path="/my-submissions"
+        element={
+          <ProtectedRoute>
+            <Layout><MySubmissions /></Layout>
+          </ProtectedRoute>
         }
       />
 

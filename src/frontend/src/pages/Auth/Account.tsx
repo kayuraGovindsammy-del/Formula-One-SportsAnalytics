@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, updateDoc } from "firebase/firestore";
 
 import { useAuth } from "../../auth/useAuth";
-import { db } from "../../auth/firebase";
+import { requestSubmitterAccess } from "../../auth/submitterAccess";
 
 function Account() {
   const {
@@ -19,6 +18,11 @@ function Account() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [requestLoading, setRequestLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+  const usesPassword = user?.providerData.some(p => p.providerId === "password") ?? false;
+  const usesGoogle = user?.providerData.some(p => p.providerId === "google.com") ?? false;
 
   const handleLogout = async () => {
     try {
@@ -31,32 +35,44 @@ function Account() {
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to permanently delete your account?"
-    );
-
-    if (!confirmed) {
+    if (!deleteConfirmed || deleteLoading) return;
+    if (usesPassword && !usesGoogle && !deletePassword) {
+      setError("Enter your current password to confirm deletion.");
       return;
     }
+    const confirmed = window.confirm(
+      "Permanently delete this account? Your sign-in and profile will be removed. " +
+      "Historical F1 submissions will remain with anonymized contributor details. " +
+      "This action cannot be undone."
+    );
+    if (!confirmed) return;
 
     try {
-      await deleteAccount();
-      navigate("/login");
+      setError("");
+      setMessage("");
+      setDeleteLoading(true);
+      const status = await deleteAccount(deletePassword || undefined);
+      navigate("/login", {
+        replace: true,
+        state: {
+          accountMessage: status === "pending"
+            ? "Your deletion request has been accepted. Account cleanup is in progress."
+            : "Your account has been deleted.",
+        },
+      });
     } catch (err: unknown) {
-      console.error(err);
-
-      if (
-        typeof err === "object" &&
-        err !== null &&
-        "code" in err &&
-        err.code === "auth/requires-recent-login"
-      ) {
-        setError(
-          "For security reasons, please sign out, sign back in, and try deleting your account again."
-        );
+      const code = typeof err === "object" && err !== null && "code" in err
+        ? String(err.code) : "";
+      if (code === "auth/requires-recent-login") {
+        setError("Please sign in again and retry account deletion.");
+      } else if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+        setError("The current password is incorrect.");
       } else {
-        setError("Failed to delete account.");
+        setError(err instanceof Error ? err.message : "Account deletion failed.");
       }
+    } finally {
+      setDeleteLoading(false);
+      setDeletePassword("");
     }
   };
 
@@ -70,11 +86,7 @@ function Account() {
       setMessage("");
       setRequestLoading(true);
 
-      const userRef = doc(db, "users", user.uid);
-
-      await updateDoc(userRef, {
-        submitterStatus: "pending",
-      });
+      await requestSubmitterAccess(user);
 
       setMessage(
         "Your submitter access request has been sent for admin approval."
@@ -178,8 +190,10 @@ function Account() {
         submitterStatus === "rejected" && (
           <div style={{ marginTop: "30px" }}>
             <h2>Submitter Access</h2>
-
-            <p>Your submitter request was rejected.</p>
+            <p>Your submitter request was rejected. You may submit a new request.</p>
+            <button onClick={handleSubmitterRequest} disabled={requestLoading}>
+              {requestLoading ? "Sending Request..." : "Request Submitter Access Again"}
+            </button>
           </div>
         )}
 
@@ -221,6 +235,31 @@ function Account() {
         </p>
       )}
 
+      <section style={{ marginTop: "32px", padding: "20px", border: "1px solid #c62828", borderRadius: "8px" }}>
+        <h2>Delete account</h2>
+        <p>
+          This permanently removes your Firebase sign-in and profile. Your Neon
+          contact details will be anonymized. Historical submissions and their
+          contributor/reviewer references are retained for data traceability.
+        </p>
+        <p>You will be asked to reauthenticate before deletion.</p>
+        {usesPassword && (
+          <label style={{ display: "block", marginBottom: "12px" }}>
+            {usesGoogle ? "Current password (or leave blank to confirm with Google)" : "Current password"}
+            <input type="password" autoComplete="current-password"
+              value={deletePassword} onChange={e => setDeletePassword(e.target.value)}
+              disabled={deleteLoading}
+              style={{ display: "block", width: "100%", padding: "10px", boxSizing: "border-box", marginTop: "6px" }} />
+          </label>
+        )}
+        <label style={{ display: "flex", alignItems: "start", gap: "8px" }}>
+          <input type="checkbox" checked={deleteConfirmed}
+            onChange={e => setDeleteConfirmed(e.target.checked)}
+            disabled={deleteLoading} />
+          I understand that account deletion is permanent.
+        </label>
+      </section>
+
       <div
         style={{
           display: "flex",
@@ -234,12 +273,13 @@ function Account() {
 
         <button
           onClick={handleDeleteAccount}
+          disabled={deleteLoading || !deleteConfirmed || (usesPassword && !usesGoogle && !deletePassword)}
           style={{
             background: "#c62828",
             color: "white",
           }}
         >
-          Delete Account
+          {deleteLoading ? "Deleting..." : "Delete Account"}
         </button>
       </div>
     </div>
