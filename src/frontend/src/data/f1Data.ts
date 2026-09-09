@@ -96,6 +96,8 @@ export interface RecentRace {
   round: number;
   name: string;
   circuitName: string;
+  locality: string;
+  country: string;
   date: string;
   winner: string;
   fastestLapDriver: string;
@@ -485,6 +487,8 @@ export async function fetchFeaturedRace(): Promise<{
       round: featuredRace.round,
       name: featuredRace.name,
       circuitName: featuredRace.circuitName,
+      locality: featuredRace.locality,
+      country: featuredRace.country,
       date: featuredRace.date,
       winner: winner?.driverName ?? "Not available",
       fastestLapDriver: statistics.fastestLapDriverName,
