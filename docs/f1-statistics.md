@@ -49,6 +49,12 @@ Constructor points are the sum of both registered drivers' points for the season
 
 **Sample-data coverage.** `data/sample/laps.json` only carries lap data through to each driver's actual finish for PIA, NOR and LEC — ANT's only recorded lap (32) is a mid-race snapshot, not his finish. So points can currently only be trusted for PIA, NOR and LEC; any figure derived for a driver without full lap coverage reflects whatever position happens to be in the log, not necessarily their real result. See issue #55 for the tracked follow-up to expand sample data coverage.
 
+### Positions gained/lost — sign convention
+
+§2's "Positions gained/lost" (`grid − finish`, positive = gained places) and §3's "Qualifying-vs-race performance" (`finish − qualifying`, negative = gained places) describe the same underlying comparison with opposite signs. There is one field for this, `positions_gained_lost_avg`, implementing §2's convention (positive = gained places) — not two separately-signed fields. To read a value as §3's figure instead, negate it.
+
+**Sample-data coverage.** `data/sample/events.json` now includes a minimal `2025_R13_QUALIFYING` session (`evt_011`-`evt_013`): one `LAP_COMPLETED` event per driver, position-only, for PIA, NOR and LEC — the same three drivers whose race finishing position is trustworthy (see above). NOR's pole position and PIA's P2 grid slot are corroborated by existing data (`session_result.pole_position`, and `evt_004`'s `position_before` with no earlier `POSITION_CHANGE`) and marked `"source": "real"`. LEC's grid position is an unconfirmed placeholder marked `"source": "illustrative"` — replace it with the real qualifying classification (Jolpica/ESPN) before treating it as fact. See issue #55.
+
 ## 4. Notes on edge cases
 
 - **Sprint sessions** produce their own separate `RaceResult` with a smaller points scale — sprint points and race points are summed together for the season total but should be tracked as distinct sessions so per-session statistics (fastest lap, race pace, etc.) aren't mixed between a sprint and the main race.
