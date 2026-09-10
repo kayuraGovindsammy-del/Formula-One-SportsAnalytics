@@ -4,6 +4,38 @@
 
 Every statistic below is computed from the event log defined in `event-schema.md`, not entered manually. Statistics are split into raw (directly observed from a single event) and derived (computed by aggregating over events).
 
+## Implementation status
+
+"Done and verified" means a pure function exists with passing unit tests. Whether that function's output is actually reachable through a live HTTP response is a separate question, called out explicitly per row where it isn't the obvious case.
+
+| Statistic | Status | Detail |
+|---|---|---|
+| Lap time | Done and verified | Used throughout `lapStatistics.ts` (`isRacingLap`, `averageLapTime`, `fastestLap`); not a standalone output field itself |
+| Pit stop count | Done and verified | `pitStatistics.ts`'s `pitStopCount`, tested in `pitStatistics.test.ts`. Live via `/races/:grand_prix_id/statistics` (`pit_stop_count`, `classification[].pit_stops`) — but for `2025_R13`, `classification[].pit_stops` currently comes from the stored-block override (issue #60), not the derivation |
+| Pit stop duration | Implemented, not exposed | `totalPitTime()` in `pitStatistics.ts`, tested in isolation in `pitStatistics.test.ts`; no route or statistics object surfaces it anywhere |
+| Position per lap | Implemented, not reachable via the API | `runningOrder.ts`'s `runningOrderAtLap`, tested in `runningOrder.test.ts`; no lap-by-lap position route exists |
+| Finishing position | Done and verified | `finishingPosition()` (`driverStatistics.ts`) and `lastRecordedLap()` (`raceStatistics.ts`). Live via `/drivers/:id/stats` (`average_finish_position`, fully derived) and `/races/:id/statistics` (`classification[].position`) — the latter is the stored-block override for `2025_R13` (issue #60), though the values agree for PIA/NOR/LEC |
+| Positions gained/lost (per-race) | Not implemented | Only the season-averaged form exists (`positions_gained_lost_avg`, see below) — no per-race "gained N places in this race" field exists in `ClassificationRow` or anywhere else |
+| Fastest lap | Done and verified, but the live response is inconsistent | `fastestLap()` (`lapStatistics.ts`), tested in `lapStatistics.test.ts` and `raceStatistics.test.ts` using the field name `lap_time_ms`. The live `/races/:id/statistics` response for `2025_R13` currently returns the stored block's shape instead (field name `time_ms`), per the issue #60 override |
+| Race pace | Done and verified, season-level only | `averageLapTime()` (`lapStatistics.ts`) and `average_race_pace_ms` (`driverStatistics.ts`), both tested, live via `/drivers/:id/stats`. There is no per-race (single-session) race-pace field in `raceStatistics.ts` — unlike consistency, which does have one |
+| Consistency | Done and verified | `lapConsistency()` (`lapStatistics.ts`) wired into `classification[].consistency_ms` (`raceStatistics.ts`), tested in both. Live via `/races/:id/statistics` for a race without a stored override; for `2025_R13` specifically it is absent from the live response entirely, since the issue #60 override classification has no such field |
+| DNF (per race) | Done and verified | `retirement_count`/`dnf_count` (`raceStatistics.ts`), tested; both are top-level fields untouched by the issue #60 override, so they're live-correct for every race |
+| Driver points | Done and verified | `pointsForPosition()` (`pointsTable.ts`, tested in `pointsTable.test.ts`) and `points` (`driverStatistics.ts`, tested). Live via `/drivers/:id/stats`. Base race scale only — see below for what's excluded |
+| Constructor points | Done and verified, not reachable via the API | `buildConstructorStatistics()` (`constructorStatistics.ts`), tested in `constructorStatistics.test.ts`. No route or controller exists for constructor statistics at all |
+| DNF rate | Done and verified | `dnf_rate` (`driverStatistics.ts`), tested, live via `/drivers/:id/stats` |
+| Qualifying-vs-race performance | Done and verified, not reachable via the API | Implemented as `positions_gained_lost_avg` (`driverStatistics.ts`), tested against real sample data (PIA/NOR/LEC) and 5 hand-constructed cases in `driverStatistics.test.ts`. `drivers.controller.ts` never fetches or attaches `qualifying_events` when building its input, so this field always returns `null` over HTTP regardless of season — tracked in issue #62 |
+
+**Not implemented at all:**
+- **Fastest-lap bonus point.** No scale for it is documented anywhere in this file or `api-design.md`.
+- **Sprint session points.** No sprint points scale is documented anywhere, and no sprint session sample data exists either — `data/sample/races.json` marks round 13 as `has_sprint: true`, but `data/sample/events.json` has no sprint session's events.
+- **Safety-car-aware race pace/consistency.** No `is_under_safety_car` flag exists on `LAP_COMPLETED` in the event schema.
+- **Penalty-adjusted classification.** `PENALTY_ISSUED` is a defined event type (`event.types.ts`), but no service reads it.
+
+**Sample-data trust boundaries** (issue #55 tracks expanding coverage):
+- **PIA, NOR, LEC** — full lap coverage through their actual race finish, and a qualifying grid entry each. Points and `positions_gained_lost_avg` are trustworthy for these three, with one caveat: LEC's grid position is an unconfirmed placeholder (`"source": "illustrative"` in `events.json`), not a sourced fact.
+- **ANT** — only one recorded lap (32), a mid-race snapshot rather than his finish. His points and `average_finish_position` reflect that mid-race position, not his real result. He has no qualifying event at all, so `positions_gained_lost_avg` correctly stays `null` for him rather than reflecting a fabricated grid position.
+- **Everyone else** (VER, RUS, ALB, HAM, LAW, BOR, GAS, and every driver/race outside the Belgian GP) — zero lap/event data in the sample set. Routes correctly return the "no data" shape (`races_entered: 0`, nulls) for these, not fabricated numbers.
+
 ## 1. Per-lap / per-session (raw)
 
 | Statistic | Derived from |
@@ -74,4 +106,4 @@ Constructor points are the sum of both registered drivers' points for the season
 
 
 ---
-*This document was generated with the assistance of: Claude-Web[Claude Sonnet 5]*
+*This document was generated with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]*
