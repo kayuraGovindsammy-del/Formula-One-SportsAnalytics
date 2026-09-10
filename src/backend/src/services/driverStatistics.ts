@@ -11,6 +11,7 @@
 import type { Event } from "../types/event.types.js";
 import type { Lap } from "../types/lap.types.js";
 import { averageLapTime, fastestLap, isRacingLap } from "./lapStatistics.js";
+import { pointsForPosition } from "./pointsTable.js";
 
 export interface DriverSessionInput {
   session_id: string;
@@ -37,7 +38,7 @@ export interface DriverStatistics {
   fastest_laps: number;
   average_finish_position: number | null;
   average_race_pace_ms: number | null;
-  points: null;
+  points: number | null;
   positions_gained_lost_avg: null;
 }
 
@@ -68,6 +69,7 @@ export function buildDriverStatistics(
   let podiums = 0;
   let dnfCount = 0;
   let fastestLaps = 0;
+  let totalPoints = 0;
 
   const finishPositions: number[] = [];
   const racingLapsAcrossSeason: Lap[] = [];
@@ -92,6 +94,7 @@ export function buildDriverStatistics(
 
     if (position !== null) {
       finishPositions.push(position);
+      totalPoints += pointsForPosition(position);
 
       if (position === 1) {
         wins += 1;
@@ -147,11 +150,21 @@ export function buildDriverStatistics(
     // docs/derivation.md.
     average_race_pace_ms: averageLapTime(racingLapsAcrossSeason),
 
+    // Sum of pointsForPosition() across every session with a derivable
+    // finishing position, per docs/f1-statistics.md §3. Null (not 0) when no
+    // position was ever derived, mirroring average_finish_position above —
+    // "scored nothing" and "no data" are different answers.
+    //
+    // KNOWN LIMITATION: only the base race scale applies (see
+    // pointsTable.ts) — no fastest-lap bonus point and no sprint scale, since
+    // neither is documented anywhere. See docs/f1-statistics.md §3 for the
+    // current scope, including which drivers' points can currently be
+    // trusted given the sample data's lap coverage.
+    points: finishPositions.length > 0 ? totalPoints : null,
+
     // Not derivable from the current schema — see docs/api-design.md §9.
-    // points: no points-scoring rule is defined anywhere in the schema or docs.
-    // positions_gained_lost_avg: needs the starting grid from a QUALIFYING
+    // positions_gained_lost_avg needs the starting grid from a QUALIFYING
     // session classification, and no qualifying data exists yet.
-    points: null,
     positions_gained_lost_avg: null,
   };
 }

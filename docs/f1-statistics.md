@@ -33,6 +33,22 @@ Every statistic below is computed from the event log defined in `event-schema.md
 | DNF rate | `count(sessions with RETIREMENT for this driver) / count(sessions entered)` |
 | Qualifying-vs-race performance | `average(race finishing position − qualifying position)` across all races in the season — negative means the driver typically gains positions in the race |
 
+### Points-per-position table
+
+`points` above is `sum(pointsForPosition(finishing_position))` per race session, using the standard F1 scale:
+
+| Position | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11+ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Points | 25 | 18 | 15 | 12 | 10 | 8 | 6 | 4 | 2 | 1 | 0 |
+
+Constructor points are the sum of both registered drivers' points for the season — not a separately-scored total.
+
+**Not yet computed, because no scale is defined for them:**
+- **Fastest-lap bonus point.** The real F1 scale awards +1 point for the fastest lap of the race (usually conditional on finishing in the top 10). No such rule is documented here or in `api-design.md`, so it is not applied.
+- **Sprint session points.** §4 above already flags that sprint sessions use "a smaller points scale," but that scale itself has never been specified. Sprint session classifications are not run through the points table above until one is.
+
+**Sample-data coverage.** `data/sample/laps.json` only carries lap data through to each driver's actual finish for PIA, NOR and LEC — ANT's only recorded lap (32) is a mid-race snapshot, not his finish. So points can currently only be trusted for PIA, NOR and LEC; any figure derived for a driver without full lap coverage reflects whatever position happens to be in the log, not necessarily their real result. See issue #55 for the tracked follow-up to expand sample data coverage.
+
 ## 4. Notes on edge cases
 
 - **Sprint sessions** produce their own separate `RaceResult` with a smaller points scale — sprint points and race points are summed together for the season total but should be tracked as distinct sessions so per-session statistics (fastest lap, race pace, etc.) aren't mixed between a sprint and the main race.
