@@ -1,5 +1,57 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
+
+vi.mock("../models/drivers.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAll: fixtures.findAllDrivers,
+    findById: fixtures.findDriverById,
+    getConstructorIdByDriver: fixtures.getConstructorIdByDriver,
+  };
+});
+
+vi.mock("../models/races.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAll: fixtures.findAllRaces,
+    findById: fixtures.findRaceById,
+    exists: fixtures.raceExists,
+  };
+});
+
+vi.mock("../models/sessions.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findByRace: fixtures.findSessionsByRace,
+    findBySeason: fixtures.findSessionsBySeason,
+    findOneByRaceAndType: fixtures.findOneSessionByRaceAndType,
+  };
+});
+
+vi.mock("../models/raceResults.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findByRace: fixtures.findRaceResults,
+  };
+});
+
+
+vi.mock("../models/laps.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllLapsBySession,
+    findByRace: fixtures.findLapsByRace,
+  };
+});
+
+vi.mock("../models/events.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllEventsBySession,
+    findByRace: fixtures.findEventsByRace,
+  };
+});
+
 import { createApp } from "../app.js";
 
 const app = createApp();
@@ -218,9 +270,9 @@ describe("GET /api/v1/races/:grand_prix_id/statistics", () => {
 
   it("returns NOT_FOUND for a race with no event log", async () => {
     // §4.8 — a race whose has_results is false 404s rather than returning an
-    // empty body. 2025_R1 (Australian GP) has no session data.
+    // empty body. 2025_R01 (Australian GP) has no session data.
     const res = await request(app).get(
-      "/api/v1/races/2025_R1/statistics"
+      "/api/v1/races/2025_R01/statistics"
     );
 
     expect(res.status).toBe(404);

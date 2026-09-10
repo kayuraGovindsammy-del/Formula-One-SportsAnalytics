@@ -1,19 +1,6 @@
-// ---------------------------------------------------------------------------
-// SPRINT 1 PLACEHOLDER — backed by data/sample/races.json via sampleData.ts.
-//
-// This is replaced by Postgres queries joining `grand_prix`, `circuits` and
-// `sessions` in database/schema.sql. The exported function signatures below are
-// the contract that must survive that swap.
-// ---------------------------------------------------------------------------
-
-import {
-  rawRaces,
-  seasonId,
-  toGrandPrixId,
-  type RawRace,
-} from "./sampleData.js";
+import { getPool } from "../config/database.js";
 import * as sessionsModel from "./sessions.model.js";
-import { paginate, type PageOptions } from "../utils/pagination.js";
+import type { PageOptions } from "../utils/pagination.js";
 import type { Race, RaceDetail, RaceListItem } from "../types/race.types.js";
 
 export interface RaceFilters {
@@ -29,99 +16,138 @@ export interface RacePage {
   total_items: number;
 }
 
-function toRace(raw: RawRace): Race {
-  // Field order follows the example response in docs/api-design.md §4.4.
-  return {
-    grand_prix_id: toGrandPrixId(seasonId, raw.round),
-    season_id: seasonId,
-    round: raw.round,
-    race_name: raw.race_name,
-    circuit_id: raw.circuit_id,
-    circuit_name: raw.circuit_name,
-    locality: raw.locality,
-    country: raw.country,
-    date: raw.date,
-    has_sprint: raw.has_sprint,
-  };
+interface RaceSqlRow extends RaceListItem {
+  total_items: number;
 }
 
-function matchesFilters(raw: RawRace, filters: RaceFilters): boolean {
-  if (filters.season !== undefined && seasonId !== filters.season) {
-    return false;
-  }
+interface RaceDetailSqlRow extends Race {
+  has_results: boolean;
+}
 
-  if (filters.has_sprint !== undefined && raw.has_sprint !== filters.has_sprint) {
-    return false;
-  }
-
-  if (filters.search !== undefined) {
-    const needle = filters.search.toLowerCase();
-
-    // Matches race_name / country / circuit_name per §6 — the same three
-    // fields the frontend's existing client-side race filter searches.
-    const matches =
-      raw.race_name.toLowerCase().includes(needle) ||
-      raw.country.toLowerCase().includes(needle) ||
-      raw.circuit_name.toLowerCase().includes(needle);
-
-    if (!matches) {
-      return false;
-    }
-  }
-
-  return true;
+function offset(options: PageOptions): number {
+  return (options.page - 1) * options.per_page;
 }
 
 export async function findAll(options: FindAllRacesOptions): Promise<RacePage> {
-  const matched = rawRaces.filter((raw) => matchesFilters(raw, options));
-  const page = paginate(matched, options);
+  const values: unknown[] = [];
+  const where: string[] = [];
 
-  const rows = await Promise.all(
-    page.map(async (raw): Promise<RaceListItem> => {
-      const race = toRace(raw);
-      const sessions = await sessionsModel.findByRace(race.grand_prix_id);
-
-      return {
-        ...race,
-        // has_results signals whether the statistics endpoint (§4.8) will have
-        // anything to derive for this race — i.e. whether an event log exists.
-        has_results: sessions.length > 0,
-      };
-    })
-  );
-
-  return { rows, total_items: matched.length };
-}
-
-function findRawById(grandPrixId: string): RawRace | undefined {
-  return rawRaces.find(
-    (raw) =>
-      toGrandPrixId(seasonId, raw.round).toLowerCase() ===
-      grandPrixId.toLowerCase()
-  );
-}
-
-export async function findById(
-  grandPrixId: string
-): Promise<RaceDetail | null> {
-  const raw = findRawById(grandPrixId);
-
-  if (!raw) {
-    return null;
+  if (options.season !== undefined) {
+    values.push(options.season);
+    where.push(`gp.season_id = $${values.length}`);
   }
 
-  const race = toRace(raw);
+  if (options.has_sprint !== undefined) {
+    values.push(options.has_sprint);
+    where.push(`gp.has_sprint = $${values.length}`);
+  }
+
+  if (options.search !== undefined) {
+    values.push(`%${options.search}%`);
+    const p = `$${values.length}`;
+    where.push(`(
+      gp.race_name ILIKE ${p}
+      OR c.country ILIKE ${p}
+      OR c.circuit_name ILIKE ${p}
+    )`);
+  }
+
+  values.push(options.per_page);
+  const limitParam = `$${values.length}`;
+  values.push(offset(options));
+  const offsetParam = `$${values.length}`;
+
+  const result = await getPool().query<RaceSqlRow>(
+    `
+      SELECT
+        gp.grand_prix_id,
+        gp.season_id,
+        gp.round,
+        gp.race_name,
+        gp.circuit_id,
+        c.circuit_name,
+        c.locality,
+        c.country,
+        TO_CHAR(gp.race_date, 'YYYY-MM-DD') AS date,
+        gp.has_sprint,
+        EXISTS (
+          SELECT 1
+          FROM sessions rs
+          JOIN race_results rr
+            ON rr.session_id = rs.session_id
+          WHERE rs.grand_prix_id = gp.grand_prix_id
+            AND rs.type = 'RACE'
+        ) AS has_results,
+        COUNT(*) OVER()::int AS total_items
+      FROM grand_prix gp
+      JOIN circuits c
+        ON c.circuit_id = gp.circuit_id
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY gp.season_id DESC, gp.round
+      LIMIT ${limitParam}
+      OFFSET ${offsetParam}
+    `,
+    values
+  );
 
   return {
-    ...race,
-    sessions: await sessionsModel.findByRace(race.grand_prix_id),
+    rows: result.rows.map(({ total_items: _count, ...row }) => row),
+    total_items: result.rows[0]?.total_items ?? 0,
   };
 }
 
-/**
- * Existence check used by the laps/events models to distinguish "this race does
- * not exist" (404) from "this race exists but has no event data" (empty list).
- */
+export async function findById(grandPrixId: string): Promise<RaceDetail | null> {
+  const result = await getPool().query<RaceDetailSqlRow>(
+    `
+      SELECT
+        gp.grand_prix_id,
+        gp.season_id,
+        gp.round,
+        gp.race_name,
+        gp.circuit_id,
+        c.circuit_name,
+        c.locality,
+        c.country,
+        TO_CHAR(gp.race_date, 'YYYY-MM-DD') AS date,
+        gp.has_sprint,
+        EXISTS (
+          SELECT 1
+          FROM sessions rs
+          JOIN race_results rr
+            ON rr.session_id = rs.session_id
+          WHERE rs.grand_prix_id = gp.grand_prix_id
+            AND rs.type = 'RACE'
+        ) AS has_results
+      FROM grand_prix gp
+      JOIN circuits c
+        ON c.circuit_id = gp.circuit_id
+      WHERE LOWER(gp.grand_prix_id) = LOWER($1)
+      LIMIT 1
+    `,
+    [grandPrixId]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const { has_results: _hasResults, ...race } = row;
+
+  return {
+    ...race,
+    sessions: await sessionsModel.findByRace(row.grand_prix_id),
+  };
+}
+
 export async function exists(grandPrixId: string): Promise<boolean> {
-  return findRawById(grandPrixId) !== undefined;
+  const result = await getPool().query(
+    `
+      SELECT 1
+      FROM grand_prix
+      WHERE LOWER(grand_prix_id) = LOWER($1)
+      LIMIT 1
+    `,
+    [grandPrixId]
+  );
+
+  return Boolean(result.rowCount);
 }

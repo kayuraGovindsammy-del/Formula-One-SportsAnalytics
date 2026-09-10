@@ -163,10 +163,10 @@ describe("buildPlan", () => {
     });
 
     expect(client.fetchSeasonSprintResults).toHaveBeenCalledTimes(1);
-    expect(plan.sessions.map((s) => s.session_id)).toContain("2025_R2_SPRINT");
+    expect(plan.sessions.map((s) => s.session_id)).toContain("2025_R02_SPRINT");
 
     const sprintRow = plan.raceResults.find(
-      (row) => row.session_id === "2025_R2_SPRINT"
+      (row) => row.session_id === "2025_R02_SPRINT"
     );
 
     expect(sprintRow?.points).toBe(8);

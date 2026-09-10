@@ -1,65 +1,88 @@
-// ---------------------------------------------------------------------------
-// SPRINT 1 PLACEHOLDER — derives sessions from data/sample/events.json.
-//
-// The sample data describes exactly one session (the 2025 Belgian GP race), so
-// this model reconstructs a Session row from that file's `session` summary plus
-// the SESSION_START / SESSION_END event timestamps.
-//
-// This is replaced by queries against the `sessions` table in
-// database/schema.sql, where sessions are stored rows rather than derived. The
-// function signatures below are the contract that must survive that swap.
-// ---------------------------------------------------------------------------
-
-import {
-  rawEvents,
-  rawSessionSummary,
-  seasonId,
-  toGrandPrixId,
-} from "./sampleData.js";
+import { getPool } from "../config/database.js";
 import type { Session, SessionType } from "../types/session.types.js";
 
-function buildSessions(): Session[] {
-  const startEvent = rawEvents.find((event) => event.type === "SESSION_START");
-  const endEvent = rawEvents.find((event) => event.type === "SESSION_END");
-
-  return [
-    {
-      session_id: rawSessionSummary.session_id,
-      grand_prix_id: toGrandPrixId(seasonId, rawSessionSummary.round),
-      type: rawSessionSummary.type as SessionType,
-      total_laps: rawSessionSummary.total_laps ?? null,
-      start_time: startEvent?.timestamp ?? null,
-      end_time: endEvent?.timestamp ?? null,
-    },
-  ];
+interface SessionSqlRow {
+  session_id: string;
+  grand_prix_id: string;
+  type: SessionType;
+  total_laps: number | null;
+  start_time: Date | string | null;
+  end_time: Date | string | null;
 }
 
-// Built once at startup, alongside the one-time file load in sampleData.ts.
-const sessions: readonly Session[] = buildSessions();
+function iso(value: Date | string | null): string | null {
+  if (value === null) return null;
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+}
+
+function toSession(row: SessionSqlRow): Session {
+  return {
+    session_id: row.session_id,
+    grand_prix_id: row.grand_prix_id,
+    type: row.type,
+    total_laps: row.total_laps,
+    start_time: iso(row.start_time),
+    end_time: iso(row.end_time),
+  };
+}
 
 export async function findByRace(grandPrixId: string): Promise<Session[]> {
-  return sessions.filter(
-    (session) =>
-      session.grand_prix_id.toLowerCase() === grandPrixId.toLowerCase()
+  const result = await getPool().query<SessionSqlRow>(
+    `
+      SELECT session_id, grand_prix_id, type, total_laps, start_time, end_time
+      FROM sessions
+      WHERE LOWER(grand_prix_id) = LOWER($1)
+      ORDER BY
+        CASE type
+          WHEN 'PRACTICE_1' THEN 1
+          WHEN 'PRACTICE_2' THEN 2
+          WHEN 'PRACTICE_3' THEN 3
+          WHEN 'SPRINT_QUALIFYING' THEN 4
+          WHEN 'SPRINT' THEN 5
+          WHEN 'QUALIFYING' THEN 6
+          WHEN 'RACE' THEN 7
+          ELSE 99
+        END,
+        session_id
+    `,
+    [grandPrixId]
   );
+
+  return result.rows.map(toSession);
 }
 
-/**
- * Every session in a season, across all race weekends — the unit the driver
- * statistics endpoint aggregates over.
- */
 export async function findBySeason(season: string): Promise<Session[]> {
-  return sessions.filter((session) =>
-    session.grand_prix_id.startsWith(`${season}_`)
+  const result = await getPool().query<SessionSqlRow>(
+    `
+      SELECT s.session_id, s.grand_prix_id, s.type, s.total_laps,
+             s.start_time, s.end_time
+      FROM sessions s
+      JOIN grand_prix gp
+        ON gp.grand_prix_id = s.grand_prix_id
+      WHERE gp.season_id = $1
+      ORDER BY gp.round, s.session_id
+    `,
+    [season]
   );
+
+  return result.rows.map(toSession);
 }
 
-/** Resolves the single session of a given type within a race weekend. */
 export async function findOneByRaceAndType(
   grandPrixId: string,
   type: SessionType
 ): Promise<Session | null> {
-  const matches = await findByRace(grandPrixId);
+  const result = await getPool().query<SessionSqlRow>(
+    `
+      SELECT session_id, grand_prix_id, type, total_laps, start_time, end_time
+      FROM sessions
+      WHERE LOWER(grand_prix_id) = LOWER($1)
+        AND type = $2
+      LIMIT 1
+    `,
+    [grandPrixId, type]
+  );
 
-  return matches.find((session) => session.type === type) ?? null;
+  const row = result.rows[0];
+  return row ? toSession(row) : null;
 }
