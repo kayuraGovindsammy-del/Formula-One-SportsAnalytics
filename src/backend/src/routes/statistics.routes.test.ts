@@ -76,20 +76,24 @@ describe("GET /api/v1/drivers/:driver_id/stats", () => {
       average_finish_position: 1,
       // (108250 + 107100 + 106900) / 3 = 107416.67 -> 107417
       average_race_pace_ms: 107417,
-      points: null,
+      // P1 -> pointsForPosition(1) = 25
+      points: 25,
       positions_gained_lost_avg: null,
     });
   });
 
-  it("returns nulls for the fields the schema cannot yet support", async () => {
-    // docs/api-design.md §9 — no points-scoring rule exists, and positions
-    // gained needs a qualifying classification that isn't in the data.
+  it("still nulls positions_gained_lost_avg, which the schema cannot yet support", async () => {
+    // ANT's only derivable position is P8 (from lap 32, not his true finish -
+    // see docs/f1-statistics.md's note on sample-data coverage), so points
+    // comes back as pointsForPosition(8) = 4 rather than null.
+    // positions_gained_lost_avg is still null per docs/api-design.md §9: it
+    // needs a qualifying classification that isn't in the data.
     const res = await request(app).get(
       "/api/v1/drivers/ANT/stats?season=2025"
     );
 
     expect(res.status).toBe(200);
-    expect(res.body.data.points).toBeNull();
+    expect(res.body.data.points).toBe(4);
     expect(res.body.data.positions_gained_lost_avg).toBeNull();
     expect(res.body.data.fastest_laps).toBe(1);
   });

@@ -51,7 +51,8 @@ async function realSeasonStatsFor(driverId: string) {
 
 describe("buildDriverStatistics — real sample data", () => {
   it("derives Piastri's season figures from the one recorded session", async () => {
-    // PIA finished P1 on his last recorded lap (44), so 1 win and 1 podium.
+    // PIA finished P1 on his last recorded lap (44), so 1 win and 1 podium,
+    // and 25 points on the standard race scale (pointsForPosition(1)).
     // Race pace excludes his lap-18 pit lap:
     //   (108250 + 107100 + 106900) / 3 = 322250 / 3 = 107416.67 -> 107417
     // The session's fastest lap belongs to ANT, so PIA's count is 0.
@@ -68,14 +69,16 @@ describe("buildDriverStatistics — real sample data", () => {
       fastest_laps: 0,
       average_finish_position: 1,
       average_race_pace_ms: 107417,
-      points: null,
+      points: 25,
       positions_gained_lost_avg: null,
     });
   });
 
   it("credits Antonelli with the session's fastest lap", async () => {
     // ANT's only recorded lap is 32 (104861ms) where he ran P8, so his pace is
-    // that single lap and his average finishing position is 8.
+    // that single lap and his average finishing position is 8 ->
+    // pointsForPosition(8) = 4. (P8 here is a mid-race snapshot, not ANT's
+    // true finish - see docs/f1-statistics.md's note on sample-data coverage.)
     const stats = await realSeasonStatsFor("ANT");
 
     expect(stats).toEqual({
@@ -89,19 +92,21 @@ describe("buildDriverStatistics — real sample data", () => {
       fastest_laps: 1,
       average_finish_position: 8,
       average_race_pace_ms: 104861,
-      points: null,
+      points: 4,
       positions_gained_lost_avg: null,
     });
   });
 
   it("derives Norris's second place and pace", async () => {
     // (107980 + 107300 + 106500) / 3 = 321780 / 3 = 107260 exactly
+    // P2 -> pointsForPosition(2) = 18
     const stats = await realSeasonStatsFor("NOR");
 
     expect(stats.wins).toBe(0);
     expect(stats.podiums).toBe(1);
     expect(stats.average_finish_position).toBe(2);
     expect(stats.average_race_pace_ms).toBe(107260);
+    expect(stats.points).toBe(18);
   });
 
   it("returns zeroes and nulls for a driver with no logged laps", async () => {
@@ -155,6 +160,9 @@ describe("buildDriverStatistics — hand-constructed", () => {
     expect(stats.dnf_count).toBe(1);
     expect(stats.dnf_rate).toBe(1);
     expect(stats.wins).toBe(0);
+    // Retired running P14 -> pointsForPosition(14) = 0 (not null - a
+    // position was derivable, it just scores nothing).
+    expect(stats.points).toBe(0);
   });
 
   it("averages finishing position and pools pace across two sessions", () => {
@@ -162,6 +170,7 @@ describe("buildDriverStatistics — hand-constructed", () => {
     // Pooled racing laps: 100000, 102000, 104000, 106000
     //   -> (100000 + 102000 + 104000 + 106000) / 4 = 412000 / 4 = 103000
     // Wins 1 (the P1), podiums 2 (P1 and P3).
+    // Points: pointsForPosition(1) + pointsForPosition(3) = 25 + 15 = 40
     const stats = buildDriverStatistics({
       driver_id: "AAA",
       season: "2025",
@@ -190,10 +199,12 @@ describe("buildDriverStatistics — hand-constructed", () => {
     expect(stats.podiums).toBe(2);
     expect(stats.average_finish_position).toBe(2);
     expect(stats.average_race_pace_ms).toBe(103000);
+    expect(stats.points).toBe(40);
   });
 
   it("computes a fractional DNF rate across three sessions", () => {
     // Retired in 1 of 3 sessions -> 1 / 3 = 0.3333 (rounded to 4dp)
+    // Ran P5 in all three -> pointsForPosition(5) * 3 = 10 * 3 = 30
     const retirement: Event = {
       event_id: "e1",
       session_id: "S2",
@@ -225,6 +236,7 @@ describe("buildDriverStatistics — hand-constructed", () => {
     expect(stats.races_entered).toBe(3);
     expect(stats.dnf_count).toBe(1);
     expect(stats.dnf_rate).toBe(0.3333);
+    expect(stats.points).toBe(30);
   });
 
   it("ignores laps belonging to other drivers", () => {
@@ -248,6 +260,8 @@ describe("buildDriverStatistics — hand-constructed", () => {
     expect(stats.average_finish_position).toBe(2);
     // The session's fastest lap is BBB's, so AAA is credited with none.
     expect(stats.fastest_laps).toBe(0);
+    // AAA's own P2 -> pointsForPosition(2) = 18, unaffected by BBB's laps.
+    expect(stats.points).toBe(18);
   });
 
   it("returns nulls for a season with no sessions at all", () => {
@@ -261,5 +275,6 @@ describe("buildDriverStatistics — hand-constructed", () => {
     expect(stats.dnf_rate).toBeNull();
     expect(stats.average_finish_position).toBeNull();
     expect(stats.average_race_pace_ms).toBeNull();
+    expect(stats.points).toBeNull();
   });
 });
