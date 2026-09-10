@@ -177,7 +177,9 @@ export const seasonId: string = String(racesFile.season);
  * grand_prix_id isn't stored in races.json — it's derived as `{season}_R{round}`
  * per the "2025_R13" convention in docs/data-model.md. Postgres stores it as a
  * real column, at which point this derivation goes away.
+ *
+ * Re-exported from utils/identifiers.ts rather than defined here: the Jolpica
+ * ingestion needs the same rule, and must not import this module (loading it
+ * reads all four sample JSON files as an import side effect).
  */
-export function toGrandPrixId(season: string, round: number): string {
-  return `${season}_R${round}`;
-}
+export { toGrandPrixId } from "../utils/identifiers.js";

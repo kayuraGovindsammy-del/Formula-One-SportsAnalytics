@@ -9,6 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "ingest": "tsx src/scripts/ingest.ts",
     "test": "vitest run"
   },
   "dependencies": {
