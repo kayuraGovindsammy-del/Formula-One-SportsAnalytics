@@ -21,7 +21,7 @@ import {
 } from "../../data/f1Data";
 
 function Statistics() {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [, setDrivers] = useState<Driver[]>([]);
   const [races, setRaces] = useState<Race[]>([]);
   const [raceStats, setRaceStats] =
     useState<RaceStatistics | null>(null);
