@@ -91,6 +91,10 @@ describe("buildRaceStatistics — real sample data", () => {
     // as derived and deliberately not renumbered to 1,2,3,4.
     const stats = await realBelgianGpStatistics();
 
+    // consistency_ms per driver, over the same racing laps lapConsistency.test.ts
+    // already verifies: PIA 595, NOR 605, LEC 651. ANT has only one racing lap
+    // (32), so a single-lap consistency of 0 (arithmetically correct, though it
+    // says nothing about real consistency - see lapStatistics.ts).
     expect(stats.classification).toEqual([
       {
         position: 1,
@@ -98,6 +102,7 @@ describe("buildRaceStatistics — real sample data", () => {
         constructor_id: "MCL",
         laps: 44,
         pit_stops: 1,
+        consistency_ms: 595,
         gap_to_winner_ms: null,
       },
       {
@@ -106,6 +111,7 @@ describe("buildRaceStatistics — real sample data", () => {
         constructor_id: "MCL",
         laps: 44,
         pit_stops: 1,
+        consistency_ms: 605,
         gap_to_winner_ms: null,
       },
       {
@@ -114,6 +120,7 @@ describe("buildRaceStatistics — real sample data", () => {
         constructor_id: "FER",
         laps: 44,
         pit_stops: 1,
+        consistency_ms: 651,
         gap_to_winner_ms: null,
       },
       {
@@ -122,6 +129,7 @@ describe("buildRaceStatistics — real sample data", () => {
         constructor_id: "MER",
         laps: 32,
         pit_stops: 0,
+        consistency_ms: 0,
         gap_to_winner_ms: null,
       },
     ]);
@@ -153,6 +161,8 @@ describe("buildRaceStatistics — hand-constructed", () => {
     //   AAA: 50000 + 50000 = 100000  (finishes P1)
     //   BBB: 51000 + 51000 = 102000  (finishes P2)
     // gap for BBB = 102000 - 100000 = 2000
+    // Both drivers ran identical lap times each time, so consistency_ms is 0
+    // for each - no spread to measure.
     const laps = [
       lap({ driver_id: "AAA", lap_number: 1, lap_time_ms: 50000, position: 1 }),
       lap({ driver_id: "AAA", lap_number: 2, lap_time_ms: 50000, position: 1 }),
@@ -176,6 +186,7 @@ describe("buildRaceStatistics — hand-constructed", () => {
         constructor_id: "AAA_TEAM",
         laps: 2,
         pit_stops: 0,
+        consistency_ms: 0,
         gap_to_winner_ms: 0,
       },
       {
@@ -184,6 +195,7 @@ describe("buildRaceStatistics — hand-constructed", () => {
         constructor_id: "BBB_TEAM",
         laps: 2,
         pit_stops: 0,
+        consistency_ms: 0,
         gap_to_winner_ms: 2000,
       },
     ]);
