@@ -12,7 +12,7 @@
 
 import type { Event } from "../types/event.types.js";
 import type { Lap } from "../types/lap.types.js";
-import { fastestLap, type FastestLap } from "./lapStatistics.js";
+import { fastestLap, lapConsistency, type FastestLap } from "./lapStatistics.js";
 import { pitStopCount } from "./pitStatistics.js";
 
 export interface RaceStatisticsInput {
@@ -37,6 +37,7 @@ export interface ClassificationRow {
   constructor_id: string | null;
   laps: number;
   pit_stops: number;
+  consistency_ms: number | null;
   gap_to_winner_ms: number | null;
 }
 
@@ -148,6 +149,10 @@ export function buildRaceStatistics(
       pit_stops: input.events.filter(
         (event) => event.type === "PIT_STOP" && event.driver_id === driverId
       ).length,
+      // Per driver, per docs/f1-statistics.md §2 — pooling across drivers
+      // would mix each car's own lap-time spread with the gap between
+      // drivers' pace levels, which isn't what "consistency" means here.
+      consistency_ms: lapConsistency(driverLaps),
     });
   }
 
