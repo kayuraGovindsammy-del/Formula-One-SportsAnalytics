@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { getCircuitImage } from "../data/circuitImages";
 
 type RaceCardProps = {
   grandPrixId: string;
@@ -23,7 +24,9 @@ function RaceCard({
   hasSprint,
   hasResults,
 }: RaceCardProps) {
-  return (
+  const circuitImage = getCircuitImage(country);
+  console.log(name, "| country:", country, "| image:", circuitImage);
+ return (
     <Link to={`/races/${grandPrixId}`} className="race-card-link">
       <article className="race-list-card">
         <header className="race-list-header">
@@ -31,22 +34,38 @@ function RaceCard({
           <time dateTime={date}>{date}</time>
         </header>
 
-        <h2>{name}</h2>
-
-        <p>
-          <strong>Venue:</strong> {circuitName}, {locality}
-        </p>
-
-        <p>{country}</p>
-
-        <div className="race-winner">
-          <span>Format</span>
-          <strong>{hasSprint ? "Sprint Weekend" : "Standard Weekend"}</strong>
+        <div className="race-circuit-container">
+          {circuitImage && (
+            <img
+              src={circuitImage}
+              alt={`${name} circuit layout`}
+              className="race-circuit-image"
+            />
+          )}
         </div>
 
-        <div className="race-winner">
-          <span>Statistics</span>
-          <strong>{hasResults ? "Available" : "Not available"}</strong>
+        <div className="race-card-content">
+          <h2>{name}</h2>
+
+          <p>
+            <strong>Venue:</strong> {circuitName}, {locality}
+          </p>
+
+          <p className="race-country">{country}</p>
+
+          <div className="race-info-row">
+            <span>Format</span>
+            <strong>
+              {hasSprint ? "Sprint Weekend" : "Standard Weekend"}
+            </strong>
+          </div>
+
+          <div className="race-info-row">
+            <span>Statistics</span>
+            <strong>
+              {hasResults ? "Available" : "Not available"}
+            </strong>
+          </div>
         </div>
       </article>
     </Link>

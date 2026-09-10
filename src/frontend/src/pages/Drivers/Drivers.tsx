@@ -95,6 +95,7 @@ function Drivers() {
             key={driver.driverId}
             name={driver.name}
             team={driver.team}
+            constructorId={driver.constructorId}
             number={driver.number}
             nationality={driver.nationality}
             dateOfBirth={driver.dateOfBirth}

@@ -1,10 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
-
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ??
-  "https://f1-sport-analytics-api-production.up.railway.app/api/v1";
+import { submissionRequest, type SubmissionRecord } from "../../api/submissions";
 
 type EventType =
   | "SESSION_START"
@@ -21,8 +19,23 @@ type PenaltyType =
   | "GRID_DROP"
   | "DISQUALIFICATION";
 
+function createEventId() {
+    if (
+      typeof crypto !== "undefined" &&
+      crypto.randomUUID
+    ) {
+      return `evt_${crypto.randomUUID()}`;
+    }
+
+    return `evt_${Date.now()}`;
+  };
+
+
 function SubmitData() {
   const { user } = useAuth();
+
+  const [eventId, setEventId] = useState(() => createEventId());
+  const [createdId, setCreatedId] = useState<number | null>(null);
 
   // Common event fields
   const [sessionId, setSessionId] = useState("");
@@ -138,16 +151,6 @@ function SubmitData() {
     return Math.round(seconds * 1000);
   };
 
-  const createEventId = () => {
-    if (
-      typeof crypto !== "undefined" &&
-      crypto.randomUUID
-    ) {
-      return `evt_${crypto.randomUUID()}`;
-    }
-
-    return `evt_${Date.now()}`;
-  };
 
   const resetPayloadFields = () => {
     setDriverId("");
@@ -347,15 +350,8 @@ function SubmitData() {
         return {
           penalty_type: penaltyType,
 
-          ...(penaltyType === "TIME"
-            ? {
-                duration_ms:
-                  secondsToMilliseconds(
-                    penaltySeconds
-                  ),
-              }
-            : {}),
-
+          duration_ms: penaltyType === "TIME"
+            ? secondsToMilliseconds(penaltySeconds) : null,
           reason: penaltyReason.trim(),
         };
 
@@ -430,37 +426,15 @@ function SubmitData() {
         payload: buildPayload(),
       };
 
-      const token = await user.getIdToken();
-
-      const response = await fetch(
-        `${API_BASE_URL}/submissions`,
-        {
+      const created = await submissionRequest<SubmissionRecord>(
+        user, "/submissions", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            event: eventData,
-          }),
+          body: JSON.stringify({ event: eventData }),
         }
       );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result?.error?.message ||
-            result?.error ||
-            "Failed to submit event data."
-        );
-      }
-
-      console.log("Submission created:", result);
-
-      setMessage(
-        "Event submitted successfully and is pending review."
-      );
+      setCreatedId(created.submission_id);
+      setMessage(`Submission #${created.submission_id} is pending administrator review.`);
+      setEventId(createEventId());
 
       setSessionId("");
       setTimestamp("");
@@ -510,6 +484,15 @@ function SubmitData() {
         the project's event schema.
       </p>
 
+      <p><Link to="/my-submissions">View my submission history</Link></p>
+      {createdId !== null && <p role="status">Created submission #{createdId}. <Link to="/my-submissions">Track its review</Link></p>}
+      <p style={{ overflowWrap: "anywhere" }}><strong>Event ID:</strong> {eventId}</p>
+      <button type="button" disabled={loading} onClick={() => {
+        if (window.confirm("Start a new event ID? Check My Submissions first if a previous request may have succeeded.")) {
+          setEventId(createEventId());
+          setError("");
+        }
+      }}>Generate a new Event ID</button>
       <form onSubmit={handleSubmit}>
         {/* EVENT INFORMATION */}
 

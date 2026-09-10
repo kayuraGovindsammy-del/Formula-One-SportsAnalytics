@@ -1,3 +1,7 @@
+import { deletionRequested } from "../services/accountDeletion.js";
+
+import type { DecodedIdToken } from "firebase-admin/auth";
+
 import type {
   NextFunction,
   Request,
@@ -17,6 +21,7 @@ import type {
 
 export interface AuthenticatedRequest extends Request {
   authenticatedUser?: AuthenticatedUser;
+  authTime?: number;
 }
 
 function normalizeRole(value: unknown): UserRole {
@@ -74,8 +79,25 @@ export async function authenticate(
     const adminAuth = getAdminAuth();
     const adminDb = getAdminDb();
 
-    const decodedToken =
-      await adminAuth.verifyIdToken(token);
+    let decodedToken: DecodedIdToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(token, true);
+    } catch {
+      res.status(401).json({ error: "Invalid or expired Firebase token." });
+      return;
+    }
+    req.authTime = decodedToken.auth_time;
+
+    if (await deletionRequested(decodedToken.uid)) {
+      res.status(403).json({ error: "Account deletion has been requested." });
+      return;
+    }
+
+    const marker = await adminDb.collection("accountDeletions").doc(decodedToken.uid).get();
+    if (marker.exists) {
+      res.status(403).json({ error: "Account deletion has been requested." });
+      return;
+    }
 
     const userSnapshot =
       await adminDb
@@ -91,6 +113,10 @@ export async function authenticate(
     }
 
     const data = userSnapshot.data();
+    if (data?.deletionPending === true) {
+      res.status(403).json({ error: "Account deletion is in progress." });
+      return;
+    }
 
     req.authenticatedUser = {
       uid: decodedToken.uid,
@@ -116,10 +142,7 @@ export async function authenticate(
 
     next();
   } catch (error) {
-    console.error("Authentication failed:", error);
-
-    res.status(401).json({
-      error: "Invalid or expired Firebase token.",
-    });
+    console.error("Authentication service unavailable.");
+    next(error);
   }
 }
