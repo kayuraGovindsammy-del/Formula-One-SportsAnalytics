@@ -1,5 +1,41 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
+
+vi.mock("../models/races.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAll: fixtures.findAllRaces,
+    findById: fixtures.findRaceById,
+    exists: fixtures.raceExists,
+  };
+});
+
+vi.mock("../models/sessions.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findByRace: fixtures.findSessionsByRace,
+    findBySeason: fixtures.findSessionsBySeason,
+    findOneByRaceAndType: fixtures.findOneSessionByRaceAndType,
+  };
+});
+
+
+vi.mock("../models/laps.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllLapsBySession,
+    findByRace: fixtures.findLapsByRace,
+  };
+});
+
+vi.mock("../models/events.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllEventsBySession,
+    findByRace: fixtures.findEventsByRace,
+  };
+});
+
 import { createApp } from "../app.js";
 
 const app = createApp();
@@ -42,7 +78,7 @@ describe("GET /api/v1/races", () => {
     const res = await request(app).get("/api/v1/races?search=australian");
 
     expect(res.status).toBe(200);
-    expect(res.body.data[0].grand_prix_id).toBe("2025_R1");
+    expect(res.body.data[0].grand_prix_id).toBe("2025_R01");
     expect(res.body.data[0].has_results).toBe(false);
   });
 
@@ -103,7 +139,7 @@ describe("GET /api/v1/races/:grand_prix_id", () => {
   });
 
   it("returns an empty sessions array for a race with no event data", async () => {
-    const res = await request(app).get("/api/v1/races/2025_R1");
+    const res = await request(app).get("/api/v1/races/2025_R01");
 
     expect(res.status).toBe(200);
     expect(res.body.data.sessions).toEqual([]);
@@ -268,7 +304,7 @@ describe("GET /api/v1/races/:grand_prix_id/events", () => {
   });
 
   it("returns an empty page for a race with no event log", async () => {
-    const res = await request(app).get("/api/v1/races/2025_R1/events");
+    const res = await request(app).get("/api/v1/races/2025_R01/events");
 
     expect(res.status).toBe(200);
     expect(res.body.data).toEqual([]);

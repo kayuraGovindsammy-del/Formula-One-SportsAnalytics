@@ -1,4 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../models/laps.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllLapsBySession,
+    findByRace: fixtures.findLapsByRace,
+  };
+});
+
+vi.mock("../models/events.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllEventsBySession,
+    findByRace: fixtures.findEventsByRace,
+  };
+});
 import { buildRaceStatistics } from "./raceStatistics.js";
 import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";

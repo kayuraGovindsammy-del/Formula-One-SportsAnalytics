@@ -83,15 +83,15 @@ function raceFixture(
   });
 }
 
-describe("grand_prix_id — unpadded convention", () => {
-  it("emits 2025_R1, not 2025_R01, for a single-digit round", () => {
+describe("grand_prix_id — zero-padded convention", () => {
+  it("emits 2025_R01 for a single-digit round", () => {
     const plan = buildSeasonIngestPlan({
       seasonId: "2025",
       raceResults: [raceFixture("1", [resultFixture()])],
     });
 
-    expect(plan.grandPrix[0]?.grand_prix_id).toBe("2025_R1");
-    expect(plan.sessions[0]?.session_id).toBe("2025_R1_RACE");
+    expect(plan.grandPrix[0]?.grand_prix_id).toBe("2025_R01");
+    expect(plan.sessions[0]?.session_id).toBe("2025_R01_RACE");
   });
 
   it("leaves a two-digit round unchanged", () => {
@@ -101,7 +101,6 @@ describe("grand_prix_id — unpadded convention", () => {
     });
 
     expect(plan.grandPrix[0]?.grand_prix_id).toBe("2025_R13");
-    // The id database/seed.sql and data/sample/*.json already use.
     expect(plan.sessions[0]?.session_id).toBe("2025_R13_RACE");
   });
 });

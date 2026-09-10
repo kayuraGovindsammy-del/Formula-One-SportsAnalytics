@@ -1,4 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../models/laps.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllLapsBySession,
+    findByRace: fixtures.findLapsByRace,
+  };
+});
 import {
   averageLapTime,
   fastestLap,

@@ -159,8 +159,9 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
     ? {
         ...derivedStatistics,
 
-        fastest_lap:
-          storedRaceResults.fastest_lap,
+        ...(storedRaceResults.fastest_lap
+          ? { fastest_lap: storedRaceResults.fastest_lap }
+          : {}),
 
         classification:
           storedRaceResults.classification.map(
