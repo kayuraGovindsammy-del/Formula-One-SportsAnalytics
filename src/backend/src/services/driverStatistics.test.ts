@@ -22,6 +22,7 @@ import type { Event } from "../types/event.types.js";
 import type { Lap } from "../types/lap.types.js";
 
 const SESSION_ID = "2025_R13_RACE";
+const QUALIFYING_SESSION_ID = "2025_R13_QUALIFYING";
 
 function lap(overrides: Partial<Lap>): Lap {
   return {
@@ -36,16 +37,37 @@ function lap(overrides: Partial<Lap>): Lap {
   };
 }
 
+/** A minimal QUALIFYING-session LAP_COMPLETED event, position-only. */
+function qualifyingEvent(driverId: string, position: number): Event {
+  return {
+    event_id: `q-${driverId}`,
+    session_id: "TEST_QUALIFYING",
+    driver_id: driverId,
+    type: "LAP_COMPLETED",
+    lap_number: 1,
+    timestamp: null,
+    payload: { lap_time_ms: 90000, position, is_pit_lap: false, is_valid: true },
+  };
+}
+
 async function realSeasonStatsFor(driverId: string) {
-  const [laps, events] = await Promise.all([
+  const [laps, events, qualifyingEvents] = await Promise.all([
     lapsModel.findAllBySession(SESSION_ID),
     eventsModel.findAllBySession(SESSION_ID),
+    eventsModel.findAllBySession(QUALIFYING_SESSION_ID),
   ]);
 
   return buildDriverStatistics({
     driver_id: driverId,
     season: "2025",
-    sessions: [{ session_id: SESSION_ID, laps, events }],
+    sessions: [
+      {
+        session_id: SESSION_ID,
+        laps,
+        events,
+        qualifying_events: qualifyingEvents,
+      },
+    ],
   });
 }
 
@@ -56,6 +78,7 @@ describe("buildDriverStatistics — real sample data", () => {
     // Race pace excludes his lap-18 pit lap:
     //   (108250 + 107100 + 106900) / 3 = 322250 / 3 = 107416.67 -> 107417
     // The session's fastest lap belongs to ANT, so PIA's count is 0.
+    // Grid P2 (evt_012) minus finish P1 -> gained 1 place.
     const stats = await realSeasonStatsFor("PIA");
 
     expect(stats).toEqual({
@@ -70,7 +93,7 @@ describe("buildDriverStatistics — real sample data", () => {
       average_finish_position: 1,
       average_race_pace_ms: 107417,
       points: 25,
-      positions_gained_lost_avg: null,
+      positions_gained_lost_avg: 1,
     });
   });
 
@@ -79,6 +102,9 @@ describe("buildDriverStatistics — real sample data", () => {
     // that single lap and his average finishing position is 8 ->
     // pointsForPosition(8) = 4. (P8 here is a mid-race snapshot, not ANT's
     // true finish - see docs/f1-statistics.md's note on sample-data coverage.)
+    // ANT has no QUALIFYING event in the sample data, so
+    // positions_gained_lost_avg stays null - not because he lacks a race
+    // finish, but because there's no grid position to compare it against.
     const stats = await realSeasonStatsFor("ANT");
 
     expect(stats).toEqual({
@@ -100,6 +126,7 @@ describe("buildDriverStatistics — real sample data", () => {
   it("derives Norris's second place and pace", async () => {
     // (107980 + 107300 + 106500) / 3 = 321780 / 3 = 107260 exactly
     // P2 -> pointsForPosition(2) = 18
+    // Grid P1 (pole, evt_011) minus finish P2 -> lost 1 place.
     const stats = await realSeasonStatsFor("NOR");
 
     expect(stats.wins).toBe(0);
@@ -107,6 +134,16 @@ describe("buildDriverStatistics — real sample data", () => {
     expect(stats.average_finish_position).toBe(2);
     expect(stats.average_race_pace_ms).toBe(107260);
     expect(stats.points).toBe(18);
+    expect(stats.positions_gained_lost_avg).toBe(-1);
+  });
+
+  it("derives Leclerc's unchanged grid slot", async () => {
+    // Grid P3 (evt_013, illustrative placeholder) minus finish P3 -> 0, no
+    // places gained or lost.
+    const stats = await realSeasonStatsFor("LEC");
+
+    expect(stats.average_finish_position).toBe(3);
+    expect(stats.positions_gained_lost_avg).toBe(0);
   });
 
   it("returns zeroes and nulls for a driver with no logged laps", async () => {
@@ -276,5 +313,110 @@ describe("buildDriverStatistics — hand-constructed", () => {
     expect(stats.average_finish_position).toBeNull();
     expect(stats.average_race_pace_ms).toBeNull();
     expect(stats.points).toBeNull();
+  });
+});
+
+describe("buildDriverStatistics — positions_gained_lost_avg, hand-constructed", () => {
+  it("computes grid minus finish for a single session (gained places)", () => {
+    // Started P5, finished P2 -> gained 3 places.
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 2 })],
+          events: [],
+          qualifying_events: [qualifyingEvent("AAA", 5)],
+        },
+      ],
+    });
+
+    expect(stats.positions_gained_lost_avg).toBe(3);
+  });
+
+  it("returns a negative value when the driver lost places", () => {
+    // Started P1, finished P4 -> lost 3 places.
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 4 })],
+          events: [],
+          qualifying_events: [qualifyingEvent("AAA", 1)],
+        },
+      ],
+    });
+
+    expect(stats.positions_gained_lost_avg).toBe(-3);
+  });
+
+  it("averages across sessions, counting only those with a derivable grid position", () => {
+    // S1: grid 5 -> finish 2, gained 3. S2: no qualifying data, contributes
+    // nothing. S3: grid 3 -> finish 3, gained 0.
+    // Average over the 2 sessions with data: (3 + 0) / 2 = 1.5
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 2 })],
+          events: [],
+          qualifying_events: [qualifyingEvent("AAA", 5)],
+        },
+        {
+          session_id: "S2",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 6 })],
+          events: [],
+        },
+        {
+          session_id: "S3",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 3 })],
+          events: [],
+          qualifying_events: [qualifyingEvent("AAA", 3)],
+        },
+      ],
+    });
+
+    expect(stats.races_entered).toBe(3);
+    expect(stats.positions_gained_lost_avg).toBe(1.5);
+  });
+
+  it("returns null when no session has a derivable grid position", () => {
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 2 })],
+          events: [],
+        },
+      ],
+    });
+
+    expect(stats.positions_gained_lost_avg).toBeNull();
+  });
+
+  it("ignores another driver's qualifying event", () => {
+    // The qualifying event belongs to BBB, not AAA - AAA has no grid position
+    // of his own, so his positions_gained_lost_avg stays null.
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 2 })],
+          events: [],
+          qualifying_events: [qualifyingEvent("BBB", 1)],
+        },
+      ],
+    });
+
+    expect(stats.positions_gained_lost_avg).toBeNull();
   });
 });

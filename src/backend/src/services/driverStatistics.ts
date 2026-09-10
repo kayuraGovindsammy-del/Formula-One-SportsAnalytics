@@ -19,6 +19,14 @@ export interface DriverSessionInput {
   laps: readonly Lap[];
   /** Every event in the session, for all drivers. */
   events: readonly Event[];
+  /**
+   * That grand prix's QUALIFYING session events, for all drivers — the source
+   * of the starting grid position for positions_gained_lost_avg
+   * (docs/f1-statistics.md §2). Omitted when no qualifying data exists for
+   * that race, in which case that session simply contributes nothing to the
+   * average, same as any other missing data.
+   */
+  qualifying_events?: readonly Event[];
 }
 
 export interface DriverStatisticsInput {
@@ -39,7 +47,7 @@ export interface DriverStatistics {
   average_finish_position: number | null;
   average_race_pace_ms: number | null;
   points: number | null;
-  positions_gained_lost_avg: null;
+  positions_gained_lost_avg: number | null;
 }
 
 function roundTo(value: number, decimalPlaces: number): number {
@@ -61,6 +69,45 @@ function finishingPosition(driverLaps: readonly Lap[]): number | null {
   return latest?.position ?? null;
 }
 
+/**
+ * A driver's starting grid position, read directly from a QUALIFYING
+ * session's LAP_COMPLETED events — the starting grid IS that session's
+ * classification (docs/f1-statistics.md §2). The sample data only carries one
+ * qualifying lap per driver (no persisted Lap rows for this session type
+ * yet), so this reads the position straight off the events rather than
+ * reusing finishingPosition, which takes Lap[]. Mirrors its "last recorded
+ * lap wins" rule for consistency, and validates the payload at runtime for
+ * the same reason runningOrder.ts does — the event log is fed by user
+ * submissions, and a malformed event must be skipped, not trusted.
+ */
+function qualifyingPosition(
+  qualifyingEvents: readonly Event[],
+  driverId: string
+): number | null {
+  let best: { lap_number: number; position: number } | null = null;
+
+  for (const event of qualifyingEvents) {
+    if (
+      event.type !== "LAP_COMPLETED" ||
+      event.driver_id !== driverId ||
+      typeof event.lap_number !== "number"
+    ) {
+      continue;
+    }
+
+    const position = (event.payload as { position?: unknown }).position;
+
+    if (
+      typeof position === "number" &&
+      (best === null || event.lap_number > best.lap_number)
+    ) {
+      best = { lap_number: event.lap_number, position };
+    }
+  }
+
+  return best?.position ?? null;
+}
+
 export function buildDriverStatistics(
   input: DriverStatisticsInput
 ): DriverStatistics {
@@ -72,6 +119,7 @@ export function buildDriverStatistics(
   let totalPoints = 0;
 
   const finishPositions: number[] = [];
+  const positionsGainedLost: number[] = [];
   const racingLapsAcrossSeason: Lap[] = [];
 
   for (const session of input.sessions) {
@@ -95,6 +143,20 @@ export function buildDriverStatistics(
     if (position !== null) {
       finishPositions.push(position);
       totalPoints += pointsForPosition(position);
+
+      if (session.qualifying_events !== undefined) {
+        const gridPosition = qualifyingPosition(
+          session.qualifying_events,
+          input.driver_id
+        );
+
+        if (gridPosition !== null) {
+          // grid - finish, positive = gained places. See the comment on
+          // positions_gained_lost_avg below for why this sign convention was
+          // chosen over docs/f1-statistics.md §3's inverted one.
+          positionsGainedLost.push(gridPosition - position);
+        }
+      }
 
       if (position === 1) {
         wins += 1;
@@ -162,9 +224,25 @@ export function buildDriverStatistics(
     // trusted given the sample data's lap coverage.
     points: finishPositions.length > 0 ? totalPoints : null,
 
-    // Not derivable from the current schema — see docs/api-design.md §9.
-    // positions_gained_lost_avg needs the starting grid from a QUALIFYING
-    // session classification, and no qualifying data exists yet.
-    positions_gained_lost_avg: null,
+    // Average of (grid position - finishing position) across every session
+    // where BOTH are derivable — positive means the driver typically gained
+    // places, negative means they typically lost them. Null when no session
+    // had both, same "no data" convention as the fields above.
+    //
+    // SIGN CONVENTION: docs/f1-statistics.md §2 defines "positions gained/lost"
+    // as grid - finish (positive = gained), but §3's "qualifying-vs-race
+    // performance" defines the same underlying comparison as finish - grid
+    // (negative = gained) — the exact negation. This field implements §2's
+    // convention (matching its own name) and stands in for both catalogue
+    // entries rather than duplicating a second, oppositely-signed field for
+    // §3. To read this as §3's figure, negate it.
+    positions_gained_lost_avg:
+      positionsGainedLost.length > 0
+        ? roundTo(
+            positionsGainedLost.reduce((sum, value) => sum + value, 0) /
+              positionsGainedLost.length,
+            2
+          )
+        : null,
   };
 }
