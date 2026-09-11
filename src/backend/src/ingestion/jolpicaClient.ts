@@ -290,6 +290,30 @@ export class JolpicaClient {
     return this.fetchAllRaces(`${season}/results`);
   }
 
+  /**
+   * Every pit stop for the supplied season rounds.
+   *
+   * Jolpica's Ergast-compatible pit-stop endpoint requires a round when a
+   * season is supplied, e.g. `/2025/11/pitstops/`. A season-wide
+   * `/2025/pitstops/` request returns HTTP 400.
+   *
+   * Fetching one round at a time also keeps each result set naturally small.
+   * Requests are intentionally sequential so the existing shared rate limiter
+   * controls the whole ingest.
+   */
+  async fetchSeasonPitStops(
+    season: string,
+    rounds: readonly number[]
+  ): Promise<JolpicaRace[]> {
+    const races: JolpicaRace[] = [];
+
+    for (const round of rounds) {
+      races.push(...(await this.fetchAllRaces(`${season}/${round}/pitstops`)));
+    }
+
+    return races;
+  }
+
   /** Every sprint result for a season, across all pages. */
   async fetchSeasonSprintResults(season: string): Promise<JolpicaRace[]> {
     return this.fetchAllRaces(`${season}/sprint`);

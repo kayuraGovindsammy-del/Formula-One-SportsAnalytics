@@ -10,6 +10,7 @@ import { toGrandPrixId, toSessionId } from "../utils/identifiers.js";
 import type {
   JolpicaConstructor,
   JolpicaDriver,
+  JolpicaPitStop,
   JolpicaRace,
   JolpicaResult,
 } from "./jolpica.types.js";
@@ -79,7 +80,24 @@ export interface RaceResultRow {
   points: number;
   laps_completed: number;
   gap_to_winner_ms: number | null;
+  fastest_lap_rank: number | null;
+  fastest_lap_number: number | null;
+  fastest_lap_time_ms: number | null;
   status: ResultStatus;
+}
+
+export interface PitStopRow {
+  session_id: string;
+  driver_id: string;
+  lap_number: number;
+  duration_ms: number | null;
+}
+
+export interface RetirementRow {
+  session_id: string;
+  driver_id: string;
+  lap_number: number | null;
+  reason: string;
 }
 
 export interface SeasonIngestPlan {
@@ -91,6 +109,8 @@ export interface SeasonIngestPlan {
   constructors: ConstructorRow[];
   driverConstructorLinks: DriverConstructorLinkRow[];
   raceResults: RaceResultRow[];
+  pitStops: PitStopRow[];
+  retirements: RetirementRow[];
   warnings: string[];
 }
 
@@ -245,12 +265,8 @@ export function toResultStatus(
   }
 
   // Anything else Ergast reports is a mechanical or incident retirement.
-  // Fall back on positionText, which is authoritative about classification:
-  // a numeric value means the driver was classified.
-  if (/^\d+$/.test(positionText.trim())) {
-    return "FINISHED";
-  }
-
+  // Jolpica can still expose a numeric positionText for those rows, so the
+  // explicit status must win over the displayed classification number.
   return "DNF";
 }
 
@@ -316,6 +332,20 @@ function toGapToWinnerMs(
   return gap >= 0 ? gap : null;
 }
 
+
+function parseLapTimeMs(time: string | undefined): number | null {
+  if (!time) return null;
+
+  const match = /^(?:(\d+):)?(\d{1,2})\.(\d{3})$/.exec(time.trim());
+  if (!match) return null;
+
+  const minutes = Number(match[1] ?? 0);
+  const seconds = Number(match[2]);
+  const milliseconds = Number(match[3]);
+
+  return ((minutes * 60) + seconds) * 1000 + milliseconds;
+}
+
 function findWinnerMillis(results: readonly JolpicaResult[]): number | null {
   for (const result of results) {
     if (result.position === 1) {
@@ -356,8 +386,89 @@ export function toRaceResultRows(
     points: result.points,
     laps_completed: result.laps ?? 0,
     gap_to_winner_ms: toGapToWinnerMs(result, winnerMillis),
+    fastest_lap_rank: result.FastestLap?.rank ?? null,
+    fastest_lap_number: result.FastestLap?.lap ?? null,
+    fastest_lap_time_ms: parseLapTimeMs(result.FastestLap?.Time?.time),
     status: toResultStatus(result.status, result.positionText),
   }));
+}
+
+// -- Pit stops and retirements -----------------------------------------------
+
+/** Jolpica pit-stop durations are decimal seconds, e.g. "23.213". */
+export function pitStopDurationMs(duration: string | undefined): number | null {
+  if (duration === undefined) return null;
+
+  const seconds = Number.parseFloat(duration);
+  if (!Number.isFinite(seconds) || seconds <= 0) return null;
+
+  return Math.round(seconds * 1000);
+}
+
+function isRetirementResult(result: JolpicaResult): boolean {
+  const status = result.status.trim().toLowerCase();
+
+  // DNS/DNQ and disqualifications are non-finishes, but not retirements.
+  if (status === "did not start" || status === "did not qualify") return false;
+  if (status === "disqualified") return false;
+
+  // Classified finishers are not retirements.
+  if (status === "finished" || status === "lapped") return false;
+  if (/^\+\d+\s+laps?$/.test(status)) return false;
+
+  // Everything else Ergast/Jolpica reports here is a mechanical or incident
+  // retirement (Retired, Accident, Engine, Collision, Gearbox, ...).
+  return true;
+}
+
+export function toRetirementRows(
+  race: JolpicaRace,
+  seasonId: string
+): RetirementRow[] {
+  const results = race.Results ?? [];
+  const sessionId = toSessionId(toGrandPrixId(seasonId, race.round), "RACE");
+
+  return results
+    .filter(isRetirementResult)
+    .map((result) => ({
+      session_id: sessionId,
+      driver_id: toDriverId(result.Driver),
+      lap_number: result.laps ?? null,
+      reason: result.status,
+    }));
+}
+
+export function toPitStopRows(
+  races: readonly JolpicaRace[],
+  seasonId: string,
+  driverIdBySlug: ReadonlyMap<string, string>,
+  warnings: string[]
+): PitStopRow[] {
+  const rows: PitStopRow[] = [];
+
+  for (const race of races) {
+    const sessionId = toSessionId(toGrandPrixId(seasonId, race.round), "RACE");
+
+    for (const stop of race.PitStops ?? []) {
+      const driverId = driverIdBySlug.get(stop.driverId);
+
+      if (driverId === undefined) {
+        warnings.push(
+          `pit stop driver '${stop.driverId}' in round ${race.round} could not be mapped to a driver code`
+        );
+        continue;
+      }
+
+      rows.push({
+        session_id: sessionId,
+        driver_id: driverId,
+        lap_number: stop.lap,
+        duration_ms: pitStopDurationMs(stop.duration),
+      });
+    }
+  }
+
+  return rows;
 }
 
 // -- Mid-season constructor changes -----------------------------------------
@@ -407,6 +518,8 @@ export interface BuildPlanInput {
   raceResults: readonly JolpicaRace[];
   /** Races carrying `SprintResults`, from `{season}/sprint`. Optional. */
   sprintResults?: readonly JolpicaRace[];
+  /** Races carrying `PitStops`, from `{season}/pitstops`. */
+  pitStopRaces?: readonly JolpicaRace[];
   /** Rounds known to hold a sprint, from the season calendar. */
   sprintRounds?: ReadonlySet<number>;
 }
@@ -427,6 +540,8 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
   const constructors = new Map<string, ConstructorRow>();
   const teamByDriver = new Map<string, DriverTeamSighting>();
   const raceResults: RaceResultRow[] = [];
+  const retirements: RetirementRow[] = [];
+  const driverIdBySlug = new Map<string, string>();
 
   const sprintRounds = new Set<number>(input.sprintRounds ?? []);
 
@@ -482,6 +597,7 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
       }
 
       seenDriverIds.set(driverId, result.Driver.driverId);
+      driverIdBySlug.set(result.Driver.driverId, driverId);
 
       upsertByKey(drivers, driverId, toDriverRow(result.Driver, result.number));
       upsertByKey(constructors, constructorRow.constructor_id, constructorRow);
@@ -499,6 +615,10 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
     }
 
     raceResults.push(...toRaceResultRows(race, seasonId, sessionType));
+
+    if (sessionType === "RACE") {
+      retirements.push(...toRetirementRows(race, seasonId));
+    }
   };
 
   for (const race of input.raceResults) {
@@ -508,6 +628,13 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
   for (const race of input.sprintResults ?? []) {
     ingestRace(race, "SPRINT");
   }
+
+  const pitStops = toPitStopRows(
+    input.pitStopRaces ?? [],
+    seasonId,
+    driverIdBySlug,
+    warnings
+  );
 
   const year = Number(seasonId);
 
@@ -535,6 +662,8 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
       seasonId
     ),
     raceResults,
+    pitStops,
+    retirements,
     warnings,
   };
 }

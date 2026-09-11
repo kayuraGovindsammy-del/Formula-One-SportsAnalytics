@@ -68,6 +68,11 @@ function planFor(rounds: { round: string; constructorId?: string }[]) {
             laps: "44",
             status: "Finished",
             Time: { millis: "5000000", time: "1:23:20.000" },
+            FastestLap: {
+              rank: "1",
+              lap: "44",
+              Time: { time: "1:44.701" },
+            },
           },
         ],
       })
@@ -126,7 +131,7 @@ describe("writeSeasonPlan", () => {
     expect(second.queries).toEqual(first.queries);
   });
 
-  it("writes grid_position and Jolpica's points into race_results", async () => {
+  it("writes grid_position, points and fastest-lap metadata into race_results", async () => {
     const client = recordingClient();
     await writeSeasonPlan(client, planFor([{ round: "13" }]));
 
@@ -134,7 +139,10 @@ describe("writeSeasonPlan", () => {
 
     expect(insert?.text).toContain("grid_position");
     expect(insert?.text).toContain("points");
-    // session, driver, constructor, position, grid, points, laps, gap, status
+    expect(insert?.text).toContain("fastest_lap_rank");
+    expect(insert?.text).toContain("fastest_lap_number");
+    expect(insert?.text).toContain("fastest_lap_time_ms");
+    // session, driver, constructor, position, grid, points, laps, gap, fastest-lap fields, status
     expect(insert?.values).toEqual([
       "2025_R13_RACE",
       "PIA",
@@ -144,6 +152,9 @@ describe("writeSeasonPlan", () => {
       25,
       44,
       0,
+      1,
+      44,
+      104701,
       "FINISHED",
     ]);
   });
@@ -168,6 +179,23 @@ describe("writeSeasonPlan", () => {
 
     expect(insert?.text).toContain(
       "gap_to_winner_ms = COALESCE(EXCLUDED.gap_to_winner_ms, race_results.gap_to_winner_ms)"
+    );
+  });
+
+  it("keeps existing fastest-lap metadata when the source omits it", async () => {
+    const client = recordingClient();
+    await writeSeasonPlan(client, planFor([{ round: "13" }]));
+
+    const insert = client.forTable("INTO race_results")[0];
+
+    expect(insert?.text).toContain(
+      "fastest_lap_rank = COALESCE(EXCLUDED.fastest_lap_rank, race_results.fastest_lap_rank)"
+    );
+    expect(insert?.text).toContain(
+      "fastest_lap_number = COALESCE(EXCLUDED.fastest_lap_number, race_results.fastest_lap_number)"
+    );
+    expect(insert?.text).toContain(
+      "fastest_lap_time_ms = COALESCE(EXCLUDED.fastest_lap_time_ms, race_results.fastest_lap_time_ms)"
     );
   });
 
@@ -196,6 +224,46 @@ describe("writeSeasonPlan", () => {
     );
   });
 
+  it("replaces only source pit stops and preserves reviewed submissions", async () => {
+    const client = recordingClient();
+    const plan = planFor([{ round: "13" }]);
+    plan.pitStops.push({
+      session_id: "2025_R13_RACE",
+      driver_id: "PIA",
+      lap_number: 20,
+      duration_ms: 23213,
+    });
+
+    await writeSeasonPlan(client, plan);
+
+    const deletes = client.forTable("DELETE FROM pit_stops");
+    const inserts = client.forTable("INTO pit_stops");
+    const countUpdates = client.forTable("UPDATE race_results rr");
+
+    expect(deletes[0]?.text).toContain("submission_id IS NULL");
+    expect(inserts[0]?.text).toContain("submission_id IS NOT NULL");
+    expect(inserts[0]?.values).toEqual(["2025_R13_RACE", "PIA", 20, 23213]);
+    expect(countUpdates).toHaveLength(1);
+  });
+
+  it("upserts derived retirements without overwriting reviewed submissions", async () => {
+    const client = recordingClient();
+    const plan = planFor([{ round: "13" }]);
+    plan.retirements.push({
+      session_id: "2025_R13_RACE",
+      driver_id: "PIA",
+      lap_number: 31,
+      reason: "Retired",
+    });
+
+    await writeSeasonPlan(client, plan);
+
+    const insert = client.forTable("INTO retirements")[0];
+    expect(insert?.text).toContain("ON CONFLICT (session_id, driver_id)");
+    expect(insert?.text).toContain("WHERE retirements.submission_id IS NULL");
+    expect(insert?.values).toEqual(["2025_R13_RACE", "PIA", 31, "Retired"]);
+  });
+
   it("reports counts matching the plan", async () => {
     const client = recordingClient();
     const plan = planFor([{ round: "1" }, { round: "13" }]);
@@ -210,6 +278,8 @@ describe("writeSeasonPlan", () => {
       constructors: 1,
       driver_constructor_links: 1,
       race_results: 2,
+      pit_stops: 0,
+      retirements: 0,
     });
   });
 
