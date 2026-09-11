@@ -6,6 +6,8 @@ import {
   toDriverId,
   toDriverRow,
   toRaceResultRows,
+  toRetirementRows,
+  pitStopDurationMs,
   toResultStatus,
 } from "./transform.js";
 import { jolpicaRaceSchema, type JolpicaRace } from "./jolpica.types.js";
@@ -32,6 +34,9 @@ interface ResultOverrides {
   constructorId?: string;
   constructorName?: string;
   number?: string;
+  fastestLapRank?: string;
+  fastestLapNumber?: string;
+  fastestLapTime?: string;
 }
 
 function resultFixture(overrides: ResultOverrides = {}): Record<string, unknown> {
@@ -61,6 +66,17 @@ function resultFixture(overrides: ResultOverrides = {}): Record<string, unknown>
     laps: overrides.laps ?? "57",
     status: overrides.status ?? "Finished",
     ...(time ? { Time: time } : {}),
+    ...(overrides.fastestLapRank || overrides.fastestLapNumber || overrides.fastestLapTime
+      ? {
+          FastestLap: {
+            ...(overrides.fastestLapRank ? { rank: overrides.fastestLapRank } : {}),
+            ...(overrides.fastestLapNumber ? { lap: overrides.fastestLapNumber } : {}),
+            ...(overrides.fastestLapTime
+              ? { Time: { time: overrides.fastestLapTime } }
+              : {}),
+          },
+        }
+      : {}),
   };
 }
 
@@ -137,8 +153,8 @@ describe("toResultStatus", () => {
     expect(toResultStatus("Collision damage", "R")).toBe("DNF");
   });
 
-  it("trusts a numeric positionText when the status is unrecognised", () => {
-    expect(toResultStatus("Some New Status", "7")).toBe("FINISHED");
+  it("treats an unrecognised non-finish status as DNF even with numeric positionText", () => {
+    expect(toResultStatus("Engine", "17")).toBe("DNF");
   });
 });
 
@@ -270,6 +286,24 @@ describe("toRaceResultRows", () => {
 
     expect(rows[0]?.gap_to_winner_ms).toBe(0);
     expect(rows[1]?.gap_to_winner_ms).toBe(895);
+  });
+
+  it("captures Jolpica fastest-lap metadata and converts its time to milliseconds", () => {
+    const rows = toRaceResultRows(
+      raceFixture("1", [
+        resultFixture({
+          fastestLapRank: "1",
+          fastestLapNumber: "55",
+          fastestLapTime: "1:07.924",
+        }),
+      ]),
+      "2025",
+      "RACE"
+    );
+
+    expect(rows[0]?.fastest_lap_rank).toBe(1);
+    expect(rows[0]?.fastest_lap_number).toBe(55);
+    expect(rows[0]?.fastest_lap_time_ms).toBe(67924);
   });
 
   it("leaves gap null for a driver with no recorded time", () => {
@@ -492,5 +526,66 @@ describe("buildSeasonIngestPlan", () => {
     };
 
     expect(buildSeasonIngestPlan(input)).toEqual(buildSeasonIngestPlan(input));
+  });
+});
+
+
+describe("pit-stop and retirement mapping", () => {
+  it("converts Jolpica pit-stop seconds to milliseconds", () => {
+    expect(pitStopDurationMs("23.213")).toBe(23213);
+    expect(pitStopDurationMs(undefined)).toBeNull();
+  });
+
+  it("derives an on-track retirement but not a DNS", () => {
+    const race = jolpicaRaceSchema.parse({
+      season: "2025",
+      round: "11",
+      raceName: "Austrian Grand Prix",
+      Circuit: {
+        circuitId: "red_bull_ring",
+        circuitName: "Red Bull Ring",
+        Location: { locality: "Spielberg", country: "Austria" },
+      },
+      date: "2025-06-29",
+      Results: [
+        {
+          position: "17",
+          positionText: "R",
+          points: "0",
+          Driver: {
+            driverId: "albon",
+            code: "ALB",
+            givenName: "Alexander",
+            familyName: "Albon",
+          },
+          Constructor: { constructorId: "williams", name: "Williams" },
+          laps: "15",
+          status: "Retired",
+        },
+        {
+          position: "18",
+          positionText: "N",
+          points: "0",
+          Driver: {
+            driverId: "antonelli",
+            code: "ANT",
+            givenName: "Kimi",
+            familyName: "Antonelli",
+          },
+          Constructor: { constructorId: "mercedes", name: "Mercedes" },
+          laps: "0",
+          status: "Did not start",
+        },
+      ],
+    });
+
+    expect(toRetirementRows(race, "2025")).toEqual([
+      {
+        session_id: "2025_R11_RACE",
+        driver_id: "ALB",
+        lap_number: 15,
+        reason: "Retired",
+      },
+    ]);
   });
 });

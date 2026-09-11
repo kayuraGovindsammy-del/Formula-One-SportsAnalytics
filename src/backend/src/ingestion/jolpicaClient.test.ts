@@ -155,17 +155,43 @@ describe("pagination", () => {
     expect(urls).toHaveLength(1);
   });
 
-  it("targets the sprint and calendar endpoints correctly", async () => {
+  it("targets sprint, calendar and per-round pit-stop endpoints correctly", async () => {
     const { fetchImpl, urls } = recordingFetch([
+      envelope({ limit: 100, offset: 0, total: 1, rounds: [2] }),
+      envelope({ limit: 100, offset: 0, total: 1, rounds: [4] }),
+      envelope({ limit: 100, offset: 0, total: 1, rounds: [1] }),
       envelope({ limit: 100, offset: 0, total: 1, rounds: [2] }),
     ]);
 
     const client = makeClient(fetchImpl);
     await client.fetchSeasonSprintResults("2025");
     await client.fetchSeasonRaces("2024");
+    await client.fetchSeasonPitStops("2023", [1, 2]);
 
     expect(urls[0]).toContain("/2025/sprint/");
     expect(urls[1]).toContain("/2024/races/");
+    expect(urls[2]).toContain("/2023/1/pitstops/");
+    expect(urls[3]).toContain("/2023/2/pitstops/");
+  });
+
+  it("fetches pit stops sequentially for every requested round", async () => {
+    const { fetchImpl, urls } = recordingFetch([
+      envelope({ limit: 100, offset: 0, total: 1, rounds: [1] }),
+      envelope({ limit: 100, offset: 0, total: 1, rounds: [7] }),
+      envelope({ limit: 100, offset: 0, total: 1, rounds: [11] }),
+    ]);
+
+    const races = await makeClient(fetchImpl).fetchSeasonPitStops(
+      "2025",
+      [1, 7, 11]
+    );
+
+    expect(races.map((race) => race.round)).toEqual([1, 7, 11]);
+    expect(urls).toEqual([
+      "https://api.jolpi.ca/ergast/f1/2025/1/pitstops/?limit=100&offset=0",
+      "https://api.jolpi.ca/ergast/f1/2025/7/pitstops/?limit=100&offset=0",
+      "https://api.jolpi.ca/ergast/f1/2025/11/pitstops/?limit=100&offset=0",
+    ]);
   });
 
   it("rejects a response that is not the Jolpica envelope", async () => {

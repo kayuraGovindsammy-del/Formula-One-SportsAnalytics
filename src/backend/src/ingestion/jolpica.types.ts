@@ -66,6 +66,14 @@ const jolpicaFastestLapSchema = z.object({
   Time: z.object({ time: z.string().optional() }).optional(),
 });
 
+export const jolpicaPitStopSchema = z.object({
+  driverId: z.string(),
+  lap: numericString,
+  stop: numericString.optional(),
+  time: z.string().optional(),
+  duration: z.string().optional(),
+});
+
 /**
  * One classification row. `SprintResults` entries carry the same shape, which
  * is why a single schema covers both endpoints.
@@ -98,6 +106,7 @@ export const jolpicaRaceSchema = z.object({
   time: z.string().optional(),
   Results: z.array(jolpicaResultSchema).optional(),
   SprintResults: z.array(jolpicaResultSchema).optional(),
+  PitStops: z.array(jolpicaPitStopSchema).optional(),
 });
 
 export const jolpicaRaceTableSchema = z.object({
@@ -122,5 +131,6 @@ export const jolpicaEnvelopeSchema = z.object({
 export type JolpicaDriver = z.infer<typeof jolpicaDriverSchema>;
 export type JolpicaConstructor = z.infer<typeof jolpicaConstructorSchema>;
 export type JolpicaResult = z.infer<typeof jolpicaResultSchema>;
+export type JolpicaPitStop = z.infer<typeof jolpicaPitStopSchema>;
 export type JolpicaRace = z.infer<typeof jolpicaRaceSchema>;
 export type JolpicaEnvelope = z.infer<typeof jolpicaEnvelopeSchema>;
