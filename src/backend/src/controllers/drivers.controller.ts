@@ -77,12 +77,36 @@ export const getDriverStats = asyncHandler(async (req, res) => {
 
   const sessions = await sessionsModel.findBySeason(query.season);
 
+  // Driver season statistics are race statistics.  QUALIFYING sessions are
+  // supporting input only: their final LAP_COMPLETED positions provide the
+  // starting grid used by positions_gained_lost_avg, but they must not count
+  // as additional races entered.
+  const raceSessions = sessions.filter((session) => session.type === "RACE");
+  const qualifyingByGrandPrix = new Map(
+    sessions
+      .filter((session) => session.type === "QUALIFYING")
+      .map((session) => [session.grand_prix_id, session])
+  );
+
   const sessionInputs = await Promise.all(
-    sessions.map(async (session) => ({
-      session_id: session.session_id,
-      laps: await lapsModel.findAllBySession(session.session_id),
-      events: await eventsModel.findAllBySession(session.session_id),
-    }))
+    raceSessions.map(async (session) => {
+      const qualifyingSession = qualifyingByGrandPrix.get(session.grand_prix_id);
+
+      const [laps, events, qualifyingEvents] = await Promise.all([
+        lapsModel.findAllBySession(session.session_id),
+        eventsModel.findAllBySession(session.session_id),
+        qualifyingSession
+          ? eventsModel.findAllBySession(qualifyingSession.session_id)
+          : Promise.resolve([]),
+      ]);
+
+      return {
+        session_id: session.session_id,
+        laps,
+        events,
+        ...(qualifyingSession ? { qualifying_events: qualifyingEvents } : {}),
+      };
+    })
   );
 
   // Everything below this line is derived from the logs above — nothing is

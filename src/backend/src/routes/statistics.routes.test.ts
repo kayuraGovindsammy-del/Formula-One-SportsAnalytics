@@ -78,16 +78,17 @@ describe("GET /api/v1/drivers/:driver_id/stats", () => {
       average_race_pace_ms: 107417,
       // P1 -> pointsForPosition(1) = 25
       points: 25,
-      positions_gained_lost_avg: null,
+      // Grid P2 from the matching QUALIFYING session, finish P1 -> +1.
+      positions_gained_lost_avg: 1,
     });
   });
 
-  it("still nulls positions_gained_lost_avg, which the schema cannot yet support", async () => {
+  it("keeps positions_gained_lost_avg null when qualifying data is missing", async () => {
     // ANT's only derivable position is P8 (from lap 32, not his true finish -
     // see docs/f1-statistics.md's note on sample-data coverage), so points
     // comes back as pointsForPosition(8) = 4 rather than null.
-    // positions_gained_lost_avg is still null per docs/api-design.md §9: it
-    // needs a qualifying classification that isn't in the data.
+    // ANT has no qualifying event in the fixture, so there is no grid
+    // position to compare with the derived race position.
     const res = await request(app).get(
       "/api/v1/drivers/ANT/stats?season=2025"
     );
@@ -149,113 +150,60 @@ describe("GET /api/v1/drivers/:driver_id/stats", () => {
 });
 
 describe("GET /api/v1/races/:grand_prix_id/statistics", () => {
-  it("returns the Belgian GP statistics with the full race classification", async () => {
+  it("returns the derived Belgian GP classification without overwriting it from race_results", async () => {
     const res = await request(app).get(
       "/api/v1/races/2025_R13/statistics"
     );
 
     expect(res.status).toBe(200);
     expect(res.body.meta).toEqual({});
-
-    expect(res.body.data).toEqual({
-      grand_prix_id: "2025_R13",
-      session_id: "2025_R13_RACE",
-      total_laps: 44,
-
-      fastest_lap: {
-        driver_id: "ANT",
-        lap_number: 32,
-        time_ms: 104861,
-      },
-
-      pit_stop_count: 3,
-      overtake_count: 1,
-      retirement_count: 0,
-      dnf_count: 0,
-
-      classification: [
-        {
-          position: 1,
-          driver_id: "PIA",
-          constructor_id: "MCL",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 0,
-        },
-        {
-          position: 2,
-          driver_id: "NOR",
-          constructor_id: "MCL",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 3415,
-        },
-        {
-          position: 3,
-          driver_id: "LEC",
-          constructor_id: "FER",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 20185,
-        },
-        {
-          position: 4,
-          driver_id: "VER",
-          constructor_id: "RBR",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 21731,
-        },
-        {
-          position: 5,
-          driver_id: "RUS",
-          constructor_id: "MER",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 34863,
-        },
-        {
-          position: 6,
-          driver_id: "ALB",
-          constructor_id: "WIL",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 39926,
-        },
-        {
-          position: 7,
-          driver_id: "HAM",
-          constructor_id: "FER",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 40679,
-        },
-        {
-          position: 8,
-          driver_id: "LAW",
-          constructor_id: "RB",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 52033,
-        },
-        {
-          position: 9,
-          driver_id: "BOR",
-          constructor_id: "SAU",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 56434,
-        },
-        {
-          position: 10,
-          driver_id: "GAS",
-          constructor_id: "ALP",
-          laps: 44,
-          pit_stops: 1,
-          gap_to_winner_ms: 72714,
-        },
-      ],
+    expect(res.body.data.fastest_lap).toEqual({
+      driver_id: "ANT",
+      lap_number: 32,
+      lap_time_ms: 104861,
     });
+
+    // The lap/event derivation has four supported drivers in this fixture and
+    // includes consistency_ms.  Before #60 the controller replaced these rows
+    // with the stored 10-driver reference classification, losing this field.
+    expect(res.body.data.classification).toEqual([
+      {
+        position: 1,
+        driver_id: "PIA",
+        constructor_id: "MCL",
+        laps: 44,
+        pit_stops: 1,
+        consistency_ms: 595,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 2,
+        driver_id: "NOR",
+        constructor_id: "MCL",
+        laps: 44,
+        pit_stops: 1,
+        consistency_ms: 605,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 3,
+        driver_id: "LEC",
+        constructor_id: "FER",
+        laps: 44,
+        pit_stops: 1,
+        consistency_ms: 651,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 8,
+        driver_id: "ANT",
+        constructor_id: "MER",
+        laps: 32,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+    ]);
   });
 
   it("derives a top three matching the known race result", async () => {

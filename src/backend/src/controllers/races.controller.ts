@@ -147,37 +147,33 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
     });
 
   /*
-   * Lap/event data is still used for the derived
-   * statistics such as overtakes, retirements and
-   * pit-stop counts.
+   * Prefer statistics derived from lap/event data whenever that derivation is
+   * available.  This is important because derived rows can contain fields
+   * (for example consistency_ms) that are not present in race_results.
    *
-   * The stored race-result classification is used
-   * when available because the sample event log is
-   * intentionally only a partial lap log.
+   * Real ingested seasons currently have race_results even when no complete
+   * lap log has been ingested.  In that case the derived classification is
+   * empty, so race_results is a data-availability fallback rather than an
+   * override.  The same rule applies to fastest lap: use the derived value
+   * first, then the stored Jolpica value only when no lap-derived value exists.
    */
-  const statistics = storedRaceResults
-    ? {
-        ...derivedStatistics,
-
-        ...(storedRaceResults.fastest_lap
-          ? { fastest_lap: storedRaceResults.fastest_lap }
-          : {}),
-
-        classification:
-          storedRaceResults.classification.map(
-            (result) => ({
-              position: result.position,
-              driver_id: result.driver_id,
-              constructor_id:
-                result.constructor_id,
-              laps: result.laps,
-              pit_stops: result.pit_stops,
-              gap_to_winner_ms:
-                result.gap_to_winner_ms,
-            })
-          ),
-      }
-    : derivedStatistics;
+  const statistics = {
+    ...derivedStatistics,
+    fastest_lap:
+      derivedStatistics.fastest_lap ?? storedRaceResults?.fastest_lap ?? null,
+    classification:
+      derivedStatistics.classification.length > 0
+        ? derivedStatistics.classification
+        : (storedRaceResults?.classification.map((result) => ({
+            position: result.position,
+            driver_id: result.driver_id,
+            constructor_id: result.constructor_id,
+            laps: result.laps,
+            pit_stops: result.pit_stops,
+            consistency_ms: null,
+            gap_to_winner_ms: result.gap_to_winner_ms,
+          })) ?? []),
+  };
 
   res.status(200).json({
     data: statistics,
