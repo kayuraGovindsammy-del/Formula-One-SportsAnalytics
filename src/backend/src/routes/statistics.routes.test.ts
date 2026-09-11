@@ -99,9 +99,26 @@ describe("GET /api/v1/drivers/:driver_id/stats", () => {
     expect(res.body.data.fastest_laps).toBe(1);
   });
 
-  it("returns an empty season for a driver with no logged laps", async () => {
+  it("derives a real finishing position and points for a newly-covered driver (issue #55)", async () => {
+    // VER now has one recorded lap (44, his real classification finish),
+    // added to expand the sample-data trust boundary beyond PIA/NOR/LEC.
     const res = await request(app).get(
       "/api/v1/drivers/VER/stats?season=2025"
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.races_entered).toBe(1);
+    expect(res.body.data.average_finish_position).toBe(4);
+    // P4 -> pointsForPosition(4) = 12
+    expect(res.body.data.points).toBe(12);
+    // No QUALIFYING event exists for VER, so this stays null.
+    expect(res.body.data.positions_gained_lost_avg).toBeNull();
+  });
+
+  it("returns an empty season for a driver with no logged laps", async () => {
+    // TSU appears nowhere in the sample lap or event data.
+    const res = await request(app).get(
+      "/api/v1/drivers/TSU/stats?season=2025"
     );
 
     expect(res.status).toBe(200);
@@ -163,9 +180,11 @@ describe("GET /api/v1/races/:grand_prix_id/statistics", () => {
       lap_time_ms: 104861,
     });
 
-    // The lap/event derivation has four supported drivers in this fixture and
-    // includes consistency_ms.  Before #60 the controller replaced these rows
-    // with the stored 10-driver reference classification, losing this field.
+    // The lap/event derivation now has eleven supported drivers (issue #55
+    // added VER/RUS/ALB/HAM/LAW/BOR/GAS's real final-lap position alongside
+    // PIA/NOR/LEC/ANT) and includes consistency_ms. Before #60 the controller
+    // replaced these rows with the stored 10-driver reference classification,
+    // losing this field.
     expect(res.body.data.classification).toEqual([
       {
         position: 1,
@@ -195,10 +214,73 @@ describe("GET /api/v1/races/:grand_prix_id/statistics", () => {
         gap_to_winner_ms: null,
       },
       {
+        position: 4,
+        driver_id: "VER",
+        constructor_id: "RBR",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 5,
+        driver_id: "RUS",
+        constructor_id: "MER",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 6,
+        driver_id: "ALB",
+        constructor_id: "WIL",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 7,
+        driver_id: "HAM",
+        constructor_id: "FER",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
         position: 8,
         driver_id: "ANT",
         constructor_id: "MER",
         laps: 32,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 8,
+        driver_id: "LAW",
+        constructor_id: "RB",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 9,
+        driver_id: "BOR",
+        constructor_id: "SAU",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 10,
+        driver_id: "GAS",
+        constructor_id: "ALP",
+        laps: 44,
         pit_stops: 0,
         consistency_ms: 0,
         gap_to_winner_ms: null,
