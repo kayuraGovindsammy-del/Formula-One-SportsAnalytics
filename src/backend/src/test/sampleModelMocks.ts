@@ -123,9 +123,17 @@ export async function findSessionsByRace(grandPrixId: string): Promise<Session[]
 }
 
 export async function findSessionsBySeason(season: string): Promise<Session[]> {
-  return sampleSession.grand_prix_id.startsWith(`${season}_`)
-    ? [sampleSession]
-    : [];
+  if (!sampleSession.grand_prix_id.startsWith(`${season}_`)) return [];
+
+  return [
+    sampleSession,
+    {
+      ...sampleSession,
+      session_id: `${sampleSession.grand_prix_id}_QUALIFYING`,
+      type: "QUALIFYING",
+      total_laps: null,
+    },
+  ];
 }
 
 export async function findOneSessionByRaceAndType(
