@@ -1,5 +1,8 @@
 import { getPool } from "../config/database.js";
 
+/** Mirrors the `result_status` enum in database/schema.sql. */
+export type RaceResultStatus = "FINISHED" | "DNF" | "DSQ";
+
 export interface RaceResultRow {
   position: number;
   driver_id: string;
@@ -7,6 +10,7 @@ export interface RaceResultRow {
   laps: number;
   pit_stops: number;
   gap_to_winner_ms: number | null;
+  status: RaceResultStatus;
 }
 
 export interface FastestLapData {
@@ -30,6 +34,7 @@ interface RaceResultSqlRow {
   fastest_lap_rank: number | null;
   fastest_lap_number: number | null;
   fastest_lap_time_ms: number | null;
+  status: RaceResultStatus;
 }
 
 export async function findByRace(
@@ -60,7 +65,8 @@ export async function findByRace(
         gap_to_winner_ms,
         fastest_lap_rank,
         fastest_lap_number,
-        fastest_lap_time_ms
+        fastest_lap_time_ms,
+        status
       FROM race_results
       WHERE session_id = $1
       ORDER BY position NULLS LAST, driver_id
@@ -120,6 +126,7 @@ export async function findByRace(
       laps: row.laps_completed,
       pit_stops: row.pit_stops,
       gap_to_winner_ms: row.gap_to_winner_ms,
+      status: row.status,
     })),
   };
 }

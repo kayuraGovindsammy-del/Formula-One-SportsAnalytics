@@ -172,6 +172,7 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
             pit_stops: result.pit_stops,
             consistency_ms: null,
             gap_to_winner_ms: result.gap_to_winner_ms,
+            status: result.status,
           })) ?? []),
   };
 
