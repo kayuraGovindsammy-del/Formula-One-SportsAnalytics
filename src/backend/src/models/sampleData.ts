@@ -174,8 +174,8 @@ export const rawSessionResult: RawSessionResult =
 export const seasonId: string = String(racesFile.season);
 
 /**
- * grand_prix_id isn't stored in races.json — it's derived as `{season}_R{round}`
- * per the "2025_R13" convention in docs/data-model.md. Postgres stores it as a
+ * grand_prix_id isn't stored in races.json — it is derived as `{season}_R{round}`
+ * with rounds zero-padded to two digits (for example `2025_R01`, `2025_R13`). Postgres stores it as a
  * real column, at which point this derivation goes away.
  *
  * Re-exported from utils/identifiers.ts rather than defined here: the Jolpica

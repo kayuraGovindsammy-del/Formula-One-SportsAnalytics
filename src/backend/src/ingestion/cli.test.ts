@@ -115,12 +115,39 @@ function resultsRace(round: string, key: "Results" | "SprintResults"): JolpicaRa
   });
 }
 
+function pitStopsRace(round: string): JolpicaRace {
+  return jolpicaRaceSchema.parse({
+    season: "2025",
+    round,
+    raceName: `Round ${round}`,
+    Circuit: {
+      circuitId: `c${round}`,
+      circuitName: `Circuit ${round}`,
+      Location: { locality: "Town", country: "Country" },
+    },
+    date: "2025-03-16",
+    PitStops: [
+      {
+        driverId: "norris",
+        lap: "20",
+        stop: "1",
+        time: "04:31:32",
+        duration: "23.213",
+      },
+    ],
+  });
+}
+
 function fakeClient() {
   return {
     fetchSeasonResults: vi.fn(async () => [resultsRace("1", "Results"), resultsRace("2", "Results")]),
     fetchSeasonSprintResults: vi.fn(async () => [
       resultsRace("2", "SprintResults"),
     ]),
+    fetchSeasonPitStops: vi.fn(async (_season: string, rounds: readonly number[]) => {
+      expect(rounds).toEqual([1, 2]);
+      return [pitStopsRace("1")];
+    }),
     fetchSeasonRaces: vi.fn(async () => [
       calendarRace("1", false),
       calendarRace("2", true),
@@ -142,6 +169,7 @@ describe("buildPlan", () => {
     await buildPlan({ client, options: baseOptions });
 
     expect(client.fetchSeasonResults).toHaveBeenCalledTimes(1);
+    expect(client.fetchSeasonPitStops).toHaveBeenCalledTimes(1);
     expect(client.fetchSeasonSprintResults).not.toHaveBeenCalled();
   });
 
@@ -155,6 +183,20 @@ describe("buildPlan", () => {
     expect(plan.sessions.map((s) => s.type)).toEqual(["RACE", "RACE"]);
   });
 
+  it("adds pit stops to the plan and maps the Jolpica driver slug", async () => {
+    const client = fakeClient();
+    const plan = await buildPlan({ client, options: baseOptions });
+
+    expect(plan.pitStops).toEqual([
+      {
+        session_id: "2025_R01_RACE",
+        driver_id: "NOR",
+        lap_number: 20,
+        duration_ms: 23213,
+      },
+    ]);
+  });
+
   it("adds SPRINT sessions and their points under --include-sprints", async () => {
     const client = fakeClient();
     const plan = await buildPlan({
@@ -163,10 +205,10 @@ describe("buildPlan", () => {
     });
 
     expect(client.fetchSeasonSprintResults).toHaveBeenCalledTimes(1);
-    expect(plan.sessions.map((s) => s.session_id)).toContain("2025_R2_SPRINT");
+    expect(plan.sessions.map((s) => s.session_id)).toContain("2025_R02_SPRINT");
 
     const sprintRow = plan.raceResults.find(
-      (row) => row.session_id === "2025_R2_SPRINT"
+      (row) => row.session_id === "2025_R02_SPRINT"
     );
 
     expect(sprintRow?.points).toBe(8);
@@ -219,6 +261,7 @@ describe("runIngest", () => {
     });
 
     expect(report.counts?.race_results).toBe(2);
+    expect(report.counts?.pit_stops).toBe(1);
     expect(pool.statements[0]).toBe("BEGIN");
     expect(pool.statements).toContain("COMMIT");
   });
@@ -237,6 +280,7 @@ describe("runIngest", () => {
 
     expect(output).toContain("races only");
     expect(output).toContain("race_results             2");
+    expect(output).toContain("pit_stops                1");
     expect(output).toContain("Dry run");
   });
 });

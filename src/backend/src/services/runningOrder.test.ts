@@ -1,4 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../models/events.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllEventsBySession,
+    findByRace: fixtures.findEventsByRace,
+  };
+});
 import { runningOrderAtLap } from "./runningOrder.js";
 import * as eventsModel from "../models/events.model.js";
 import type { Event } from "../types/event.types.js";
@@ -135,32 +143,44 @@ describe("runningOrderAtLap — real sample data, inferred baseline", () => {
   // Reference: Norris led from pole and Piastri passed him for the lead on
   // lap 5 of the 2025 Belgian GP — a real, independently known race fact.
   //
-  // LEC and ANT are absent because nothing in events.json records a position
-  // for them (evt_008, ANT's only LAP_COMPLETED, carries no position field).
+  // VER/RUS/ALB/HAM/LAW/BOR/GAS are also placed (positions 4-10): issue #55
+  // added a real-classification-position LAP_COMPLETED event for each at lap
+  // 44, which inferBaselineOrder's pass 2 picks up as positional evidence for
+  // a driver pass 1 didn't already place. LEC and ANT are still absent -
+  // nothing in events.json records a position for either of them (evt_008,
+  // ANT's only LAP_COMPLETED, carries no position field).
 
   it("puts NOR ahead of PIA on lap 1, before the pass", async () => {
     const events = await eventsModel.findAllBySession(SESSION_ID);
 
-    expect(runningOrderAtLap(events, 1)).toEqual(["NOR", "PIA"]);
+    expect(runningOrderAtLap(events, 1)).toEqual([
+      "NOR", "PIA", "VER", "RUS", "ALB", "HAM", "LAW", "BOR", "GAS",
+    ]);
   });
 
   it("still has NOR leading on lap 4", async () => {
     const events = await eventsModel.findAllBySession(SESSION_ID);
 
-    expect(runningOrderAtLap(events, 4)).toEqual(["NOR", "PIA"]);
+    expect(runningOrderAtLap(events, 4)).toEqual([
+      "NOR", "PIA", "VER", "RUS", "ALB", "HAM", "LAW", "BOR", "GAS",
+    ]);
   });
 
   it("swaps them on lap 5, when Piastri took the lead", async () => {
     const events = await eventsModel.findAllBySession(SESSION_ID);
 
-    expect(runningOrderAtLap(events, 5)).toEqual(["PIA", "NOR"]);
+    expect(runningOrderAtLap(events, 5)).toEqual([
+      "PIA", "NOR", "VER", "RUS", "ALB", "HAM", "LAW", "BOR", "GAS",
+    ]);
   });
 
   it("keeps Piastri ahead through to the end of the race", async () => {
     // PIA won and NOR finished second — matches the known race result.
     const events = await eventsModel.findAllBySession(SESSION_ID);
 
-    expect(runningOrderAtLap(events, 44)).toEqual(["PIA", "NOR"]);
+    expect(runningOrderAtLap(events, 44)).toEqual([
+      "PIA", "NOR", "VER", "RUS", "ALB", "HAM", "LAW", "BOR", "GAS",
+    ]);
   });
 
   it("uses an explicit grid when one is supplied", async () => {

@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import request from "supertest";
+
+vi.mock("../models/drivers.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAll: fixtures.findAllDrivers,
+    findById: fixtures.findDriverById,
+    getConstructorIdByDriver: fixtures.getConstructorIdByDriver,
+  };
+});
+
 import { createApp } from "../app.js";
 
 const app = createApp();

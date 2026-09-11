@@ -1,4 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../models/laps.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllLapsBySession,
+    findByRace: fixtures.findLapsByRace,
+  };
+});
 import {
   averageLapTime,
   fastestLap,
@@ -296,6 +304,82 @@ describe("lapConsistency — hand-constructed", () => {
     expect(
       lapConsistency([lap({ lap_time_ms: 130000, is_pit_lap: true })])
     ).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// docs/event-schema.md §4 — "correcting an event → recalculating statistics".
+//
+// Statistics are never stored; they're recomputed from the event/lap log every
+// time. These tests demonstrate that behaviour directly: the same lap array is
+// built three times — correct, then with one lap's lap_time_ms wrong (an event
+// logged incorrectly), then with that value corrected back — and the
+// statistic is shown to change and then return to its original value, purely
+// as a function of what's in the log. No caching or stored total is involved.
+// ---------------------------------------------------------------------------
+describe("recalculation on correction — docs/event-schema.md §4", () => {
+  it("averageLapTime changes when a lap time is mis-recorded, then reverts once corrected", () => {
+    // Correct log: three genuine 100000ms laps -> average 100000.
+    const correctLaps = [
+      lap({ driver_id: "AAA", lap_number: 1, lap_time_ms: 100000 }),
+      lap({ driver_id: "AAA", lap_number: 2, lap_time_ms: 100000 }),
+      lap({ driver_id: "AAA", lap_number: 3, lap_time_ms: 100000 }),
+    ];
+
+    expect(averageLapTime(correctLaps)).toBe(100000);
+
+    // A steward mis-types lap 2's time as 130000ms.
+    // (100000 + 130000 + 100000) / 3 = 330000 / 3 = 110000
+    const mistypedLaps = correctLaps.map((entry) =>
+      entry.lap_number === 2 ? { ...entry, lap_time_ms: 130000 } : entry
+    );
+
+    expect(averageLapTime(mistypedLaps)).toBe(110000);
+    expect(averageLapTime(mistypedLaps)).not.toBe(averageLapTime(correctLaps));
+
+    // The event is corrected back to its real value — no separate "fix the
+    // stats" step, the same function just sees a different log.
+    const correctedLaps = mistypedLaps.map((entry) =>
+      entry.lap_number === 2 ? { ...entry, lap_time_ms: 100000 } : entry
+    );
+
+    expect(averageLapTime(correctedLaps)).toBe(100000);
+    expect(averageLapTime(correctedLaps)).toBe(averageLapTime(correctLaps));
+  });
+
+  it("fastestLap changes when the true fastest lap is mis-recorded, then reverts once corrected", () => {
+    // Correct log: AAA's lap 3 (99000ms) is genuinely the fastest, ahead of
+    // BBB's 100000ms lap.
+    const correctLaps = [
+      lap({ driver_id: "BBB", lap_number: 1, lap_time_ms: 100000 }),
+      lap({ driver_id: "AAA", lap_number: 3, lap_time_ms: 99000 }),
+    ];
+
+    expect(fastestLap(correctLaps)).toEqual({
+      driver_id: "AAA",
+      lap_number: 3,
+      lap_time_ms: 99000,
+    });
+
+    // AAA's lap 3 is mis-logged as a slow 999000ms lap, so BBB's lap now looks
+    // fastest.
+    const mistypedLaps = correctLaps.map((entry) =>
+      entry.driver_id === "AAA" ? { ...entry, lap_time_ms: 999000 } : entry
+    );
+
+    expect(fastestLap(mistypedLaps)).toEqual({
+      driver_id: "BBB",
+      lap_number: 1,
+      lap_time_ms: 100000,
+    });
+
+    // Corrected back to 99000ms: AAA retakes the fastest lap, with no change
+    // needed anywhere except the one event.
+    const correctedLaps = mistypedLaps.map((entry) =>
+      entry.driver_id === "AAA" ? { ...entry, lap_time_ms: 99000 } : entry
+    );
+
+    expect(fastestLap(correctedLaps)).toEqual(fastestLap(correctLaps));
   });
 });
 

@@ -6,15 +6,19 @@
 // ---------------------------------------------------------------------------
 
 /**
- * `{season}_R{round}` with the round UNPADDED — `2025_R1`, not `2025_R01`.
+ * `{season}_R{round}` with the round zero-padded to two digits.
  *
- * The convention comes from docs/data-model.md ("2025_R13") and is what the
- * API has always served. Zero-padding produces a distinct string for rounds
- * 1-9, which would mean two rows per race once an ingest and a seed disagree,
- * so the padding decision has to live in exactly one place: here.
+ * Examples:
+ * - round 1  -> `2025_R01`
+ * - round 9  -> `2025_R09`
+ * - round 13 -> `2025_R13`
+ *
+ * This matches database/seed.sql and the identifiers already stored in Neon.
+ * Keeping this convention avoids creating a second ID for rounds 1-9 while
+ * still preserving the existing two-digit IDs used throughout the project.
  */
 export function toGrandPrixId(season: string, round: number): string {
-  return `${season}_R${round}`;
+  return `${season}_R${String(round).padStart(2, "0")}`;
 }
 
 /** `{grand_prix_id}_{SESSION_TYPE}` — e.g. `2025_R13_RACE`. */

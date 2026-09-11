@@ -115,7 +115,10 @@ export function parseArgs(argv: readonly string[]): IngestOptions {
 export interface BuildPlanDeps {
   client: Pick<
     JolpicaClient,
-    "fetchSeasonResults" | "fetchSeasonSprintResults" | "fetchSeasonRaces"
+    | "fetchSeasonResults"
+    | "fetchSeasonSprintResults"
+    | "fetchSeasonRaces"
+    | "fetchSeasonPitStops"
   >;
   options: IngestOptions;
 }
@@ -135,6 +138,9 @@ export async function buildPlan({
     client.fetchSeasonRaces(options.season),
   ]);
 
+  const rounds = calendar.map((race) => race.round);
+  const pitStopRaces = await client.fetchSeasonPitStops(options.season, rounds);
+
   const sprintRounds = new Set(
     calendar
       .filter((race) => hasSprintMarker(race))
@@ -149,6 +155,7 @@ export async function buildPlan({
     seasonId: options.season,
     raceResults,
     ...(sprintResults ? { sprintResults } : {}),
+    pitStopRaces,
     sprintRounds,
   });
 }
@@ -218,6 +225,8 @@ export async function runIngest({
       `  constructors             ${plan.constructors.length}`,
       `  driver_constructor_links ${plan.driverConstructorLinks.length}`,
       `  race_results             ${plan.raceResults.length}`,
+      `  pit_stops                ${plan.pitStops.length}`,
+      `  retirements              ${plan.retirements.length}`,
     ].join("\n")
   );
 
@@ -232,7 +241,10 @@ export async function runIngest({
 
   const counts = await ingestSeasonPlan(pool, plan);
 
-  log(`\nWrote ${counts.race_results} race_results rows. Done.`);
+  log(
+    `\nWrote ${counts.race_results} race_results, ` +
+      `${counts.pit_stops} pit_stops and ${counts.retirements} retirements. Done.`
+  );
 
   return { plan, counts };
 }

@@ -31,6 +31,8 @@ export interface IngestCounts {
   constructors: number;
   driver_constructor_links: number;
   race_results: number;
+  pit_stops: number;
+  retirements: number;
 }
 
 export async function writeSeasonPlan(
@@ -167,9 +169,10 @@ export async function writeSeasonPlan(
     await client.query(
       `INSERT INTO race_results (
          session_id, driver_id, constructor_id, position, grid_position,
-         points, laps_completed, gap_to_winner_ms, status
+         points, laps_completed, gap_to_winner_ms, fastest_lap_rank,
+         fastest_lap_number, fastest_lap_time_ms, status
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (session_id, driver_id) DO UPDATE SET
          constructor_id = EXCLUDED.constructor_id,
          position = EXCLUDED.position,
@@ -177,6 +180,9 @@ export async function writeSeasonPlan(
          points = EXCLUDED.points,
          laps_completed = EXCLUDED.laps_completed,
          gap_to_winner_ms = COALESCE(EXCLUDED.gap_to_winner_ms, race_results.gap_to_winner_ms),
+         fastest_lap_rank = COALESCE(EXCLUDED.fastest_lap_rank, race_results.fastest_lap_rank),
+         fastest_lap_number = COALESCE(EXCLUDED.fastest_lap_number, race_results.fastest_lap_number),
+         fastest_lap_time_ms = COALESCE(EXCLUDED.fastest_lap_time_ms, race_results.fastest_lap_time_ms),
          status = EXCLUDED.status`,
       [
         result.session_id,
@@ -187,8 +193,99 @@ export async function writeSeasonPlan(
         result.points,
         result.laps_completed,
         result.gap_to_winner_ms,
+        result.fastest_lap_rank,
+        result.fastest_lap_number,
+        result.fastest_lap_time_ms,
         result.status,
       ]
+    );
+  }
+
+
+
+  // Replace only source-ingested pit stops. Approved submission rows carry a
+  // non-null submission_id and are deliberately preserved.
+  const raceSessionIds = plan.sessions
+    .filter((session) => session.type === "RACE")
+    .map((session) => session.session_id);
+
+  for (const sessionId of raceSessionIds) {
+    await client.query(
+      `DELETE FROM pit_stops
+       WHERE session_id = $1 AND submission_id IS NULL`,
+      [sessionId]
+    );
+  }
+
+  for (const stop of plan.pitStops) {
+    // If an approved submission already represents the same stop, prefer that
+    // reviewed record instead of double-counting it alongside source data.
+    await client.query(
+      `INSERT INTO pit_stops (
+         session_id, driver_id, lap_number, duration_ms, submission_id
+       )
+       SELECT
+         $1::varchar(70),
+         $2::varchar(10),
+         $3::integer,
+         $4::integer,
+         NULL::bigint
+       WHERE NOT EXISTS (
+         SELECT 1
+         FROM pit_stops
+         WHERE session_id = $1::varchar(70)
+           AND driver_id = $2::varchar(10)
+           AND lap_number = $3::integer
+           AND submission_id IS NOT NULL
+       )`,
+      [stop.session_id, stop.driver_id, stop.lap_number, stop.duration_ms]
+    );
+  }
+
+  // Rebuild source-derived retirements for each ingested race. Reviewed
+  // submission rows are preserved. This also removes a stale source retirement
+  // if upstream later corrects a result.
+  for (const sessionId of raceSessionIds) {
+    await client.query(
+      `DELETE FROM retirements
+       WHERE session_id = $1 AND submission_id IS NULL`,
+      [sessionId]
+    );
+  }
+
+  for (const retirement of plan.retirements) {
+    await client.query(
+      `INSERT INTO retirements (
+         session_id, driver_id, lap_number, reason, submission_id
+       )
+       VALUES ($1, $2, $3, $4, NULL)
+       ON CONFLICT (session_id, driver_id) DO UPDATE SET
+         lap_number = EXCLUDED.lap_number,
+         reason = EXCLUDED.reason
+       WHERE retirements.submission_id IS NULL`,
+      [
+        retirement.session_id,
+        retirement.driver_id,
+        retirement.lap_number,
+        retirement.reason,
+      ]
+    );
+  }
+
+  // Keep the denormalised pit-stop count in race_results aligned with the
+  // event table. This includes both source-ingested and approved-submission
+  // pit stops.
+  for (const sessionId of raceSessionIds) {
+    await client.query(
+      `UPDATE race_results rr
+       SET pit_stops = (
+         SELECT COUNT(*)::int
+         FROM pit_stops ps
+         WHERE ps.session_id = rr.session_id
+           AND ps.driver_id = rr.driver_id
+       )
+       WHERE rr.session_id = $1`,
+      [sessionId]
     );
   }
 
@@ -201,6 +298,8 @@ export async function writeSeasonPlan(
     constructors: plan.constructors.length,
     driver_constructor_links: plan.driverConstructorLinks.length,
     race_results: plan.raceResults.length,
+    pit_stops: plan.pitStops.length,
+    retirements: plan.retirements.length,
   };
 }
 

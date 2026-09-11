@@ -1,4 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../models/events.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findAllBySession: fixtures.findAllEventsBySession,
+    findByRace: fixtures.findEventsByRace,
+  };
+});
 import { pitStopCount, totalPitTime } from "./pitStatistics.js";
 import * as eventsModel from "../models/events.model.js";
 import type { Event } from "../types/event.types.js";
