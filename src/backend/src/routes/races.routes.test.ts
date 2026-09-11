@@ -159,11 +159,13 @@ describe("GET /api/v1/races/:grand_prix_id/laps", () => {
     const res = await request(app).get("/api/v1/races/2025_R13/laps");
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(13);
+    // 13 original rows + 7 added for issue #55 (VER/RUS/ALB/HAM/LAW/BOR/GAS's
+    // real final-lap position) = 20.
+    expect(res.body.data).toHaveLength(20);
     expect(res.body.meta).toEqual({
       page: 1,
       per_page: 100,
-      total_items: 13,
+      total_items: 20,
       total_pages: 1,
     });
   });
@@ -195,7 +197,8 @@ describe("GET /api/v1/races/:grand_prix_id/laps", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveLength(5);
-    expect(res.body.meta.total_pages).toBe(3);
+    // 20 total laps / 5 per page = 4 pages (was 3 before issue #55 added 7 rows).
+    expect(res.body.meta.total_pages).toBe(4);
 
     const beyond = await request(app).get(
       "/api/v1/races/2025_R13/laps?page=9&per_page=5"
@@ -236,11 +239,15 @@ describe("GET /api/v1/races/:grand_prix_id/events", () => {
     const res = await request(app).get("/api/v1/races/2025_R13/events");
 
     expect(res.status).toBe(200);
-    expect(res.body.data).toHaveLength(10);
+    // 10 original RACE-session events + 7 added for issue #55
+    // (VER/RUS/ALB/HAM/LAW/BOR/GAS's LAP_COMPLETED events) = 17. The
+    // QUALIFYING-session events (evt_011-013) aren't included here - this
+    // route resolves only the RACE session for this grand prix.
+    expect(res.body.data).toHaveLength(17);
     expect(res.body.meta).toEqual({
       page: 1,
       per_page: 100,
-      total_items: 10,
+      total_items: 17,
       total_pages: 1,
     });
   });

@@ -52,6 +52,13 @@ async function realBelgianGpStatistics() {
       NOR: "MCL",
       LEC: "FER",
       ANT: "MER",
+      VER: "RBR",
+      RUS: "MER",
+      ALB: "WIL",
+      HAM: "FER",
+      LAW: "RB",
+      BOR: "SAU",
+      GAS: "ALP",
     },
   });
 }
@@ -83,18 +90,29 @@ describe("buildRaceStatistics — real sample data", () => {
 
   it("derives the classification from each driver's last recorded lap", async () => {
     // Reference: the real top three were PIA, NOR, LEC in that order, which
-    // is what the lap log reproduces.
+    // is what the lap log reproduces. VER/RUS/ALB/HAM/LAW/BOR/GAS (issue #55)
+    // each have exactly one recorded lap — their real final lap (44), sourced
+    // from session_result.classification — so their position IS their real
+    // finish, unlike ANT.
     //
     // ANT appears at position 8 because his last RECORDED lap is 32, where he
     // was running 8th — the sample data has no later lap for him, so this is a
     // mid-race position, not a finishing one. Positions are reported exactly
-    // as derived and deliberately not renumbered to 1,2,3,4.
+    // as derived and deliberately not renumbered to 1,2,3,4. This also means
+    // ANT's mid-race "position 8" now collides with LAW's real classification
+    // position 8 — an honest artifact of ANT's known limitation, not a new
+    // bug; ties are broken alphabetically (ANT before LAW).
+    //
+    // pit_stops is 0 for the 7 newly-added drivers: only a LAP_COMPLETED event
+    // was added for each (issue #55's Sprint-1 scope), no PIT_STOP event, so
+    // the derivation honestly reports what's in the log — not their real
+    // pit-stop count of 1.
     const stats = await realBelgianGpStatistics();
 
     // consistency_ms per driver, over the same racing laps lapConsistency.test.ts
-    // already verifies: PIA 595, NOR 605, LEC 651. ANT has only one racing lap
-    // (32), so a single-lap consistency of 0 (arithmetically correct, though it
-    // says nothing about real consistency - see lapStatistics.ts).
+    // already verifies: PIA 595, NOR 605, LEC 651. Everyone else has only one
+    // racing lap, so a single-lap consistency of 0 (arithmetically correct,
+    // though it says nothing about real consistency - see lapStatistics.ts).
     expect(stats.classification).toEqual([
       {
         position: 1,
@@ -124,10 +142,73 @@ describe("buildRaceStatistics — real sample data", () => {
         gap_to_winner_ms: null,
       },
       {
+        position: 4,
+        driver_id: "VER",
+        constructor_id: "RBR",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 5,
+        driver_id: "RUS",
+        constructor_id: "MER",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 6,
+        driver_id: "ALB",
+        constructor_id: "WIL",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 7,
+        driver_id: "HAM",
+        constructor_id: "FER",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
         position: 8,
         driver_id: "ANT",
         constructor_id: "MER",
         laps: 32,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 8,
+        driver_id: "LAW",
+        constructor_id: "RB",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 9,
+        driver_id: "BOR",
+        constructor_id: "SAU",
+        laps: 44,
+        pit_stops: 0,
+        consistency_ms: 0,
+        gap_to_winner_ms: null,
+      },
+      {
+        position: 10,
+        driver_id: "GAS",
+        constructor_id: "ALP",
+        laps: 44,
         pit_stops: 0,
         consistency_ms: 0,
         gap_to_winner_ms: null,

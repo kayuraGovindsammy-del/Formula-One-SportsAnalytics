@@ -146,12 +146,37 @@ describe("buildDriverStatistics — real sample data", () => {
     expect(stats.positions_gained_lost_avg).toBe(0);
   });
 
-  it("returns zeroes and nulls for a driver with no logged laps", async () => {
-    // VER appears nowhere in the sample lap or event data.
+  it("derives Verstappen's real finishing position and points (issue #55)", async () => {
+    // VER's only recorded lap is 44 (his real classification finish, sourced
+    // from session_result.classification P4) - unlike ANT's lap 32, this IS
+    // his finish, so his position/points are trustworthy. His pace/
+    // consistency are not: the lap time itself is an illustrative
+    // placeholder, and he has no QUALIFYING event, so
+    // positions_gained_lost_avg stays null.
     const stats = await realSeasonStatsFor("VER");
 
     expect(stats).toEqual({
       driver_id: "VER",
+      season: "2025",
+      races_entered: 1,
+      wins: 0,
+      podiums: 0,
+      dnf_count: 0,
+      dnf_rate: 0,
+      fastest_laps: 0,
+      average_finish_position: 4,
+      average_race_pace_ms: 108500,
+      points: 12,
+      positions_gained_lost_avg: null,
+    });
+  });
+
+  it("returns zeroes and nulls for a driver with no logged laps", async () => {
+    // TSU appears nowhere in the sample lap or event data.
+    const stats = await realSeasonStatsFor("TSU");
+
+    expect(stats).toEqual({
+      driver_id: "TSU",
       season: "2025",
       races_entered: 0,
       wins: 0,
