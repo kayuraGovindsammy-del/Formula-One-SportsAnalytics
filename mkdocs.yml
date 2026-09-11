@@ -15,6 +15,8 @@ nav:
       - Database Design: database-design.md
       - Event Schema: event-schema.md
       - F1 Statistics: f1-statistics.md
+  - Data Ingestion:
+      - Jolpica-F1 Pipeline: ingestion/jolpica-ingestion.md
 
 theme:
   name: mkdocs
