@@ -8,6 +8,7 @@ nav:
   - Home: index.md
   - Git Workflow: git-workflow.md
   - Project Methodology: methodology.md
+  - Testing: testing.md
   - Architecture:
       - API Design: api-design.md
       - Authentication and Submission Workflow: auth-and-submission-workflow.md
