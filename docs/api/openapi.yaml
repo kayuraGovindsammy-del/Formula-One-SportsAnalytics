@@ -55,8 +55,20 @@ info:
     Field naming is snake_case end to end, per docs/api-design.md §3.
 
 servers:
+  # Relative, and deliberately first. Swagger UI resolves it against whatever
+  # host is serving /api/docs, so "Try it out" targets the deployed API when
+  # read on the deployed host and a local server when read on localhost. Being
+  # same-origin, it is also the only entry that never involves CORS.
   - url: /api/v1
-    description: All routes are mounted under this prefix by app.ts.
+    description: This server — all routes are mounted under this prefix by app.ts.
+
+  # The deployed backend. Verified live: GET /api/v1/health returns
+  # {"data":{"status":"ok"},"meta":{}}. Selecting this entry while reading the
+  # docs on another origin (e.g. a local server) is a cross-origin request, so
+  # that origin must be listed in the deployed CORS_ORIGINS for "Try it out"
+  # to succeed.
+  - url: https://f1-sport-analytics-api-production.up.railway.app/api/v1
+    description: Production (Railway).
 
 tags:
   - name: health
