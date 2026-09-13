@@ -19,6 +19,7 @@ export const DRIVER_IMAGES: Record<string, string> = {
   STR: "/drivers/Stroll.png",
   TSU: "/drivers/Tsunoda.webp",
   VER: "/drivers/Verstappen.jpg",
+  DOO: "/drivers/Doohan.webp",
 };
 
 export function getDriverImage(driverId: string): string {
