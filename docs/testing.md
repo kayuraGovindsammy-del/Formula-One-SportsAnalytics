@@ -12,6 +12,7 @@ The project currently combines several layers of validation:
 - Documentation validation through a strict MkDocs build.
 - Manual smoke testing of the deployed application and key user flows.
 - Stakeholder/tutor review and a separate formal external user-testing procedure for Sprint 2.
+- Sprint 2 evidence is recorded separately in `docs/user-testing/sprint2-user-testing.md`.
 
 In practical terms, the repository already contains meaningful automated validation for the backend and some automated frontend checks, but it does not yet contain full coverage reporting or a fully expanded UI test suite. The current testing approach should therefore be understood as a combination of:
 

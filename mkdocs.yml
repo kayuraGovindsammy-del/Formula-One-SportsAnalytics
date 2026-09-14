@@ -8,7 +8,9 @@ nav:
   - Home: index.md
   - Git Workflow: git-workflow.md
   - Project Methodology: methodology.md
-  - Testing: testing.md
+  - Testing:
+      - Testing Overview: testing.md
+      - Sprint 2 User Testing Evidence: user-testing/sprint2-user-testing.md
   - Architecture:
       - API Design: api-design.md
       - Authentication and Submission Workflow: auth-and-submission-workflow.md
