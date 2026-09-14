@@ -12,6 +12,7 @@ The project currently combines several layers of validation:
 - Documentation validation through a strict MkDocs build.
 - Manual smoke testing of the deployed application and key user flows.
 - Stakeholder/tutor review and a separate formal external user-testing procedure for Sprint 2.
+- Sprint 2 evidence is recorded separately in `docs/user-testing/sprint2-user-testing.md`.
 
 In practical terms, the repository already contains meaningful automated validation for the backend and some automated frontend checks, but it does not yet contain full coverage reporting or a fully expanded UI test suite. The current testing approach should therefore be understood as a combination of:
 
@@ -173,7 +174,7 @@ The exact scripts are:
 - `npm run test:rules` → `node --test tests/firestore.roles.test.mjs`
 - `npm run test:e2e` → `playwright test`
 
-For the Playwright smoke test, the browser binary must be present first. In the current CI workflow this is handled by `npx playwright install --with-deps chromium`.
+For the Playwright suite, the browser binary must be present first. In the current CI workflow this is handled by `npx playwright install --with-deps chromium`.
 
 For the Firestore rules test, the repository uses `npx --yes firebase-tools emulators:exec --only firestore --project demo-member4-roles "npm run test:rules"`. This is required because the rules test relies on the Firestore emulator environment rather than on a manually started local emulator.
 
@@ -184,15 +185,23 @@ The frontend currently includes:
 - ESLint validation (`src/frontend/eslint.config.js`)
 - TypeScript + Vite build validation (`src/frontend/package.json`)
 - A Firestore rules test (`src/frontend/tests/firestore.roles.test.mjs`)
-- A Playwright end-to-end smoke test (`src/frontend/e2e/navigation.spec.ts`)
+- A Playwright end-to-end suite (`src/frontend/e2e/navigation.spec.ts`) that runs through `npm run test:e2e`
 
 ### Existing frontend automated tests
 
 There is an actual Playwright setup in `src/frontend/playwright.config.ts`.
 
-The existing e2e suite currently contains a single smoke test file, `src/frontend/e2e/navigation.spec.ts`, which verifies that the unauthenticated login page loads and exposes the expected sign-in controls.
+The current e2e suite in `src/frontend/e2e/navigation.spec.ts` contains five unauthenticated tests that verify:
 
-This means the project does already have a UI smoke test in place, but it is not yet a comprehensive frontend test suite. It is best understood as a small end-to-end check of the login page and key unauthenticated navigation elements.
+1. the login page loads at `/`
+2. the email and password fields are visible
+3. the sign-in and Google sign-in controls are visible
+4. the password reset option is visible
+5. the registration option is visible
+
+This means the repository already has a real Playwright UI suite for important unauthenticated login-page behaviour, but it is not yet a broad authenticated end-to-end suite covering post-login application flows such as drivers, races, constructors, statistics, submissions, or admin workflows.
+
+In the current CI workflow (`.gitea/workflows/ci.yml`), the frontend job installs Chromium with `npx playwright install --with-deps chromium` and then runs `npm run test:e2e` as part of the frontend validation job.
 
 Important environment note: the Firestore rules test currently requires the Firebase emulator and Java on the runner. In the local environment used for verification, `firebase-tools emulators:exec` failed because `java` was not available on `PATH`, so the emulator path is real and must be satisfied by the CI environment or a machine with Java installed.
 
@@ -204,9 +213,9 @@ The current repository has:
 
 - lint/build validation,
 - Firestore rules testing,
-- Playwright e2e smoke coverage for a limited user path.
+- an unauthenticated Playwright end-to-end suite that validates key login-page UI behaviour.
 
-It does not yet contain a broad, project-wide frontend test suite covering every major user journey or browser-level business flow.
+It does not yet contain a broad authenticated frontend test suite covering every major user journey or browser-level business flow.
 
 ## Documentation Validation
 
