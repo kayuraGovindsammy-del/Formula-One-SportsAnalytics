@@ -30,12 +30,18 @@ In practical terms, the repository already contains meaningful automated validat
 - Frontend Playwright end-to-end smoke test (`src/frontend/e2e/navigation.spec.ts`)
 - Strict MkDocs documentation build in CI (`.gitea/workflows/ci.yml`)
 
-### Planned / being added during Sprint 2
+### Coverage and CI improvements implemented on this branch
 
-- Expanded coverage reporting
-- Broader UI coverage for key user journeys
-- More explicit regression-test capture for bugs found during testing
-- Structured evidence collection for external user testing and stakeholder review
+- Backend coverage reporting is now configured through `npm run test:coverage`
+- Coverage output uses Vitest's V8 provider with `text`, `html`, and `json-summary` reporters
+- Coverage output is written to `src/backend/coverage` and excluded from version control via `src/backend/.gitignore`
+- CI workflow now runs frontend validation, Firestore rules tests through the emulator, and Playwright smoke tests
+- Backend CI now runs the full suite with coverage output in the job log and uploads the coverage artifact
+- The current backend baseline captured on this branch is:
+  - Statements: 79.55%
+  - Branches: 69.67%
+  - Functions: 82.15%
+  - Lines: 80.52%
 
 ## Backend Automated Testing
 
@@ -52,9 +58,10 @@ cd src/backend
 npm ci
 npm run build
 npm test
+npm run test:coverage
 ```
 
-`npm test` runs `vitest run`.
+`npm test` runs `vitest run`, and `npm run test:coverage` runs `vitest run --coverage`.
 
 ### Where tests live
 
@@ -128,11 +135,20 @@ The test suite uses `describe(...)` and `it(...)` from Vitest, with files named 
 
 ### Coverage status
 
-Coverage tooling is not currently configured in the repository.
+Coverage is now configured for the backend.
 
-The current backend `vitest.config.ts` only sets the test environment to `node` and excludes `dist` and `node_modules`. There is no `coverage` block, no coverage script in `src/backend/package.json`, and no repository-defined coverage threshold.
+The repository currently defines a `test:coverage` script in `src/backend/package.json`, and `src/backend/vitest.config.ts` configures Vitest coverage using the `v8` provider with `text`, `html`, and `json-summary` reporters. Coverage output is written to `src/backend/coverage` and is excluded from version control via `src/backend/.gitignore`.
 
-Sprint 2 is therefore the stage where coverage reporting should be documented as a planned infrastructure addition rather than as an already implemented feature.
+The current backend baseline captured by the repository on this branch is:
+
+- Statements: 79.55%
+- Branches: 69.67%
+- Functions: 82.15%
+- Lines: 80.52%
+
+These percentages are a real baseline from the current suite and should be updated as the project grows and new coverage is added.
+
+The CI workflow also uploads the generated coverage report as an artifact named `backend-coverage-report` from `src/backend/coverage` when the job completes.
 
 ## Frontend Validation and UI Testing
 
@@ -146,6 +162,7 @@ npm ci
 npm run lint
 npm run build
 npm run test:rules
+npx playwright install --with-deps chromium
 npm run test:e2e
 ```
 
@@ -155,6 +172,10 @@ The exact scripts are:
 - `npm run build` → `tsc -b && vite build`
 - `npm run test:rules` → `node --test tests/firestore.roles.test.mjs`
 - `npm run test:e2e` → `playwright test`
+
+For the Playwright smoke test, the browser binary must be present first. In the current CI workflow this is handled by `npx playwright install --with-deps chromium`.
+
+For the Firestore rules test, the repository uses `npx --yes firebase-tools emulators:exec --only firestore --project demo-member4-roles "npm run test:rules"`. This is required because the rules test relies on the Firestore emulator environment rather than on a manually started local emulator.
 
 ### What the frontend currently validates
 
@@ -172,6 +193,8 @@ There is an actual Playwright setup in `src/frontend/playwright.config.ts`.
 The existing e2e suite currently contains a single smoke test file, `src/frontend/e2e/navigation.spec.ts`, which verifies that the unauthenticated login page loads and exposes the expected sign-in controls.
 
 This means the project does already have a UI smoke test in place, but it is not yet a comprehensive frontend test suite. It is best understood as a small end-to-end check of the login page and key unauthenticated navigation elements.
+
+Important environment note: the Firestore rules test currently requires the Firebase emulator and Java on the runner. In the local environment used for verification, `firebase-tools emulators:exec` failed because `java` was not available on `PATH`, so the emulator path is real and must be satisfied by the CI environment or a machine with Java installed.
 
 ### Important distinction
 
@@ -235,21 +258,25 @@ The current workflow is defined for pushes to `main` and pull requests targeting
 
 It contains three jobs:
 
-1. Frontend lint and build
+1. Frontend validation
    - installs `src/frontend` dependencies with `npm ci`
    - runs `npm run lint`
    - runs `npm run build`
+   - runs Firestore rules tests through `npx --yes firebase-tools emulators:exec --only firestore --project demo-member4-roles "npm run test:rules"`
+   - installs Playwright Chromium with `npx playwright install --with-deps chromium`
+   - runs `npm run test:e2e`
 
-2. Backend build and tests
+2. Backend build and coverage tests
    - installs `src/backend` dependencies with `npm ci`
    - runs `npm run build`
-   - runs `npm test`
+   - runs `npm run test:coverage`
+   - uploads `src/backend/coverage` as the `backend-coverage-report` artifact
 
 3. Documentation validation
    - installs MkDocs dependencies from `requirements-docs.txt`
    - runs `mkdocs build --strict`
 
-The workflow therefore defines a clean repository-level validation pipeline for the core parts of the project.
+The workflow therefore defines a repository-level validation pipeline for the core parts of the project, plus coverage reporting and the frontend emulator/browser prerequisites that are necessary for the current test setup.
 
 The local commands in this document are the same commands that the CI workflow expects. In other words, the CI process is reproducible locally and is intended to provide project-wide validation, while hosted execution depends on Gitea runner availability and the repository’s runtime context.
 
