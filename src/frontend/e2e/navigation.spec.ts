@@ -1,8 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Unauthenticated navigation", () => {
-  test("loads the login page", async ({ page }) => {
+  test("redirects unauthenticated users to the login page", async ({ page }) => {
     await page.goto("/");
+
+    await expect(page).toHaveURL(/\/login(?:\/)?$/);
 
     await expect(
       page.getByRole("heading", { name: /sign in/i })
@@ -14,14 +16,14 @@ test.describe("Unauthenticated navigation", () => {
   });
 
   test("shows email and password fields", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/login");
 
     await expect(page.getByLabel(/email/i)).toBeVisible();
     await expect(page.getByLabel(/password/i)).toBeVisible();
   });
 
   test("shows sign in controls", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/login");
 
     await expect(
       page.getByRole("button", { name: /^sign in$/i })
@@ -33,7 +35,7 @@ test.describe("Unauthenticated navigation", () => {
   });
 
   test("shows password reset option", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/login");
 
     await expect(
       page.getByText(/forgot password/i)
@@ -41,7 +43,7 @@ test.describe("Unauthenticated navigation", () => {
   });
 
   test("shows registration option", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/login");
 
     await expect(
       page.getByText(/register/i)
