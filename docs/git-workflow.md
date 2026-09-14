@@ -10,6 +10,11 @@ The goal is to keep work organised, reviewable, and easy to merge for a five-per
 
 Before doing substantial work, create or be assigned a Gitea issue.
 
+For Sprint 2, the team should keep the planning split clear:
+
+- planned work normally originates in Taiga as a user story, task, or sprint item
+- bugs, regressions, and repository-facing process issues are tracked in Gitea Issues
+
 Use the issue to capture:
 - the task or bug being addressed
 - acceptance criteria

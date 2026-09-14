@@ -284,6 +284,8 @@ The local commands in this document are the same commands that the CI workflow e
 
 For Sprint 2, bugs should be logged as they are discovered rather than collected at the end of the sprint.
 
+The repository bug report template is located at `.gitea/ISSUE_TEMPLATE/bug_report.md` and should be used for reproducible issues that need to stay close to code, branches, and CI evidence.
+
 A useful bug report in this project should include:
 
 - a clear title
@@ -302,6 +304,17 @@ The team should also follow a simple regression-testing rule:
 - prefer separate feature branches and pull requests for fixes
 
 This is especially important in this repository because some statistics work and sample-data areas have known limitations that are documented separately and should not be mistaken for bugs.
+
+### Bug severity definitions
+
+The bug-report template uses practical severity levels suitable for a university project. Severity describes the impact of the defect; priority describes when the team chooses to address it.
+
+- Critical: application cannot be used, severe data corruption or security/access issue, or a blocker for deployment or the core demonstration.
+- High: a major core feature is broken, there is no reasonable workaround, or a serious API/auth/submission/statistics failure prevents normal use.
+- Medium: a feature is partially broken, a workaround exists, or the defect causes meaningful but non-blocking disruption.
+- Low: a minor UI/polish/documentation issue with limited impact or a small visible defect that does not materially affect the main workflow.
+
+This should be used consistently when triaging issues so that the team can distinguish impact from scheduling urgency.
 
 ## Known Test Data Limitations
 
