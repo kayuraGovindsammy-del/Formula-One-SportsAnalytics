@@ -114,6 +114,8 @@ Sprint reviews are used to check progress against the planned work, identify wha
 
 Retrospectives are used to reflect on what went well, what caused friction, and what should improve in the next Sprint. This is particularly useful in a project with multiple workstreams, where communication, task ownership, and integration work are just as important as the code itself.
 
+For Sprint 2, repository evidence should capture both kinds of review work: Sprint review records should document completed work, unfinished work, feedback, and next priorities, while retrospective records should capture what worked, what caused friction, and the agreed process improvements for the next cycle.
+
 The goal is not to create bureaucracy, but to keep the team aligned and to improve the process over time as the project matures.
 
 ## 12. Evidence and traceability
