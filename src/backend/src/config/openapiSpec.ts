@@ -17,7 +17,7 @@
 // ---------------------------------------------------------------------------
 
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, posix, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
@@ -31,10 +31,15 @@ export const SPEC_FILENAME = "openapi.yaml";
  * Exported for the test, which asserts the build-output candidate is present.
  */
 export function specCandidatePaths(startDir: string = moduleDir): string[] {
+  // Use the supplied path style rather than the host OS style. This lets
+  // Windows test runs correctly handle Linux deployment paths such as
+  // /srv/app/dist/config while preserving normal Windows paths.
+  const pathApi = startDir.startsWith("/") ? posix : win32;
+
   const candidates: string[] = [
     // Build output. This module compiles to dist/config/openapiSpec.js, so
     // one level up is dist/ — where the build step drops the copy.
-    resolve(startDir, "..", SPEC_FILENAME),
+    pathApi.resolve(startDir, "..", SPEC_FILENAME),
   ];
 
   // Repo checkout: walk upward looking for docs/api/openapi.yaml. Covers
@@ -42,9 +47,9 @@ export function specCandidatePaths(startDir: string = moduleDir): string[] {
   let current = startDir;
 
   for (;;) {
-    candidates.push(join(current, "docs", "api", SPEC_FILENAME));
+    candidates.push(pathApi.join(current, "docs", "api", SPEC_FILENAME));
 
-    const parent = dirname(current);
+    const parent = pathApi.dirname(current);
 
     if (parent === current) {
       break;
