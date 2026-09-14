@@ -9,9 +9,6 @@ nav:
   - Git Workflow: git-workflow.md
   - Project Methodology: methodology.md
   - Testing: testing.md
-  - Meetings:
-      - Tutor Meeting Template: meetings/tutor-meeting-template.md
-      - Sprint Check-in Template: meetings/sprint-checkin-template.md
   - Architecture:
       - API Design: api-design.md
       - Authentication and Submission Workflow: auth-and-submission-workflow.md

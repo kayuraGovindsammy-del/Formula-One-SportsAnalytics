@@ -1,3 +1,9 @@
+---
+name: Bug Report
+about: Report a reproducible defect
+title: "[BUG] "
+---
+
 # Bug report
 
 ## Bug title
