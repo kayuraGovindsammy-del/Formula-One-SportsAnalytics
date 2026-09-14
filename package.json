@@ -7,6 +7,7 @@
   },
   "scripts": {
     "build": "npm install --prefix src/backend && npm run build --prefix src/backend",
-    "start": "npm start --prefix src/backend"
+    "start": "npm start --prefix src/backend",
+    "ingest": "npm run ingest --prefix src/backend --"
   }
 }

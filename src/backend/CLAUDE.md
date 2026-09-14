@@ -16,5 +16,11 @@
 - All routes are mounted under /api/v1.
 
 ## Baseline
-125 tests across 10 files pass on main. Any change that reduces
-that number is a regression, not a flaky test.
+`npm test` in src/backend reports:
+  Test Files  26 passed | 1 skipped (27)
+       Tests  345 passed | 9 skipped (354)
+Any change that reduces the passing count is a regression, not a
+flaky test.
+
+Update this block in the same commit as any change to the count, or
+the next person has no baseline to judge a regression against.
