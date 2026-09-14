@@ -8,6 +8,8 @@ nav:
   - Home: index.md
   - Git Workflow: git-workflow.md
   - Project Methodology: methodology.md
+  - Retrospectives:
+      - Sprint 1: retrospectives/sprint1-retrospective.md
   - Testing:
       - Testing Overview: testing.md
       - Sprint 2 User Testing Evidence: user-testing/sprint2-user-testing.md
