@@ -40,6 +40,30 @@ Common improvement suggestions from the external-user responses:
 - Consider a predicted-time section for races.
 - Improve contrast on the China track map text where black text appears on a dark background.
 
+## Before and After Evidence
+
+The screenshots below are supporting visual evidence for the implementation traceability already documented on this page. They should be read alongside the external-user feedback and the repository evidence, rather than as standalone proof of the entire testing process.
+
+### Navigation / Header
+
+Before:
+![Sprint 2 navigation before feedback-driven changes](images/sprint2-navbar-before.jpeg)
+
+After:
+![Sprint 2 navigation after feedback-driven changes](images/sprint2-navbar-after.jpeg)
+
+The revised navigation/header introduced a stronger Formula 1 themed presentation, clearer active-page treatment, and improved layout and styling. This is consistent with the documented external-user feedback that requested header/navigation improvements, and it aligns with the implementation evidence captured in commit `632fbad` and PR #70.
+
+### Search Discoverability
+
+Before:
+![Sprint 2 search interface before feedback-driven changes](images/sprint2-search-before.jpeg)
+
+After:
+![Sprint 2 search interface after feedback-driven changes](images/sprint2-search-after.jpeg)
+
+The revised search controls make the search functionality more visually discoverable, including the search icon. This aligns with the existing external-user feedback that explicitly requested "A search icon", and the feedback timestamps preceded the implementation evidence recorded in commit `632fbad` and PR #70.
+
 ## Stakeholder feedback summary
 
 One stakeholder response was recorded and is reported separately from the external-user averages.
