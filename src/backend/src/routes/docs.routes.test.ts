@@ -76,6 +76,7 @@ describe("GET /api/openapi.json", () => {
 
     expect(paths).toBeTypeOf("object");
     expect(Object.keys(paths as Record<string, unknown>).sort()).toEqual([
+      "/constructors/{constructor_id}/stats",
       "/drivers",
       "/drivers/{driver_id}",
       "/drivers/{driver_id}/stats",

@@ -306,6 +306,25 @@ The one endpoint that does real derivation-engine work: replays the `RACE` sessi
 
 If `has_results` was `false` on the race resource (§4.4), this returns 404 `NOT_FOUND` rather than an empty-but-200 body — matches the explicit "not available" state `RaceDetails.tsx` already renders today.
 
+### 4.9 `GET /api/v1/constructors/{constructor_id}/stats?season=2025`
+
+Constructor counterpart to §4.3. Per-season aggregation, computed per [`f1-statistics.md`](f1-statistics.md) §3: the constructor's total is the sum of both registered drivers' season points, derived by composing `services/driverStatistics.ts` rather than re-deriving positions a second time.
+
+```json
+{
+  "data": {
+    "constructor_id": "MCL",
+    "season": "2025",
+    "points": 43
+  },
+  "meta": {}
+}
+```
+
+404 `NOT_FOUND` if `constructor_id` doesn't exist. `points` is `null` only when neither registered driver has a derivable position for the season — one driver contributing 0 does not force the total to `null` (same convention as `points` in §4.3).
+
+**Known gap:** `driver_constructor_links` records one constructor per driver per `season_id`, with no date range. A driver who changed teams mid-season is linked to both, so each team's total counts that driver's *entire* season rather than only the races driven for it. Fixing this needs race-level team attribution, which doesn't exist yet.
+
 ---
 
 ## 5. Pagination
