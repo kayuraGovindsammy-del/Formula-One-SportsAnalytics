@@ -12,6 +12,12 @@ export interface Driver {
   dateOfBirth: string;
 }
 
+export interface ConstructorStatistics {
+  constructorId: string;
+  season: string;
+  points: number | null;
+}
+
 export interface DriverStatistics {
   driverId: string;
   season: string;
@@ -128,6 +134,12 @@ interface ApiDriverStatistics {
   average_race_pace_ms: number | null;
   points: number | null;
   positions_gained_lost_avg: number | null;
+}
+
+interface ApiConstructorStatistics {
+  constructor_id: string;
+  season: string;
+  points: number | null;
 }
 
 interface ApiRace {
@@ -293,6 +305,23 @@ export async function fetchDriverStatistics(
     averageRacePaceMs: data.average_race_pace_ms,
     points: data.points,
     positionsGainedLostAvg: data.positions_gained_lost_avg,
+  };
+}
+
+export async function fetchConstructorStatistics(
+  constructorId: string,
+  season = "2025"
+): Promise<ConstructorStatistics> {
+  const data = await apiGet<ApiConstructorStatistics>(
+    `/constructors/${encodeURIComponent(
+      constructorId
+    )}/stats?season=${encodeURIComponent(season)}`
+  );
+
+  return {
+    constructorId: data.constructor_id,
+    season: data.season,
+    points: data.points,
   };
 }
 

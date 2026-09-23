@@ -3,26 +3,56 @@ import type { CSSProperties } from "react";
 import { getTeamStyle } from "../../data/teamStyles";
 
 import {
+  fetchConstructorStatistics,
   fetchDrivers,
   type Driver,
 } from "../../data/f1Data";
 
+const SEASON = "2025";
 
 function Constructors() {
   const [searchTerm, setSearchTerm] = useState("");
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [pointsByConstructor, setPointsByConstructor] = useState<
+    Record<string, number | null>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const loadDrivers = async () => {
+    const loadConstructors = async () => {
       try {
         setLoading(true);
         setError("");
 
-        const data = await fetchDrivers();
+        const driverData = await fetchDrivers();
+        setDrivers(driverData);
 
-        setDrivers(data);
+        const constructorIds = Array.from(
+          new Set(driverData.map((driver) => driver.constructorId))
+        );
+
+        // One call per constructor — the API has no batch/standings
+        // endpoint — fired in parallel so the page pays for one round trip,
+        // not N sequential ones. allSettled rather than all: one
+        // constructor's stats failing (e.g. no season data yet) shouldn't
+        // blank the whole page, just that card's points.
+        const results = await Promise.allSettled(
+          constructorIds.map((constructorId) =>
+            fetchConstructorStatistics(constructorId, SEASON)
+          )
+        );
+
+        const points: Record<string, number | null> = {};
+        results.forEach((result, index) => {
+          const constructorId = constructorIds[index];
+          if (!constructorId) return;
+
+          points[constructorId] =
+            result.status === "fulfilled" ? result.value.points : null;
+        });
+
+        setPointsByConstructor(points);
       } catch (err) {
         console.error(
           "Failed to load constructor drivers:",
@@ -37,24 +67,40 @@ function Constructors() {
       }
     };
 
-    void loadDrivers();
+    void loadConstructors();
   }, []);
 
-  const constructors = Array.from(
-  new Map(
-    drivers.map((driver) => [
-      driver.constructorId,
-      {
-        constructorId: driver.constructorId,
-        name: driver.team,
-      },
-    ])
-  ).values()
-).filter((constructor) =>
-  constructor.name
-    .toLowerCase()
-    .includes(searchTerm.toLowerCase())
-);
+  // Full 2025 standings, independent of the search box — ranks (P1, P2, ...)
+  // are assigned here so they stay stable as the search term changes rather
+  // than reflecting each filtered view's own position.
+  const standings = Array.from(
+    new Map(
+      drivers.map((driver) => [
+        driver.constructorId,
+        {
+          constructorId: driver.constructorId,
+          name: driver.team,
+          points: pointsByConstructor[driver.constructorId] ?? null,
+        },
+      ])
+    ).values()
+  )
+    .sort((a, b) => {
+      // Standings order: highest points first, null (no data) sorts last
+      // regardless of value rather than being treated as 0.
+      if (a.points === null && b.points === null) return 0;
+      if (a.points === null) return 1;
+      if (b.points === null) return -1;
+      return b.points - a.points;
+    })
+    .map((constructor, index) => ({
+      ...constructor,
+      rank: constructor.points !== null ? index + 1 : null,
+    }));
+
+  const constructors = standings.filter((constructor) =>
+    constructor.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -148,7 +194,9 @@ function Constructors() {
 
         <header className="constructor-card-header">
           <p className="constructor-label">
-            Formula 1 Team
+            {constructor.rank !== null
+              ? `Formula 1 Team — P${constructor.rank}`
+              : "Formula 1 Team"}
           </p>
 
           <h2>{constructor.name}</h2>
@@ -156,6 +204,12 @@ function Constructors() {
           <span className="constructor-code">
             {constructor.constructorId}
           </span>
+
+          <p className="constructor-points">
+            {constructor.points !== null
+              ? `${constructor.points} pts (${SEASON})`
+              : "No points data yet"}
+          </p>
         </header>
 
         <section className="constructor-drivers">
