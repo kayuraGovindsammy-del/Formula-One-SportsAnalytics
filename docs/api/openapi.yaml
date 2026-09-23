@@ -1122,7 +1122,11 @@ components:
           description: Echoed back verbatim from the query param.
         races_entered:
           type: integer
-          description: Sessions where the driver appears in the lap or event log.
+          description: |
+            Sessions where the driver appears in the lap or event log, OR has
+            an ingested `race_results` row for that session (see `points`
+            below) — the latter covers a Jolpica-ingested race with no
+            lap-by-lap telemetry at all.
         wins: { type: integer }
         podiums: { type: integer }
         dnf_count:
@@ -1155,19 +1159,28 @@ components:
         points:
           type: [number, "null"]
           description: |
-            Sum of `pointsForPosition()` (`services/pointsTable.ts`) across
-            every session with a derivable finishing position, per
-            docs/f1-statistics.md §3. `null` — not `0` — when no position was
-            ever derived, so "scored nothing" and "no data" stay distinct.
+            Per session, prefers that session's ingested `race_results.points`
+            when a row exists for this driver — a deliberate, narrow exception
+            to "statistics are derived": Jolpica writes `points` straight from
+            the source and it already applies era/sprint/half-point rules
+            `services/pointsTable.ts` does not implement
+            (docs/ingestion/jolpica-ingestion.md §4.2). Falls back to
+            `pointsForPosition()` (`services/pointsTable.ts`) on the derived
+            finishing position only for a session with no ingested row at all.
+            Summed across the season per docs/f1-statistics.md §3.
 
-            Derived from the finishing positions, **not** read from
-            `race_results.points`, which is what the Jolpica ingest writes.
-            The two can therefore disagree for a race whose lap log is absent.
+            `null` — not `0` — when NEITHER source produced anything for the
+            whole season, so "scored nothing" and "no data" stay distinct. A
+            session backed only by an ingested row, with no lap or event log,
+            still counts toward `races_entered` and contributes its stored
+            points, even though it can't contribute to
+            `average_finish_position`, `wins`, etc.
 
-            KNOWN LIMITATION: only the base P1–P10 race scale is implemented.
-            `services/pointsTable.ts` deliberately omits the fastest-lap bonus
-            point and the separate sprint scale, because neither is documented
-            anywhere.
+            KNOWN LIMITATION: the derived fallback only implements the base
+            P1–P10 race scale — no fastest-lap bonus point, no separate sprint
+            scale. This no longer matters once a race is fully ingested, since
+            its `race_results.points` is used instead; it still applies to a
+            session with neither a lap log nor an ingested result.
         positions_gained_lost_avg:
           type: [number, "null"]
           description: |

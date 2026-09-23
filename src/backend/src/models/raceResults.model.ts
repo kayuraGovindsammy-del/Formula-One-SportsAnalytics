@@ -10,6 +10,14 @@ export interface RaceResultRow {
   laps: number;
   pit_stops: number;
   gap_to_winner_ms: number | null;
+  /**
+   * Written straight from Jolpica — a published fact, not a derived
+   * statistic (docs/ingestion/jolpica-ingestion.md §4.2). Consumers that
+   * prefer a derivation (e.g. race classification) should keep doing so;
+   * this exists for consumers like driverStatistics.ts that specifically
+   * want the ingested value.
+   */
+  points: number;
   status: RaceResultStatus;
 }
 
@@ -34,6 +42,10 @@ interface RaceResultSqlRow {
   fastest_lap_rank: number | null;
   fastest_lap_number: number | null;
   fastest_lap_time_ms: number | null;
+  // `points` is NUMERIC(6,2) in schema.sql. node-postgres returns NUMERIC as
+  // a string (no OID 1700 type parser is registered), so this is read and
+  // converted with Number() below rather than trusted as a number here.
+  points: string;
   status: RaceResultStatus;
 }
 
@@ -66,6 +78,7 @@ export async function findByRace(
         fastest_lap_rank,
         fastest_lap_number,
         fastest_lap_time_ms,
+        points,
         status
       FROM race_results
       WHERE session_id = $1
@@ -126,6 +139,7 @@ export async function findByRace(
       laps: row.laps_completed,
       pit_stops: row.pit_stops,
       gap_to_winner_ms: row.gap_to_winner_ms,
+      points: Number(row.points),
       status: row.status,
     })),
   };

@@ -13,6 +13,7 @@ import {
   type RawEvent,
   type RawLap,
 } from "../models/sampleData.js";
+import { pointsForPosition } from "../services/pointsTable.js";
 import { paginate, type PageOptions } from "../utils/pagination.js";
 import type { DriverRecord } from "../types/driver.types.js";
 import type { Race, RaceDetail, RaceListItem } from "../types/race.types.js";
@@ -258,6 +259,13 @@ export async function findRaceResults(grandPrixId: string) {
       laps: result.laps,
       pit_stops: result.pit_stops,
       gap_to_winner_ms: result.gap_to_winner_ms,
+      // The sample data has no real ingested points column to read (unlike
+      // production race_results), so this fixture stands in with the same
+      // base-scale value the derivation would produce — existing
+      // driver-stats expectations stay correct either way, and
+      // driverStatistics.test.ts covers a stored value that actually
+      // disagrees with the derived one.
+      points: pointsForPosition(result.position),
     })),
   };
 }

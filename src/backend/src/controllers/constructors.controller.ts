@@ -57,6 +57,14 @@ export const getConstructorStats = asyncHandler(async (req, res) => {
 
   // Everything below this line is derived from the logs above — nothing is
   // read from a stored total.
+  //
+  // TODO(discrepancy): unlike drivers.controller.ts's getDriverStats, this
+  // does NOT pass stored_points through to buildConstructorStatistics (via
+  // buildDriverStatistics), so a constructor's total stays purely derived
+  // even for a fully Jolpica-ingested season with no lap log — where the
+  // composed driver stats would each be null. Left out of scope when driver
+  // stats gained this (see driverStatistics.ts's stored_points), tracked
+  // here so the inconsistency isn't a surprise later.
   const statistics = buildConstructorStatistics({
     constructor_id: constructor.constructor_id,
     season: query.season,

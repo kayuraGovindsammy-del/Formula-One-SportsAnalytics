@@ -341,6 +341,98 @@ describe("buildDriverStatistics — hand-constructed", () => {
   });
 });
 
+describe("buildDriverStatistics — ingested race_results.points (stored_points)", () => {
+  it("prefers stored_points over the derived scale when they disagree", () => {
+    // Finished P1 (derived scale would give 25), but a sprint/half-points
+    // scenario means the ingested value is 13 instead — proves the override
+    // actually takes effect rather than coincidentally matching.
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 1 })],
+          events: [],
+          stored_points: 13,
+        },
+      ],
+    });
+
+    expect(stats.points).toBe(13);
+  });
+
+  it("counts a stored-points-only session as entered, with no lap or event log at all", () => {
+    // The common shape for a Jolpica-ingested race: race_results exists, but
+    // no lap-by-lap telemetry was ever ingested. Before this, such a session
+    // was skipped entirely and contributed nothing.
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [],
+          events: [],
+          stored_points: 18,
+        },
+      ],
+    });
+
+    expect(stats.races_entered).toBe(1);
+    expect(stats.points).toBe(18);
+    // No lap data means no derivable finish, win, podium, or pace for this
+    // session — stored_points fills in points only, not the rest.
+    expect(stats.wins).toBe(0);
+    expect(stats.podiums).toBe(0);
+    expect(stats.average_finish_position).toBeNull();
+    expect(stats.average_race_pace_ms).toBeNull();
+  });
+
+  it("treats a stored 0 as an authoritative result, not a missing one", () => {
+    // Finished P11 or lower (scores 0 on the real scale too), NOT the same as
+    // "no ingested row" — the derived fallback must not kick in here.
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 11 })],
+          events: [],
+          stored_points: 0,
+        },
+      ],
+    });
+
+    expect(stats.points).toBe(0);
+  });
+
+  it("sums a stored-points session and a derived-fallback session together", () => {
+    // S1 has an ingested result (13 pts); S2 has no race_results row, so it
+    // falls back to pointsForPosition(3) = 15. Total: 28.
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 1 })],
+          events: [],
+          stored_points: 13,
+        },
+        {
+          session_id: "S2",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 3 })],
+          events: [],
+        },
+      ],
+    });
+
+    expect(stats.points).toBe(28);
+  });
+});
+
 describe("buildDriverStatistics — positions_gained_lost_avg, hand-constructed", () => {
   it("computes grid minus finish for a single session (gained places)", () => {
     // Started P5, finished P2 -> gained 3 places.

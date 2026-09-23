@@ -39,7 +39,7 @@ describe("raceResultsModel.findByRace", () => {
     expect(result).toBeNull();
   });
 
-  it("selects and passes through status for each classified driver", async () => {
+  it("selects status and points (as a number, not the NUMERIC string pg returns) for each classified driver", async () => {
     mocks.query
       .mockResolvedValueOnce(sessionRow("2025_R13_RACE"))
       .mockResolvedValueOnce(
@@ -54,6 +54,7 @@ describe("raceResultsModel.findByRace", () => {
             fastest_lap_rank: 2,
             fastest_lap_number: null,
             fastest_lap_time_ms: null,
+            points: "25.00",
             status: "FINISHED",
           },
           {
@@ -66,6 +67,7 @@ describe("raceResultsModel.findByRace", () => {
             fastest_lap_rank: 5,
             fastest_lap_number: null,
             fastest_lap_time_ms: null,
+            points: "0.00",
             status: "DNF",
           },
         ])
@@ -82,6 +84,7 @@ describe("raceResultsModel.findByRace", () => {
         laps: 44,
         pit_stops: 1,
         gap_to_winner_ms: 0,
+        points: 25,
         status: "FINISHED",
       },
       {
@@ -91,6 +94,7 @@ describe("raceResultsModel.findByRace", () => {
         laps: 20,
         pit_stops: 1,
         gap_to_winner_ms: null,
+        points: 0,
         status: "DNF",
       },
     ]);
@@ -99,6 +103,7 @@ describe("raceResultsModel.findByRace", () => {
     // the mocked row happens to echo one back.
     const resultsQuerySql = mocks.query.mock.calls[1]?.[0] as string;
     expect(resultsQuerySql).toContain("status");
+    expect(resultsQuerySql).toContain("points");
   });
 
   it("falls back to row order for an unclassified position", async () => {
@@ -116,6 +121,7 @@ describe("raceResultsModel.findByRace", () => {
             fastest_lap_rank: null,
             fastest_lap_number: null,
             fastest_lap_time_ms: null,
+            points: "0.00",
             status: "DNF",
           },
         ])
@@ -145,6 +151,7 @@ describe("raceResultsModel.findByRace", () => {
             fastest_lap_rank: 1,
             fastest_lap_number: 32,
             fastest_lap_time_ms: 104861,
+            points: "25.00",
             status: "FINISHED",
           },
         ])
@@ -178,6 +185,7 @@ describe("raceResultsModel.findByRace", () => {
             fastest_lap_rank: null,
             fastest_lap_number: null,
             fastest_lap_time_ms: null,
+            points: "25.00",
             status: "FINISHED",
           },
         ])
