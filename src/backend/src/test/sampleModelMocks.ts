@@ -103,6 +103,31 @@ export async function getConstructorIdByDriver(): Promise<Record<string, string>
   );
 }
 
+export async function findConstructorById(constructorId: string) {
+  const name = CONSTRUCTOR_NAMES[constructorId.toUpperCase()];
+  if (name === undefined) return null;
+
+  return {
+    constructor_id: constructorId.toUpperCase(),
+    name,
+    nationality: "",
+  };
+}
+
+export async function findDriverIdsBySeason(
+  constructorId: string,
+  season: string
+): Promise<string[]> {
+  if (season !== seasonId) return [];
+
+  return rawDrivers
+    .filter(
+      (driver) => driver.constructor_id.toLowerCase() === constructorId.toLowerCase()
+    )
+    .map((driver) => driver.driver_id)
+    .sort();
+}
+
 function buildSampleSession(): Session {
   return {
     session_id: rawSessionSummary.session_id,
