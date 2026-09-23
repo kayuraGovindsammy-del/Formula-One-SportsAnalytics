@@ -34,6 +34,13 @@ vi.mock("../models/events.model.js", async () => {
   };
 });
 
+vi.mock("../models/raceResults.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return {
+    findByRace: fixtures.findRaceResults,
+  };
+});
+
 import { createApp } from "../app.js";
 
 const app = createApp();

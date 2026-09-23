@@ -136,7 +136,10 @@ paths:
         Computed by the pure function `services/constructorStatistics.ts`,
         which sums both registered drivers' season points by composing
         `services/driverStatistics.ts` rather than re-deriving finishing
-        positions a second time — docs/f1-statistics.md §3.
+        positions a second time — docs/f1-statistics.md §3. Each driver's own
+        `points` therefore prefers that driver's ingested `race_results.points`
+        per session over the derived scale, same as `DriverStatistics.points`
+        — see that schema's description for the full rule.
 
         The registered drivers come from `driver_constructor_links` for the
         given `season_id`, per `models/constructors.model.ts`
