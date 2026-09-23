@@ -2,6 +2,7 @@ import { z } from "zod";
 import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";
+import * as raceResultsModel from "../models/raceResults.model.js";
 import * as sessionsModel from "../models/sessions.model.js";
 import { buildDriverStatistics } from "../services/driverStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
@@ -92,25 +93,39 @@ export const getDriverStats = asyncHandler(async (req, res) => {
     raceSessions.map(async (session) => {
       const qualifyingSession = qualifyingByGrandPrix.get(session.grand_prix_id);
 
-      const [laps, events, qualifyingEvents] = await Promise.all([
+      const [laps, events, qualifyingEvents, raceResults] = await Promise.all([
         lapsModel.findAllBySession(session.session_id),
         eventsModel.findAllBySession(session.session_id),
         qualifyingSession
           ? eventsModel.findAllBySession(qualifyingSession.session_id)
           : Promise.resolve([]),
+        raceResultsModel.findByRace(session.grand_prix_id),
       ]);
+
+      // This driver's ingested race_results.points for this session, when a
+      // row exists for them — passed through as stored_points so
+      // buildDriverStatistics can prefer it over the derived scale
+      // (docs/ingestion/jolpica-ingestion.md §4.2). undefined, not looked up
+      // at all, when no such row exists.
+      const storedResult = raceResults?.classification.find(
+        (row) => row.driver_id.toLowerCase() === driver.driver_id.toLowerCase()
+      );
 
       return {
         session_id: session.session_id,
         laps,
         events,
         ...(qualifyingSession ? { qualifying_events: qualifyingEvents } : {}),
+        ...(storedResult ? { stored_points: storedResult.points } : {}),
       };
     })
   );
 
-  // Everything below this line is derived from the logs above — nothing is
-  // read from a stored total.
+  // Everything below this line is derived from the logs above, with one
+  // deliberate exception: buildDriverStatistics prefers each session's
+  // stored_points (race_results.points, an ingested published fact) over its
+  // own from-scratch derivation when a row exists — see the doc comment on
+  // DriverSessionInput.stored_points.
   const statistics = buildDriverStatistics({
     driver_id: driver.driver_id,
     season: query.season,

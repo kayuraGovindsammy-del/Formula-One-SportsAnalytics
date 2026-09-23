@@ -27,6 +27,18 @@ export interface DriverSessionInput {
    * average, same as any other missing data.
    */
   qualifying_events?: readonly Event[];
+  /**
+   * This driver's `race_results.points` for this session, when a row exists
+   * for them in that table — `undefined` when it doesn't, NOT when it's 0.
+   *
+   * Points are a deliberate, narrow exception to "statistics are derived"
+   * (docs/ingestion/jolpica-ingestion.md §4.2): race_results.points is a
+   * published fact from Jolpica that already applies era/sprint/half-point
+   * rules `services/pointsTable.ts` does not implement, so it is preferred
+   * over the derived P1–P10 scale below whenever it's present. The derived
+   * scale remains the fallback for a session with no ingested row at all.
+   */
+  stored_points?: number;
 }
 
 export interface DriverStatisticsInput {
@@ -117,6 +129,7 @@ export function buildDriverStatistics(
   let dnfCount = 0;
   let fastestLaps = 0;
   let totalPoints = 0;
+  let pointsRecorded = false;
 
   const finishPositions: number[] = [];
   const positionsGainedLost: number[] = [];
@@ -131,8 +144,17 @@ export function buildDriverStatistics(
       (event) => event.driver_id === input.driver_id
     );
 
-    // A driver counts as having entered if the log shows them at all.
-    if (driverLaps.length === 0 && driverEvents.length === 0) {
+    const storedPoints = session.stored_points;
+
+    // A driver counts as having entered if the log shows them at all, OR a
+    // race_results row exists for them even without a lap/event log — the
+    // common shape for a Jolpica-ingested race (no per-lap telemetry, but a
+    // real classification and points).
+    if (
+      driverLaps.length === 0 &&
+      driverEvents.length === 0 &&
+      storedPoints === undefined
+    ) {
       continue;
     }
 
@@ -142,7 +164,6 @@ export function buildDriverStatistics(
 
     if (position !== null) {
       finishPositions.push(position);
-      totalPoints += pointsForPosition(position);
 
       if (session.qualifying_events !== undefined) {
         const gridPosition = qualifyingPosition(
@@ -165,6 +186,19 @@ export function buildDriverStatistics(
       if (position <= 3) {
         podiums += 1;
       }
+    }
+
+    // Points: prefer this session's ingested race_results value when one
+    // exists (see the stored_points doc comment above for why), falling
+    // back to the derived P1-P10 scale only when it doesn't — which also
+    // covers a stored_points of exactly 0, an explicit result rather than a
+    // missing one.
+    if (storedPoints !== undefined) {
+      totalPoints += storedPoints;
+      pointsRecorded = true;
+    } else if (position !== null) {
+      totalPoints += pointsForPosition(position);
+      pointsRecorded = true;
     }
 
     if (driverEvents.some((event) => event.type === "RETIREMENT")) {
@@ -212,17 +246,19 @@ export function buildDriverStatistics(
     // docs/derivation.md.
     average_race_pace_ms: averageLapTime(racingLapsAcrossSeason),
 
-    // Sum of pointsForPosition() across every session with a derivable
-    // finishing position, per docs/f1-statistics.md §3. Null (not 0) when no
-    // position was ever derived, mirroring average_finish_position above —
-    // "scored nothing" and "no data" are different answers.
+    // Per session: this driver's ingested race_results.points when a row
+    // exists for them (docs/ingestion/jolpica-ingestion.md §4.2), else
+    // pointsForPosition() of the derived finishing position. Null (not 0)
+    // when NEITHER source produced anything for the whole season, mirroring
+    // average_finish_position above — "scored nothing" and "no data" are
+    // different answers.
     //
-    // KNOWN LIMITATION: only the base race scale applies (see
-    // pointsTable.ts) — no fastest-lap bonus point and no sprint scale, since
-    // neither is documented anywhere. See docs/f1-statistics.md §3 for the
-    // current scope, including which drivers' points can currently be
-    // trusted given the sample data's lap coverage.
-    points: finishPositions.length > 0 ? totalPoints : null,
+    // KNOWN LIMITATION: the derived fallback only implements the base race
+    // scale (see pointsTable.ts) — no fastest-lap bonus point and no sprint
+    // scale. This no longer matters for a session with an ingested result,
+    // since that already carries the correct value; it still applies to a
+    // session with neither a lap log nor a race_results row.
+    points: pointsRecorded ? totalPoints : null,
 
     // Average of (grid position - finishing position) across every session
     // where BOTH are derivable — positive means the driver typically gained

@@ -4,6 +4,14 @@
 - Hand-written API only. No endpoint-generating services.
 - Statistics are DERIVED from event records. Never return stored
   totals in place of derivation output.
+  EXCEPTION: `race_results.points`, per session, in
+  driverStatistics.ts. Jolpica writes it straight from the source and
+  it already applies era/sprint/half-point rules pointsTable.ts does
+  not implement, so it is a published fact, not a derived statistic
+  (docs/ingestion/jolpica-ingestion.md §4.2) — preferred over the
+  derived P1-P10 scale when a row exists, which also falls back to
+  when it doesn't. Don't generalize this to other fields without the
+  same "published fact, not a derived statistic" reasoning.
 - Raw SQL via pg.Pool. No ORM — the project deliberately has none.
 - ESM + NodeNext. Use .js extensions in relative imports.
 - strict + noUncheckedIndexedAccess are on. Array access is
@@ -18,7 +26,7 @@
 ## Baseline
 `npm test` in src/backend reports:
   Test Files  27 passed | 1 skipped (28)
-       Tests  352 passed | 9 skipped (361)
+       Tests  356 passed | 9 skipped (365)
 Any change that reduces the passing count is a regression, not a
 flaky test.
 
