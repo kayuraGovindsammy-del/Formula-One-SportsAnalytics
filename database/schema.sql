@@ -27,6 +27,15 @@ CREATE TABLE users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE account_deletions (
+  auth_uid VARCHAR(128) PRIMARY KEY,
+  requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_attempt_at TIMESTAMPTZ,
+  CHECK (attempts >= 0)
+);
+
 CREATE TABLE seasons (
   season_id VARCHAR(10) PRIMARY KEY,
   year INTEGER UNIQUE NOT NULL CHECK (year >= 1950)
@@ -93,6 +102,14 @@ CREATE TABLE submissions (
   submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ,
   reviewed_by BIGINT REFERENCES users(user_id)
+);
+
+CREATE TABLE accepted_events (
+  event_id VARCHAR(128) PRIMARY KEY,
+  submission_id BIGINT NOT NULL UNIQUE REFERENCES submissions(submission_id),
+  session_id VARCHAR(70) NOT NULL REFERENCES sessions(session_id),
+  event_data JSONB NOT NULL CHECK (jsonb_typeof(event_data) = 'object'),
+  accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE laps (
@@ -171,3 +188,15 @@ CREATE INDEX idx_laps_driver ON laps(driver_id);
 CREATE INDEX idx_laps_session ON laps(session_id);
 CREATE INDEX idx_submissions_submitter ON submissions(submitter_user_id);
 CREATE INDEX idx_submissions_status ON submissions(status);
+CREATE INDEX idx_account_deletions_pending
+  ON account_deletions(requested_at)
+  WHERE completed_at IS NULL;
+CREATE INDEX idx_accepted_events_session
+  ON accepted_events(session_id, event_id);
+CREATE INDEX idx_submissions_event_id
+  ON submissions ((event_data->>'event_id'))
+  WHERE status IN ('PENDING', 'ACCEPTED');
+CREATE INDEX idx_submissions_owner_history
+  ON submissions(submitter_user_id, submitted_at DESC, submission_id DESC);
+CREATE INDEX idx_submissions_review_queue
+  ON submissions(status, submitted_at DESC, submission_id DESC);
