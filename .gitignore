@@ -15,6 +15,9 @@ service-account.json
 firebase-admin.json
 *-firebase-adminsdk-*.json
 
+# Local database certificates
+src/backend/certs/
+
 # Logs
 *.log
 
