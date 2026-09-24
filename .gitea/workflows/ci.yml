@@ -83,6 +83,41 @@ jobs:
           name: backend-coverage-report
           path: src/backend/coverage
 
+  database:
+    name: Fresh database validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: f1analytics_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d f1analytics_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/f1analytics_ci
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Build fresh database from schema.sql
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/schema.sql
+
+      - name: Load development seed
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/seed.sql
+
+      - name: Verify required schema objects
+        run: psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f database/verify_schema.sql
+
   docs:
     name: Documentation validation
     runs-on: ubuntu-latest
