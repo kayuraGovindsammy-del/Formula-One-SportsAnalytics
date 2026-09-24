@@ -1,6 +1,12 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   frontend:
@@ -158,10 +164,4 @@ jobs:
           RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
           RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
         run: |
-          railway up \
-            --ci \
-            --project "$RAILWAY_PROJECT_ID" \
-            --environment production \
-            --service "$RAILWAY_SERVICE_ID" \
-            --message "Gitea CI ${GITHUB_SHA}"
-
+          railway up             --ci             --project "$RAILWAY_PROJECT_ID"             --environment production             --service "$RAILWAY_SERVICE_ID"             --message "Gitea CI ${{ gitea.sha }}"
