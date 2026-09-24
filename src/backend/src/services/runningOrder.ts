@@ -148,6 +148,18 @@ function inferBaselineOrder(events: readonly Event[]): string[] {
  * @param startingOrder optional true starting grid, best-to-worst. Supply this
  *                      when qualifying data is available; otherwise the
  *                      baseline is inferred (see inferBaselineOrder).
+ *
+ * STATUS: implemented and unit-tested (runningOrder.test.ts), but not
+ * reachable via the API — no lap-by-lap position route exists
+ * (docs/f1-statistics.md's implementation-status table and
+ * docs/repo-overview.md call this out explicitly, the latter noting this
+ * file is "the clearest demonstration of the event-sourced design" and
+ * exposed nowhere). This is intentional, not forgotten: exposing it is
+ * genuine new design work, not a quick wire-up — a new route/response shape
+ * (e.g. GET /races/:id/laps/:lap_number/order), validation for `lap_number`,
+ * and a decision on whether/how to pass a real `startingOrder` once
+ * qualifying data exists, rather than always falling back to
+ * inferBaselineOrder. Left for a dedicated pass.
  */
 export function runningOrderAtLap(
   events: readonly Event[],
