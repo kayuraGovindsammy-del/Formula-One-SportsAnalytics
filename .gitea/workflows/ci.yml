@@ -1,12 +1,6 @@
 name: CI
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+on: [push, pull_request]
 
 jobs:
   frontend:
@@ -83,10 +77,9 @@ jobs:
           name: backend-coverage-report
           path: src/backend/coverage
 
-    database:
+  database:
     name: Fresh database validation
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:16
