@@ -130,3 +130,38 @@ jobs:
 
       - name: Build MkDocs site
         run: mkdocs build --strict
+
+  deploy_railway:
+    name: Deploy backend to Railway
+    runs-on: ubuntu-latest
+    needs:
+      - frontend
+      - backend
+      - database
+      - docs
+    if: ${{ gitea.event_name == 'push' && gitea.ref == 'refs/heads/main' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy backend to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+          RAILWAY_SERVICE_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
+        run: |
+          railway up \
+            --ci \
+            --project "$RAILWAY_PROJECT_ID" \
+            --environment production \
+            --service "$RAILWAY_SERVICE_ID" \
+            --message "Gitea CI ${GITHUB_SHA}"
+
