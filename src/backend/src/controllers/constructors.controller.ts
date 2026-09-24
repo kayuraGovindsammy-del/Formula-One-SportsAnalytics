@@ -2,6 +2,7 @@ import { z } from "zod";
 import * as constructorsModel from "../models/constructors.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";
+import * as raceResultsModel from "../models/raceResults.model.js";
 import * as sessionsModel from "../models/sessions.model.js";
 import { buildConstructorStatistics } from "../services/constructorStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
@@ -42,35 +43,42 @@ export const getConstructorStats = asyncHandler(async (req, res) => {
   const raceSessions = sessions.filter((session) => session.type === "RACE");
 
   // Fetched once per session and shared across both drivers rather than
-  // once per driver — the underlying laps/events already carry every
-  // driver's rows, same as buildDriverStatistics expects.
-  const sessionInputs = await Promise.all(
+  // once per driver — the underlying laps/events and race_results
+  // classification already carry every driver's rows, same as
+  // buildDriverStatistics expects.
+  const sessionData = await Promise.all(
     raceSessions.map(async (session) => {
-      const [laps, events] = await Promise.all([
+      const [laps, events, raceResults] = await Promise.all([
         lapsModel.findAllBySession(session.session_id),
         eventsModel.findAllBySession(session.session_id),
+        raceResultsModel.findByRace(session.grand_prix_id),
       ]);
 
-      return { session_id: session.session_id, laps, events };
+      return { session_id: session.session_id, laps, events, raceResults };
     })
   );
 
-  // Everything below this line is derived from the logs above — nothing is
-  // read from a stored total.
-  //
-  // TODO(discrepancy): unlike drivers.controller.ts's getDriverStats, this
-  // does NOT pass stored_points through to buildConstructorStatistics (via
-  // buildDriverStatistics), so a constructor's total stays purely derived
-  // even for a fully Jolpica-ingested season with no lap log — where the
-  // composed driver stats would each be null. Left out of scope when driver
-  // stats gained this (see driverStatistics.ts's stored_points), tracked
-  // here so the inconsistency isn't a surprise later.
+  // Everything below this line is derived from the logs above, with one
+  // deliberate exception: buildDriverStatistics (composed per driver below)
+  // prefers each session's stored_points (race_results.points, an ingested
+  // published fact) over its own from-scratch derivation when a row exists
+  // for that driver — mirrors drivers.controller.ts's getDriverStats. See
+  // the doc comment on DriverSessionInput.stored_points.
   const statistics = buildConstructorStatistics({
     constructor_id: constructor.constructor_id,
     season: query.season,
     drivers: driverIds.map((driverId) => ({
       driver_id: driverId,
-      sessions: sessionInputs,
+      sessions: sessionData.map(({ raceResults, ...session }) => {
+        const storedResult = raceResults?.classification.find(
+          (row) => row.driver_id.toLowerCase() === driverId.toLowerCase()
+        );
+
+        return {
+          ...session,
+          ...(storedResult ? { stored_points: storedResult.points } : {}),
+        };
+      }),
     })),
   });
 

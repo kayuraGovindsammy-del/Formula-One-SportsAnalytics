@@ -321,7 +321,7 @@ Constructor counterpart to §4.3. Per-season aggregation, computed per [`f1-stat
 }
 ```
 
-404 `NOT_FOUND` if `constructor_id` doesn't exist. `points` is `null` only when neither registered driver has a derivable position for the season — one driver contributing 0 does not force the total to `null` (same convention as `points` in §4.3).
+404 `NOT_FOUND` if `constructor_id` doesn't exist. Each driver's own points prefers that driver's ingested `race_results.points` per session over the derived scale, same rule as `points` in §4.3. `points` here is `null` only when neither registered driver has any points to contribute for the season — one driver contributing 0 does not force the total to `null`.
 
 **Known gap:** `driver_constructor_links` records one constructor per driver per `season_id`, with no date range. A driver who changed teams mid-season is linked to both, so each team's total counts that driver's *entire* season rather than only the races driven for it. Fixing this needs race-level team attribution, which doesn't exist yet.
 
