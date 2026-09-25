@@ -53,6 +53,52 @@ export async function findAllBySession(sessionId: string): Promise<Lap[]> {
 }
 
 /**
+ * The same rows as findAllBySession, for many sessions at once, in a single
+ * query — grouped by session_id.
+ *
+ * Callers that walk a whole season (controllers/drivers.controller.ts) use
+ * this instead of one findAllBySession per race, so query volume stays flat
+ * as the calendar grows. Sessions with no persisted laps are simply absent
+ * from the map; laps within each session keep findAllBySession's ordering.
+ */
+export async function findAllBySessions(
+  sessionIds: readonly string[]
+): Promise<Map<string, Lap[]>> {
+  const bySession = new Map<string, Lap[]>();
+
+  if (sessionIds.length === 0) return bySession;
+
+  const result = await getPool().query<Lap>(
+    `
+      SELECT
+        session_id,
+        driver_id,
+        lap_number,
+        lap_time_ms,
+        position,
+        is_pit_lap,
+        is_valid
+      FROM laps
+      WHERE session_id = ANY($1::varchar[])
+      ORDER BY session_id, driver_id, lap_number
+    `,
+    [sessionIds]
+  );
+
+  for (const row of result.rows) {
+    const existing = bySession.get(row.session_id);
+
+    if (existing === undefined) {
+      bySession.set(row.session_id, [row]);
+    } else {
+      existing.push(row);
+    }
+  }
+
+  return bySession;
+}
+
+/**
  * Returns null only when the race itself does not exist.
  * An existing race/session with no persisted laps returns an empty page.
  */

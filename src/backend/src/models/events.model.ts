@@ -64,12 +64,12 @@ function toEvent(row: EventSqlRow): Event {
  *   their exact envelope already exists in accepted_events.
  */
 async function querySessionEvents(
-  sessionId: string,
+  sessionIds: readonly string[],
   driverId?: string,
   type?: EventType,
   page?: PageOptions
 ): Promise<{ rows: Event[]; total_items: number }> {
-  const values: unknown[] = [sessionId];
+  const values: unknown[] = [sessionIds];
   const filters: string[] = [];
 
   if (driverId !== undefined) {
@@ -107,7 +107,7 @@ async function querySessionEvents(
           NULLIF(ae.event_data->>'timestamp', '')::timestamptz AS timestamp,
           COALESCE(ae.event_data->'payload', '{}'::jsonb) AS payload
         FROM accepted_events ae
-        WHERE ae.session_id = $1
+        WHERE ae.session_id = ANY($1::varchar[])
 
         UNION ALL
 
@@ -125,7 +125,7 @@ async function querySessionEvents(
             'is_valid', l.is_valid
           )
         FROM laps l
-        WHERE l.session_id = $1
+        WHERE l.session_id = ANY($1::varchar[])
           AND l.submission_id IS NULL
 
         UNION ALL
@@ -139,7 +139,7 @@ async function querySessionEvents(
           NULL::timestamptz,
           jsonb_build_object('duration_ms', p.duration_ms)
         FROM pit_stops p
-        WHERE p.session_id = $1
+        WHERE p.session_id = ANY($1::varchar[])
           AND p.submission_id IS NULL
 
         UNION ALL
@@ -157,7 +157,7 @@ async function querySessionEvents(
             'position_after', pc.position_after
           )
         FROM position_changes pc
-        WHERE pc.session_id = $1
+        WHERE pc.session_id = ANY($1::varchar[])
           AND pc.submission_id IS NULL
 
         UNION ALL
@@ -175,7 +175,7 @@ async function querySessionEvents(
             'reason', COALESCE(p.reason, '')
           )
         FROM penalties p
-        WHERE p.session_id = $1
+        WHERE p.session_id = ANY($1::varchar[])
           AND p.submission_id IS NULL
 
         UNION ALL
@@ -189,7 +189,7 @@ async function querySessionEvents(
           NULL::timestamptz,
           jsonb_build_object('reason', COALESCE(r.reason, ''))
         FROM retirements r
-        WHERE r.session_id = $1
+        WHERE r.session_id = ANY($1::varchar[])
           AND r.submission_id IS NULL
       )
       SELECT
@@ -219,7 +219,41 @@ async function querySessionEvents(
  * Every event in a session, unpaginated, for the derivation/statistics layer.
  */
 export async function findAllBySession(sessionId: string): Promise<Event[]> {
-  return (await querySessionEvents(sessionId)).rows;
+  return (await querySessionEvents([sessionId])).rows;
+}
+
+/**
+ * The same event log as findAllBySession, assembled for many sessions in a
+ * single query and grouped by session_id.
+ *
+ * Callers that walk a whole season (controllers/drivers.controller.ts) use
+ * this instead of one findAllBySession per session, so query volume stays
+ * flat as the calendar grows. It runs the identical UNION above — the point
+ * is to widen its predicate, not to reassemble the log in TypeScript, which
+ * would risk diverging from the single-session path. Sessions with no events
+ * are simply absent from the map; events within each session keep
+ * findAllBySession's ordering.
+ */
+export async function findAllBySessions(
+  sessionIds: readonly string[]
+): Promise<Map<string, Event[]>> {
+  const bySession = new Map<string, Event[]>();
+
+  if (sessionIds.length === 0) return bySession;
+
+  const { rows } = await querySessionEvents(sessionIds);
+
+  for (const event of rows) {
+    const existing = bySession.get(event.session_id);
+
+    if (existing === undefined) {
+      bySession.set(event.session_id, [event]);
+    } else {
+      existing.push(event);
+    }
+  }
+
+  return bySession;
 }
 
 /**
@@ -240,7 +274,7 @@ export async function findByRace(
   if (!session) return { rows: [], total_items: 0 };
 
   return querySessionEvents(
-    session.session_id,
+    [session.session_id],
     options.driver_id,
     options.type,
     { page: options.page, per_page: options.per_page }

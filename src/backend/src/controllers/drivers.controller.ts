@@ -19,6 +19,7 @@ import {
   pathParam,
   perPageParam,
 } from "../utils/queryValidation.js";
+import type { Session } from "../types/session.types.js";
 
 const listDriversQuery = z.object({
   page: pageParam,
@@ -89,37 +90,52 @@ export const getDriverStats = asyncHandler(async (req, res) => {
       .map((session) => [session.grand_prix_id, session])
   );
 
-  const sessionInputs = await Promise.all(
-    raceSessions.map(async (session) => {
-      const qualifyingSession = qualifyingByGrandPrix.get(session.grand_prix_id);
+  // Everything this endpoint reads is loaded here, in a fixed number of
+  // queries, and grouped by session in memory below. Loading it per race
+  // instead made query volume scale with the length of the calendar.
+  const raceSessionIds = raceSessions.map((session) => session.session_id);
+  const eventSessionIds = [
+    ...raceSessionIds,
+    ...raceSessions
+      .map((session) => qualifyingByGrandPrix.get(session.grand_prix_id))
+      .filter((session): session is Session => session !== undefined)
+      .map((session) => session.session_id),
+  ];
 
-      const [laps, events, qualifyingEvents, raceResults] = await Promise.all([
-        lapsModel.findAllBySession(session.session_id),
-        eventsModel.findAllBySession(session.session_id),
-        qualifyingSession
-          ? eventsModel.findAllBySession(qualifyingSession.session_id)
-          : Promise.resolve([]),
-        raceResultsModel.findByRace(session.grand_prix_id),
-      ]);
+  const [lapsBySession, eventsBySession, classificationBySession] =
+    await Promise.all([
+      lapsModel.findAllBySessions(raceSessionIds),
+      eventsModel.findAllBySessions(eventSessionIds),
+      raceResultsModel.findClassificationsBySessions(raceSessionIds),
+    ]);
 
-      // This driver's ingested race_results.points for this session, when a
-      // row exists for them — passed through as stored_points so
-      // buildDriverStatistics can prefer it over the derived scale
-      // (docs/ingestion/jolpica-ingestion.md §4.2). undefined, not looked up
-      // at all, when no such row exists.
-      const storedResult = raceResults?.classification.find(
+  const sessionInputs = raceSessions.map((session) => {
+    const qualifyingSession = qualifyingByGrandPrix.get(session.grand_prix_id);
+
+    // This driver's ingested race_results.points for this session, when a
+    // row exists for them — passed through as stored_points so
+    // buildDriverStatistics can prefer it over the derived scale
+    // (docs/ingestion/jolpica-ingestion.md §4.2). undefined, not looked up
+    // at all, when no such row exists.
+    const storedResult = classificationBySession
+      .get(session.session_id)
+      ?.find(
         (row) => row.driver_id.toLowerCase() === driver.driver_id.toLowerCase()
       );
 
-      return {
-        session_id: session.session_id,
-        laps,
-        events,
-        ...(qualifyingSession ? { qualifying_events: qualifyingEvents } : {}),
-        ...(storedResult ? { stored_points: storedResult.points } : {}),
-      };
-    })
-  );
+    return {
+      session_id: session.session_id,
+      laps: lapsBySession.get(session.session_id) ?? [],
+      events: eventsBySession.get(session.session_id) ?? [],
+      ...(qualifyingSession
+        ? {
+            qualifying_events:
+              eventsBySession.get(qualifyingSession.session_id) ?? [],
+          }
+        : {}),
+      ...(storedResult ? { stored_points: storedResult.points } : {}),
+    };
+  });
 
   // Everything below this line is derived from the logs above, with one
   // deliberate exception: buildDriverStatistics prefers each session's

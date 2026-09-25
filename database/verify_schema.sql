@@ -20,6 +20,18 @@ BEGIN
     RAISE EXCEPTION 'Missing index: idx_accepted_events_session';
   END IF;
 
+  IF to_regclass('public.idx_pit_stops_session') IS NULL THEN
+    RAISE EXCEPTION 'Missing index: idx_pit_stops_session';
+  END IF;
+
+  IF to_regclass('public.idx_position_changes_session') IS NULL THEN
+    RAISE EXCEPTION 'Missing index: idx_position_changes_session';
+  END IF;
+
+  IF to_regclass('public.idx_penalties_session') IS NULL THEN
+    RAISE EXCEPTION 'Missing index: idx_penalties_session';
+  END IF;
+
   IF to_regclass('public.idx_submissions_event_id') IS NULL THEN
     RAISE EXCEPTION 'Missing index: idx_submissions_event_id';
   END IF;

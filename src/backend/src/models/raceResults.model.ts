@@ -49,6 +49,75 @@ interface RaceResultSqlRow {
   status: RaceResultStatus;
 }
 
+/**
+ * The classification rows for many RACE sessions at once, in a single query,
+ * grouped by session_id.
+ *
+ * Deliberately narrower than findByRace: it returns classifications only, and
+ * keys off session_id rather than resolving a grand prix to its race session.
+ * Callers that walk a whole season (controllers/drivers.controller.ts) already
+ * hold the session ids and want nothing but each driver's ingested
+ * `points`, so both of findByRace's other queries — the grand-prix-to-session
+ * lookup and the fastest-lap fallback over `laps` — would be pure overhead
+ * per race. Consumers that need `fastest_lap` should keep using findByRace.
+ *
+ * Sessions with no ingested result are simply absent from the map, which is
+ * the batched equivalent of findByRace returning null for them.
+ */
+export async function findClassificationsBySessions(
+  sessionIds: readonly string[]
+): Promise<Map<string, RaceResultRow[]>> {
+  const bySession = new Map<string, RaceResultRow[]>();
+
+  if (sessionIds.length === 0) return bySession;
+
+  const results = await getPool().query<RaceResultSqlRow & { session_id: string }>(
+    `
+      SELECT
+        session_id,
+        position,
+        driver_id,
+        constructor_id,
+        laps_completed,
+        pit_stops,
+        gap_to_winner_ms,
+        fastest_lap_rank,
+        fastest_lap_number,
+        fastest_lap_time_ms,
+        points,
+        status
+      FROM race_results
+      WHERE session_id = ANY($1::varchar[])
+      ORDER BY session_id, position NULLS LAST, driver_id
+    `,
+    [sessionIds]
+  );
+
+  for (const row of results.rows) {
+    const existing = bySession.get(row.session_id);
+    const rows = existing ?? [];
+
+    if (existing === undefined) {
+      bySession.set(row.session_id, rows);
+    }
+
+    // Same positional fallback as findByRace, applied within each session's
+    // own ordered block rather than across the whole result set.
+    rows.push({
+      position: row.position ?? rows.length + 1,
+      driver_id: row.driver_id,
+      constructor_id: row.constructor_id,
+      laps: row.laps_completed,
+      pit_stops: row.pit_stops,
+      gap_to_winner_ms: row.gap_to_winner_ms,
+      points: Number(row.points),
+      status: row.status,
+    });
+  }
+
+  return bySession;
+}
+
 export async function findByRace(
   grandPrixId: string
 ): Promise<RaceResultData | null> {
