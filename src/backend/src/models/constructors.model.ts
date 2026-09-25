@@ -38,25 +38,59 @@ export async function findById(
 }
 
 /**
- * The drivers registered to this constructor for the given season, per
- * `driver_constructor_links` — docs/f1-statistics.md §3 ("both drivers
- * registered to that constructor for the season"). Unlike
- * drivers.model.ts's getConstructorIdByDriver, this is season-specific
- * rather than "latest team", since a past season's constructor points must
- * reflect that season's lineup.
+ * One race result row's points, tagged with the constructor the driver
+ * actually drove for in THAT race.
  */
-export async function findDriverIdsBySeason(
-  constructorId: string,
+export interface ConstructorPointRow {
+  constructor_id: string;
+  driver_id: string;
+  points: number;
+}
+
+/**
+ * Every RACE result for the season, carrying each row's own
+ * `race_results.constructor_id`.
+ *
+ * This is deliberately NOT filtered to one constructor and deliberately does
+ * NOT touch `driver_constructor_links`. That table records season-level team
+ * membership with no date range, so it cannot say which team a driver scored
+ * for in a given race; `race_results.constructor_id` can, because it is
+ * written per result row. Grouping these rows by that column is what makes a
+ * mid-season team change attribute correctly, and what lets a constructor
+ * with no link row still report its points.
+ *
+ * Returning the whole season and grouping in the pure service keeps that
+ * attribution rule testable without a database. It is also strictly less I/O
+ * than the lap-and-event fetch this replaced: ~480 narrow rows for a 24-race
+ * season, one query, against 24 sessions' full lap and event logs before.
+ *
+ * `points` is NUMERIC(6,2) in schema.sql, which node-postgres returns as a
+ * string (no OID 1700 parser is registered), so it is converted with Number()
+ * here rather than trusted as a number — same as raceResults.model.ts.
+ */
+export async function findSeasonPointRows(
   season: string
-): Promise<string[]> {
-  const result = await getPool().query<{ driver_id: string }>(
-    `SELECT driver_id
-       FROM driver_constructor_links
-      WHERE LOWER(constructor_id) = LOWER($1)
-        AND season_id = $2
-      ORDER BY driver_id`,
-    [constructorId, season]
+): Promise<ConstructorPointRow[]> {
+  const result = await getPool().query<{
+    constructor_id: string;
+    driver_id: string;
+    points: string;
+  }>(
+    `SELECT rr.constructor_id, rr.driver_id, rr.points
+       FROM race_results rr
+       JOIN sessions s
+         ON s.session_id = rr.session_id
+       JOIN grand_prix gp
+         ON gp.grand_prix_id = s.grand_prix_id
+      WHERE gp.season_id = $1
+        AND s.type = 'RACE'
+      ORDER BY rr.constructor_id, rr.driver_id`,
+    [season]
   );
 
-  return result.rows.map((row) => row.driver_id);
+  return result.rows.map((row) => ({
+    constructor_id: row.constructor_id,
+    driver_id: row.driver_id,
+    points: Number(row.points),
+  }));
 }
