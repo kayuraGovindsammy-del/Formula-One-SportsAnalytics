@@ -32,6 +32,7 @@ vi.mock("../models/raceResults.model.js", async () => {
   const fixtures = await import("../test/sampleModelMocks.js");
   return {
     findByRace: fixtures.findRaceResults,
+    findClassificationsBySessions: fixtures.findRaceResultsBySessions,
   };
 });
 
@@ -40,6 +41,7 @@ vi.mock("../models/laps.model.js", async () => {
   const fixtures = await import("../test/sampleModelMocks.js");
   return {
     findAllBySession: fixtures.findAllLapsBySession,
+    findAllBySessions: fixtures.findAllLapsBySessions,
     findByRace: fixtures.findLapsByRace,
   };
 });
@@ -48,6 +50,7 @@ vi.mock("../models/events.model.js", async () => {
   const fixtures = await import("../test/sampleModelMocks.js");
   return {
     findAllBySession: fixtures.findAllEventsBySession,
+    findAllBySessions: fixtures.findAllEventsBySessions,
     findByRace: fixtures.findEventsByRace,
   };
 });

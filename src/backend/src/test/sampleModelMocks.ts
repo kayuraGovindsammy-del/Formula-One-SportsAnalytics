@@ -280,6 +280,35 @@ export async function findRaceResults(grandPrixId: string) {
 }
 
 
+/** One classification row as the fixture reports it. */
+type FixtureClassificationRow = NonNullable<
+  Awaited<ReturnType<typeof findRaceResults>>
+>["classification"][number];
+
+/**
+ * Batched counterpart to findRaceResults, keyed by session_id rather than by
+ * grand prix — matching raceResults.model.findClassificationsBySessions.
+ */
+export async function findRaceResultsBySessions(
+  sessionIds: readonly string[]
+): Promise<Map<string, FixtureClassificationRow[]>> {
+  const bySession = new Map<string, FixtureClassificationRow[]>();
+  const seasonSessions = await findSessionsBySeason(seasonId);
+
+  for (const sessionId of sessionIds) {
+    const session = seasonSessions.find(
+      (candidate) => candidate.session_id === sessionId
+    );
+
+    if (!session) continue;
+
+    const results = await findRaceResults(session.grand_prix_id);
+    if (results) bySession.set(sessionId, results.classification);
+  }
+
+  return bySession;
+}
+
 function toFixtureLap(raw: RawLap, sessionId: string): Lap {
   return {
     session_id: sessionId,
@@ -300,6 +329,20 @@ export async function findAllLapsBySession(sessionId: string): Promise<Lap[]> {
         a.driver_id.localeCompare(b.driver_id) || a.lap_number - b.lap_number
     )
     .map((raw) => toFixtureLap(raw, sessionId));
+}
+
+/** Batched counterpart to findAllLapsBySession, grouped by session_id. */
+export async function findAllLapsBySessions(
+  sessionIds: readonly string[]
+): Promise<Map<string, Lap[]>> {
+  const bySession = new Map<string, Lap[]>();
+
+  for (const sessionId of sessionIds) {
+    const laps = await findAllLapsBySession(sessionId);
+    if (laps.length > 0) bySession.set(sessionId, laps);
+  }
+
+  return bySession;
 }
 
 export async function findLapsByRace(
@@ -353,6 +396,20 @@ export async function findAllEventsBySession(sessionId: string): Promise<Event[]
     .filter((raw) => raw.session_id === sessionId)
     .sort((a, b) => a.event_id.localeCompare(b.event_id))
     .map(toFixtureEvent);
+}
+
+/** Batched counterpart to findAllEventsBySession, grouped by session_id. */
+export async function findAllEventsBySessions(
+  sessionIds: readonly string[]
+): Promise<Map<string, Event[]>> {
+  const bySession = new Map<string, Event[]>();
+
+  for (const sessionId of sessionIds) {
+    const events = await findAllEventsBySession(sessionId);
+    if (events.length > 0) bySession.set(sessionId, events);
+  }
+
+  return bySession;
 }
 
 export async function findEventsByRace(
