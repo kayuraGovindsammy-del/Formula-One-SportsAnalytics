@@ -186,6 +186,9 @@ CREATE TABLE race_results (
 CREATE INDEX idx_sessions_grand_prix ON sessions(grand_prix_id);
 CREATE INDEX idx_laps_driver ON laps(driver_id);
 CREATE INDEX idx_laps_session ON laps(session_id);
+CREATE INDEX idx_pit_stops_session ON pit_stops(session_id);
+CREATE INDEX idx_position_changes_session ON position_changes(session_id);
+CREATE INDEX idx_penalties_session ON penalties(session_id);
 CREATE INDEX idx_submissions_submitter ON submissions(submitter_user_id);
 CREATE INDEX idx_submissions_status ON submissions(status);
 CREATE INDEX idx_account_deletions_pending
