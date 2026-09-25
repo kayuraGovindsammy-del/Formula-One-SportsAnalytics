@@ -134,23 +134,29 @@ paths:
       summary: Derived per-season constructor statistics.
       description: |
         Computed by the pure function `services/constructorStatistics.ts`,
-        which sums both registered drivers' season points by composing
-        `services/driverStatistics.ts` rather than re-deriving finishing
-        positions a second time — docs/f1-statistics.md §3. Each driver's own
-        `points` therefore prefers that driver's ingested `race_results.points`
-        per session over the derived scale, same as `DriverStatistics.points`
-        — see that schema's description for the full rule.
+        which sums the season's `race_results` rows belonging to this
+        constructor, grouped by each row's own `race_results.constructor_id`
+        — docs/f1-statistics.md §3. Rows are read by
+        `models/constructors.model.ts` `findSeasonPointRows`, which covers
+        every `RACE` session in the season.
 
-        The registered drivers come from `driver_constructor_links` for the
-        given `season_id`, per `models/constructors.model.ts`
-        `findDriverIdsBySeason`.
+        `points` is the documented exception to "statistics are derived"
+        (docs/ingestion/jolpica-ingestion.md §4.2): it is an ingested
+        published fact that already applies the era, sprint and half-point
+        rules the derived scale does not implement, same as
+        `DriverStatistics.points` — see that schema's description for the
+        full rule. The sum is computed per request; no total is stored.
 
-        TODO(discrepancy): `driver_constructor_links` has no date range, so a
-        driver who changed teams mid-season is linked to both for that
-        `season_id`. Each team's total therefore counts that driver's ENTIRE
-        season rather than only the races driven for it. Fixing this needs
-        race-level team attribution, which does not exist yet. See
-        docs/api-design.md §4.9.
+        Team attribution is per race, not per season: because each result row
+        records the constructor that driver drove for in that race, a driver
+        who changed teams mid-season has each race's points credited to the
+        team they actually drove for. `driver_constructor_links` is not
+        consulted here — it is season-level with no date range, so it could
+        not express that, and a constructor with no link rows reported no
+        points despite having results.
+
+        `null` means no result rows exist for this constructor that season.
+        `0` means rows exist but total nothing — a real, scoreless season.
       security: []
       parameters:
         - $ref: "#/components/parameters/ConstructorId"

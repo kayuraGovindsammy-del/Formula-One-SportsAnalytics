@@ -12,6 +12,13 @@
   derived P1-P10 scale when a row exists, which also falls back to
   when it doesn't. Don't generalize this to other fields without the
   same "published fact, not a derived statistic" reasoning.
+  The same exception covers constructorStatistics.ts, which sums those
+  same published values per season, grouped by each row's own
+  `race_results.constructor_id`. Summing published facts per request
+  does not store a total, and team attribution must come from the
+  result row rather than `driver_constructor_links` — that table is
+  season-level with no date range, so it cannot say which team a
+  driver scored for in a given race.
 - Raw SQL via pg.Pool. No ORM — the project deliberately has none.
 - ESM + NodeNext. Use .js extensions in relative imports.
 - strict + noUncheckedIndexedAccess are on. Array access is
@@ -25,8 +32,8 @@
 
 ## Baseline
 `npm test` in src/backend reports:
-  Test Files  27 passed | 1 skipped (28)
-       Tests  356 passed | 9 skipped (365)
+  Test Files  29 passed | 1 skipped (30)
+       Tests  386 passed | 9 skipped (395)
 Any change that reduces the passing count is a regression, not a
 flaky test.
 
