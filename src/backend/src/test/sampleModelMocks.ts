@@ -115,18 +115,27 @@ export async function findConstructorById(constructorId: string) {
   };
 }
 
-export async function findDriverIdsBySeason(
-  constructorId: string,
+/**
+ * Stands in for constructors.model.ts's findSeasonPointRows: the season's
+ * RACE result rows, each tagged with the constructor that driver drove for in
+ * that race. The sample classification only covers the points-scoring top ten
+ * of one race, so constructors outside it (AMR, HAA) correctly yield no rows
+ * at all — the "no data" case, distinct from a scoreless one.
+ *
+ * As in findRaceResults above, the sample data has no ingested points column,
+ * so this fixture stands in with the same base-scale value the derivation
+ * would produce.
+ */
+export async function findSeasonPointRows(
   season: string
-): Promise<string[]> {
+): Promise<{ constructor_id: string; driver_id: string; points: number }[]> {
   if (season !== seasonId) return [];
 
-  return rawDrivers
-    .filter(
-      (driver) => driver.constructor_id.toLowerCase() === constructorId.toLowerCase()
-    )
-    .map((driver) => driver.driver_id)
-    .sort();
+  return rawSessionResult.classification.map((result) => ({
+    constructor_id: result.constructor_id,
+    driver_id: result.driver_id,
+    points: pointsForPosition(result.position),
+  }));
 }
 
 function buildSampleSession(): Session {
