@@ -15,6 +15,9 @@ cp .env.example .env   # first time only
 npm run dev
 ```
 
+Anything that touches the database also needs Aiven's CA certificate at
+`certs/ca.pem` — see [Database CA certificate](#database-ca-certificate) below.
+
 Starts the server with `tsx watch` — restarts on file changes. Defaults to `http://localhost:3001`.
 
 ```bash
@@ -45,9 +48,43 @@ See [`.env.example`](.env.example).
 |---|---|---|
 | `PORT` | `3001` | Port the server listens on. |
 | `CORS_ORIGIN` | — | Origin allowed by CORS (the frontend dev server URL, e.g. `http://localhost:5173`). |
-| `DATABASE_URL` | — | Postgres connection string. Not wired up yet — placeholder for when `models/` starts talking to the database defined in [`../../database/schema.sql`](../../database/schema.sql). |
+| `DATABASE_URL` | — | Aiven for PostgreSQL connection string, from **Connection information** in the [Aiven console](https://console.aiven.io/). Aiven enforces TLS, so keep `sslmode=require`. |
+| `DATABASE_CA_CERT` | — | Aiven's CA certificate as the PEM contents on one line, newlines escaped as `\n`. Required in deployed environments (Railway); optional locally, where `certs/ca.pem` is used instead. |
 
 `.env` is gitignored — never commit it.
+
+## Database CA certificate
+
+Aiven signs its PostgreSQL services with a per-project CA that is not in the
+system trust store, so [`src/config/database.ts`](src/config/database.ts)
+verifies the connection against that CA explicitly. It looks in two places, in
+order:
+
+1. `DATABASE_CA_CERT` — the PEM contents on a single line with every newline
+   written as a literal `\n`. `database.ts` unescapes them back to real
+   newlines. This is how Railway supplies it, since a deployed container has no
+   checkout to read a file from.
+2. `certs/ca.pem`, resolved relative to the process working directory — so
+   `src/backend/certs/ca.pem` when the backend is run from this directory, as
+   the commands above do.
+
+Download the file once from the Aiven console: select the PostgreSQL service,
+open **Connection information** on its Overview page, and download **CA
+certificate** (`ca.pem`). Save it to `certs/ca.pem` here.
+
+```bash
+mkdir -p certs
+# move the downloaded ca.pem into certs/ca.pem
+```
+
+**Never commit it.** `certs/` and `*.pem` are in the repository `.gitignore`;
+every developer and every environment downloads its own copy.
+
+With neither source configured, the first database call fails with:
+
+```
+Database CA certificate is not configured. Set DATABASE_CA_CERT or provide certs/ca.pem.
+```
 
 ## Layout
 
