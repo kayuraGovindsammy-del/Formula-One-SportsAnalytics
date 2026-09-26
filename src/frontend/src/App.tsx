@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "./auth/useAuth";
 
 import Dashboard from "./pages/Dashboard/Dashboard";
 import Drivers from "./pages/Drivers/Drivers";
@@ -24,12 +25,19 @@ import Constructors from "./pages/Constructors/Constructors";
 import Statistics from "./pages/Statistics/Statistics";
 
 function App() {
+  const { user } = useAuth();
+
   return (
     <Routes>
       {/* PUBLIC */}
       <Route
         path="/login"
-        element={<Login />}
+        element={user ? (
+      <Navigate to="/" replace />
+    ) : (
+      <Login />
+    )
+    }
       />
 
       {/* DASHBOARD */}

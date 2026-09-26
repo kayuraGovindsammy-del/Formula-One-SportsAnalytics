@@ -23,5 +23,5 @@ export const DRIVER_IMAGES: Record<string, string> = {
 };
 
 export function getDriverImage(driverId: string): string {
-  return DRIVER_IMAGES[driverId] ?? "/drivers/default-driver.png";
+  return DRIVER_IMAGES[driverId] ?? "/drivers/Default.png";
 }

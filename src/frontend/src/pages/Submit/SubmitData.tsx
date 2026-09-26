@@ -399,7 +399,7 @@ function SubmitData() {
       setLoading(true);
 
       const eventData = {
-        event_id: createEventId(),
+        event_id: eventId,
 
         session_id: sessionId.trim(),
 

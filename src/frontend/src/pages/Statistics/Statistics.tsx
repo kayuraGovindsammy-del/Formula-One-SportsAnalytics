@@ -12,16 +12,13 @@ import { useEffect, useState } from "react";
 import { getCircuitImage } from "../../data/circuitImages";
 
 import {
-  fetchDrivers,
   fetchRaces,
   fetchRaceStatistics,
-  type Driver,
   type Race,
   type RaceStatistics,
 } from "../../data/f1Data";
 
 function Statistics() {
-  const [, setDrivers] = useState<Driver[]>([]);
   const [races, setRaces] = useState<Race[]>([]);
   const [raceStats, setRaceStats] =
     useState<RaceStatistics | null>(null);
@@ -39,13 +36,8 @@ function Statistics() {
         setLoading(true);
         setError("");
 
-        const [driverData, raceData] =
-          await Promise.all([
-            fetchDrivers(),
-            fetchRaces(),
-          ]);
+        const raceData = await fetchRaces();
 
-        setDrivers(driverData);
         setRaces(raceData);
 
         

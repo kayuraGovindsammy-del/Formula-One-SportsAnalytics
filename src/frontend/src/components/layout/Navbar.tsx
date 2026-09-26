@@ -122,6 +122,18 @@ function Navbar() {
       >
         Account
       </NavLink>
+
+      <li>
+       <NavLink
+         to="/my-submissions"
+         className={({ isActive }) =>
+          isActive ? "nav-link active" : "nav-link"
+        }
+      >
+       My Submissions
+       </NavLink>
+      </li>
+      
     </nav>
   </header>
 );
