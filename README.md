@@ -140,13 +140,52 @@ The backend expects the following environment variables in its local environment
 ```bash
 PORT=3001
 CORS_ORIGIN=http://localhost:5173
-DATABASE_URL=your-neon-postgresql-connection-string
+DATABASE_URL=postgres://avnadmin:YOUR_PASSWORD@YOUR_SERVICE-YOUR_PROJECT.a.aivencloud.com:YOUR_PORT/defaultdb?sslmode=require
 FIREBASE_PROJECT_ID=your-firebase-project-id
 FIREBASE_CLIENT_EMAIL=your-firebase-service-account-email
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
 ```
 
 These settings correspond to the backend configuration in `src/backend/src/index.ts`, `src/backend/src/app.ts`, `src/backend/src/config/database.ts`, and `src/backend/src/config/firebaseAdmin.ts`.
+
+### Database CA certificate (required)
+
+The database is Aiven for PostgreSQL. Aiven enforces TLS and signs its
+services with a per-project CA that is not in the system trust store, so the
+backend verifies the connection against that CA explicitly and will not start
+a database-backed request without it.
+
+Download it once:
+
+1. Open the [Aiven console](https://console.aiven.io/) and select the
+   PostgreSQL service.
+2. On the service's **Overview** page, find **Connection information**.
+3. Download **CA certificate** — the file is named `ca.pem`.
+4. Save it as `src/backend/certs/ca.pem`.
+
+```bash
+mkdir -p src/backend/certs
+# move the downloaded ca.pem into src/backend/certs/ca.pem
+```
+
+`src/backend/src/config/database.ts` resolves `certs/ca.pem` relative to the
+process working directory, so run the backend from `src/backend` (as the
+commands in this section do) for the local file to be found.
+
+**Never commit the certificate.** `certs/` and `*.pem` are in `.gitignore`;
+each developer and each environment downloads its own copy.
+
+Deployed environments (Railway) have no checkout to read the file from, so
+they set `DATABASE_CA_CERT` instead — the PEM contents on a single line with
+every newline written as a literal `\n`, which `database.ts` unescapes before
+use. `DATABASE_CA_CERT` takes precedence when both are present, which also
+makes it a usable local override if you would rather not keep the file.
+
+Without either, the backend fails on its first database call with:
+
+```
+Database CA certificate is not configured. Set DATABASE_CA_CERT or provide certs/ca.pem.
+```
 
 Start the backend locally:
 

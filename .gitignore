@@ -9,6 +9,11 @@ dist/
 .env.*
 !.env.example
 
+# Database CA certificates (Aiven ca.pem) — download per environment,
+# never commit
+certs/
+*.pem
+
 # Firebase Admin credentials
 *.service-account.json
 service-account.json
