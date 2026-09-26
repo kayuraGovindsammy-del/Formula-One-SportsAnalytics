@@ -25,7 +25,6 @@ function RaceCard({
   hasResults,
 }: RaceCardProps) {
   const circuitImage = getCircuitImage(country);
-  console.log(name, "| country:", country, "| image:", circuitImage);
  return (
     <Link to={`/races/${grandPrixId}`} className="race-card-link">
       <article className="race-list-card">

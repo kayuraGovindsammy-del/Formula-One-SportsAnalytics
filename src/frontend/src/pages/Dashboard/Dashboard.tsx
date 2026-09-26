@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../auth/useAuth";
 
 import {
   fetchFeaturedRace,
@@ -25,6 +26,12 @@ function Dashboard() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const { role, submitterStatus } = useAuth();
+
+const isApprovedSubmitter =
+  role === "ADMIN" ||
+  (role === "SUBMITTER" && submitterStatus === "approved");
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -295,25 +302,73 @@ function Dashboard() {
 
 <section className="dashboard-contributor-section">
   <div className="dashboard-contributor-content">
-    <div>
-      <p className="dashboard-contributor-label">
-        Contribute
-      </p>
+    {isApprovedSubmitter ? (
+      <>
+        <div>
+          <p className="dashboard-contributor-label">
+            Contributor Access
+          </p>
 
-      <h2>Help Build the Race Data</h2>
+          <h2>You Can Submit Race Data</h2>
 
-      <p>
-        Approved contributors can submit Formula 1 race data
-        for review by an administrator.
-      </p>
-    </div>
+          <p>
+            Your contributor access is active. You can submit
+            Formula 1 race data for administrator review.
+          </p>
+        </div>
 
-    <Link
-      to="/account"
-      className="dashboard-contributor-button"
-    >
-      Request Submitter Access
-    </Link>
+        <Link
+          to="/submit"
+          className="dashboard-contributor-button"
+        >
+          Submit Race Data
+        </Link>
+      </>
+    ) : submitterStatus === "pending" ? (
+      <>
+        <div>
+          <p className="dashboard-contributor-label">
+            Contributor Request
+          </p>
+
+          <h2>Request Pending</h2>
+
+          <p>
+            Your submitter access request is waiting for
+            administrator approval.
+          </p>
+        </div>
+
+        <Link
+          to="/account"
+          className="dashboard-contributor-button"
+        >
+          View Account
+        </Link>
+      </>
+    ) : (
+      <>
+        <div>
+          <p className="dashboard-contributor-label">
+            Contribute
+          </p>
+
+          <h2>Help Build the Race Data</h2>
+
+          <p>
+            Approved contributors can submit Formula 1 race data
+            for review by an administrator.
+          </p>
+        </div>
+
+        <Link
+          to="/account"
+          className="dashboard-contributor-button"
+        >
+          Request Submitter Access
+        </Link>
+      </>
+    )}
   </div>
 </section>
 
