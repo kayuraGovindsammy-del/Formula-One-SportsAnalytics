@@ -48,7 +48,7 @@ See [`.env.example`](.env.example).
 |---|---|---|
 | `PORT` | `3001` | Port the server listens on. |
 | `CORS_ORIGIN` | — | Origin allowed by CORS (the frontend dev server URL, e.g. `http://localhost:5173`). |
-| `DATABASE_URL` | — | Aiven for PostgreSQL connection string, from **Connection information** in the [Aiven console](https://console.aiven.io/). Aiven enforces TLS, so keep `sslmode=require`. |
+| `DATABASE_URL` | — | Aiven for PostgreSQL connection string, from **Connection information** in the [Aiven console](https://console.aiven.io/). Remove any `?sslmode=...` query parameter; `database.ts` configures TLS explicitly with Aiven's CA certificate. |
 | `DATABASE_CA_CERT` | — | Aiven's CA certificate as the PEM contents on one line, newlines escaped as `\n`. Required in deployed environments (Railway); optional locally, where `certs/ca.pem` is used instead. |
 
 `.env` is gitignored — never commit it.
