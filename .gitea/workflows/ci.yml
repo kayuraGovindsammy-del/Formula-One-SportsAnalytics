@@ -41,6 +41,16 @@ jobs:
       - name: Run frontend build
         run: npm run build
 
+      - name: Run frontend Vitest tests with coverage
+        run: npm run test:ui:coverage
+
+      - name: Upload frontend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-report
+          path: src/frontend/coverage
+
       - name: Run Firestore rules tests
         run: npx --yes firebase-tools emulators:exec --only firestore --project demo-member4-roles "npm run test:rules"
 
