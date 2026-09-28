@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import DatasetDownloads from "../../components/DatasetDownloads";
 import DriverCard from "../../components/DriverCard";
 import { fetchDrivers, type Driver } from "../../data/f1Data";
+
+const SEASON = "2025";
 
 function Drivers() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -45,7 +48,7 @@ function Drivers() {
   if (loading) {
     return (
       <main>
-        <h1>2025 Drivers</h1>
+        <h1>{SEASON} Drivers</h1>
         <p>Loading drivers...</p>
       </main>
     );
@@ -54,8 +57,9 @@ function Drivers() {
   return (
     <main>
       <section>
-        <h1>2025 Drivers</h1>
-        <p>Browse drivers competing in the 2025 Formula 1 season.</p>
+        <h1>{SEASON} Drivers</h1>
+        <p>Browse drivers competing in the {SEASON} Formula 1 season.</p>
+        <DatasetDownloads dataset="drivers" season={SEASON} label="drivers" />
       </section>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
