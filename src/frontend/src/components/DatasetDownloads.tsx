@@ -9,6 +9,12 @@ interface DatasetDownloadsProps {
   season: string;
   /** Plain-language name for screen readers, e.g. "races". */
   label: string;
+  /**
+   * Show the season and dataset in the link text ("Download 2025 results
+   * (CSV)") rather than just the format. Use it when a page offers more than
+   * one dataset, so sighted users can tell the links apart too.
+   */
+  describe?: boolean;
 }
 
 const FORMATS: ReadonlyArray<{ format: ExportFormat; text: string }> = [
@@ -16,7 +22,12 @@ const FORMATS: ReadonlyArray<{ format: ExportFormat; text: string }> = [
   { format: "json", text: "JSON" },
 ];
 
-function DatasetDownloads({ dataset, season, label }: DatasetDownloadsProps) {
+function DatasetDownloads({
+  dataset,
+  season,
+  label,
+  describe = false,
+}: DatasetDownloadsProps) {
   return (
     <div className="dataset-downloads">
       {FORMATS.map(({ format, text }) => (
@@ -27,7 +38,7 @@ function DatasetDownloads({ dataset, season, label }: DatasetDownloadsProps) {
           download
           aria-label={`Download ${season} ${label} as ${text}`}
         >
-          Download {text}
+          {describe ? `Download ${season} ${label} (${text})` : `Download ${text}`}
         </a>
       ))}
     </div>

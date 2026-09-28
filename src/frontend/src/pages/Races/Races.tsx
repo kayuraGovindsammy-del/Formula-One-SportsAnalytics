@@ -52,7 +52,20 @@ function Races() {
       <section>
         <h1>{SEASON} Races</h1>
         <p>Browse races from the {SEASON} Formula 1 season.</p>
-        <DatasetDownloads dataset="races" season={SEASON} label="races" />
+        <div className="dataset-downloads-group">
+          <DatasetDownloads
+            dataset="races"
+            season={SEASON}
+            label="calendar"
+            describe
+          />
+          <DatasetDownloads
+            dataset="results"
+            season={SEASON}
+            label="results"
+            describe
+          />
+        </div>
       </section>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
