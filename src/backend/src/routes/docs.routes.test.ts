@@ -80,6 +80,7 @@ describe("GET /api/openapi.json", () => {
       "/drivers",
       "/drivers/{driver_id}",
       "/drivers/{driver_id}/stats",
+      "/export/{dataset}",
       "/health",
       "/races",
       "/races/{grand_prix_id}",
