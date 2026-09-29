@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import DatasetDownloads from "../../components/DatasetDownloads";
 import { getTeamStyle } from "../../data/teamStyles";
 
 import {
@@ -106,7 +107,7 @@ function Constructors() {
     return (
       <main>
         <section>
-          <h1>2025 Constructors</h1>
+          <h1>{SEASON} Constructors</h1>
           <p>Loading constructors...</p>
         </section>
       </main>
@@ -116,12 +117,18 @@ function Constructors() {
   return (
     <main>
       <section>
-        <h1>2025 Constructors</h1>
+        <h1>{SEASON} Constructors</h1>
 
         <p>
           Explore the Formula 1 constructors and drivers
-          competing during the 2025 season.
+          competing during the {SEASON} season.
         </p>
+
+        <DatasetDownloads
+          dataset="constructors"
+          season={SEASON}
+          label="constructors"
+        />
       </section>
 
       <section className="constructor-controls">

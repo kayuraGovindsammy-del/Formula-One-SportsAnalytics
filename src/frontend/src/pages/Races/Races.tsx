@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import DatasetDownloads from "../../components/DatasetDownloads";
 import RaceCard from "../../components/RaceCard";
 import { fetchRaces, type Race } from "../../data/f1Data";
+
+const SEASON = "2025";
 
 function Races() {
   const [races, setRaces] = useState<Race[]>([]);
@@ -38,7 +41,7 @@ function Races() {
   if (loading) {
     return (
       <main>
-        <h1>2025 Races</h1>
+        <h1>{SEASON} Races</h1>
         <p>Loading races...</p>
       </main>
     );
@@ -47,8 +50,22 @@ function Races() {
   return (
     <main>
       <section>
-        <h1>2025 Races</h1>
-        <p>Browse races from the 2025 Formula 1 season.</p>
+        <h1>{SEASON} Races</h1>
+        <p>Browse races from the {SEASON} Formula 1 season.</p>
+        <div className="dataset-downloads-group">
+          <DatasetDownloads
+            dataset="races"
+            season={SEASON}
+            label="calendar"
+            describe
+          />
+          <DatasetDownloads
+            dataset="results"
+            season={SEASON}
+            label="results"
+            describe
+          />
+        </div>
       </section>
 
       {error && <p style={{ color: "red" }}>{error}</p>}

@@ -1183,6 +1183,32 @@ select {
   transform: translateY(-2px);
 }
 
+/* DATASET DOWNLOADS (Races, Drivers, Constructors) */
+
+.dataset-downloads {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Several datasets on one page sit side by side, wrapping on narrow screens. */
+.dataset-downloads-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.dataset-downloads-group .dataset-downloads {
+  margin-top: 0;
+}
+
+.dataset-downloads a:focus-visible {
+  outline: 2px solid #e10600;
+  outline-offset: 2px;
+}
+
 /* SEASON PANEL */
 
 .dashboard-season-panel {
