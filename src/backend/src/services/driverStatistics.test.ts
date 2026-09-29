@@ -381,8 +381,9 @@ describe("buildDriverStatistics — ingested race_results.points (stored_points)
 
     expect(stats.races_entered).toBe(1);
     expect(stats.points).toBe(18);
-    // No lap data means no derivable finish, win, podium, or pace for this
-    // session — stored_points fills in points only, not the rest.
+    // Only stored_points was supplied, so nothing else can be filled in: a
+    // finish, win or podium needs laps or a stored_position, and pace needs
+    // laps (see the stored_position describe block below).
     expect(stats.wins).toBe(0);
     expect(stats.podiums).toBe(0);
     expect(stats.average_finish_position).toBeNull();
@@ -535,5 +536,145 @@ describe("buildDriverStatistics — positions_gained_lost_avg, hand-constructed"
     });
 
     expect(stats.positions_gained_lost_avg).toBeNull();
+  });
+});
+
+describe("buildDriverStatistics — ingested race_results fallbacks (position, grid, fastest lap)", () => {
+  const ingested = (extra: Record<string, unknown>) => ({
+    session_id: "S1",
+    laps: [] as Lap[],
+    events: [] as Event[],
+    stored_points: 25,
+    ...extra,
+  });
+
+  it("derives a win, a podium and the average finish from stored_position alone", () => {
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        ingested({ session_id: "S1", stored_position: 1 }),
+        ingested({ session_id: "S2", stored_position: 3 }),
+      ],
+    });
+
+    expect(stats.races_entered).toBe(2);
+    expect(stats.wins).toBe(1);
+    expect(stats.podiums).toBe(2);
+    expect(stats.average_finish_position).toBe(2);
+    // Pace genuinely needs laps.
+    expect(stats.average_race_pace_ms).toBeNull();
+  });
+
+  it("lets laps win over stored_position when the driver has laps", () => {
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [lap({ driver_id: "AAA", lap_number: 1, position: 5 })],
+          events: [],
+          stored_position: 1,
+        },
+      ],
+    });
+
+    expect(stats.wins).toBe(0);
+    expect(stats.podiums).toBe(0);
+    expect(stats.average_finish_position).toBe(5);
+  });
+
+  it("does not count an unclassified driver (no stored_position) as a finish", () => {
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [ingested({ stored_points: 0 })],
+    });
+
+    expect(stats.races_entered).toBe(1);
+    expect(stats.wins).toBe(0);
+    expect(stats.podiums).toBe(0);
+    expect(stats.average_finish_position).toBeNull();
+  });
+
+  it("computes positions gained/lost from stored_grid_position without qualifying events", () => {
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        ingested({ session_id: "S1", stored_position: 2, stored_grid_position: 5 }),
+        ingested({ session_id: "S2", stored_position: 4, stored_grid_position: 3 }),
+      ],
+    });
+
+    // (5 - 2) and (3 - 4) -> (3 + -1) / 2
+    expect(stats.positions_gained_lost_avg).toBe(1);
+  });
+
+  it("ignores a stored grid position of 0 (pit-lane start) rather than guessing", () => {
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        ingested({ stored_position: 4, stored_grid_position: 0 }),
+      ],
+    });
+
+    expect(stats.average_finish_position).toBe(4);
+    expect(stats.positions_gained_lost_avg).toBeNull();
+  });
+
+  it("prefers the derived qualifying position over stored_grid_position", () => {
+    const stats = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        ingested({
+          stored_position: 2,
+          stored_grid_position: 10,
+          qualifying_events: [qualifyingEvent("AAA", 5)],
+        }),
+      ],
+    });
+
+    expect(stats.positions_gained_lost_avg).toBe(3);
+  });
+
+  it("credits the fastest lap from stored rank only when the session has no laps at all", () => {
+    const withoutLaps = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [ingested({ stored_fastest_lap: true })],
+    });
+
+    expect(withoutLaps.fastest_laps).toBe(1);
+
+    const notRankOne = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [ingested({})],
+    });
+
+    expect(notRankOne.fastest_laps).toBe(0);
+
+    // BBB has a faster lap on record, so the derived answer stands and AAA's
+    // stored flag is not trusted over it.
+    const withOtherDriversLaps = buildDriverStatistics({
+      driver_id: "AAA",
+      season: "2025",
+      sessions: [
+        {
+          session_id: "S1",
+          laps: [
+            lap({ driver_id: "BBB", lap_number: 1, lap_time_ms: 80_000 }),
+          ],
+          events: [],
+          stored_fastest_lap: true,
+        },
+      ],
+    });
+
+    expect(withOtherDriversLaps.fastest_laps).toBe(0);
   });
 });

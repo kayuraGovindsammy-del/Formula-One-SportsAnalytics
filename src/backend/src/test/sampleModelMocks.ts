@@ -251,6 +251,13 @@ export async function raceExists(grandPrixId: string): Promise<boolean> {
   );
 }
 
+/** Qualifying positions from events.json (evt_011-013), by driver. */
+const SAMPLE_GRID_POSITIONS: Readonly<Record<string, number>> = {
+  NOR: 1,
+  PIA: 2,
+  LEC: 3,
+};
+
 export async function findRaceResults(grandPrixId: string) {
   const sampleGrandPrixId = toGrandPrixId(seasonId, rawSessionSummary.round);
   if (sampleGrandPrixId.toLowerCase() !== grandPrixId.toLowerCase()) return null;
@@ -263,11 +270,25 @@ export async function findRaceResults(grandPrixId: string) {
     },
     classification: rawSessionResult.classification.map((result) => ({
       position: result.position,
+      // Mirrors raceResults.model.ts: the raw column, which the sample data
+      // always classifies (every driver here finished), so it equals `position`.
+      classified_position: result.position as number | null,
+      // The sample data has no grid column, so this stands in with the
+      // qualifying position events.json already records for the three drivers
+      // that have one, and null (unknown) for the rest. Inert for those three
+      // - a derived qualifying position always beats the stored grid - and it
+      // keeps every other driver's positions_gained_lost_avg null, as the
+      // captured responses expect.
+      grid_position: SAMPLE_GRID_POSITIONS[result.driver_id] ?? null,
+      // The sample's real fastest lap (ANT) is outside the classified top ten,
+      // so no fixture row carries rank 1; the ingested-only route test in
+      // driverStats.ingestedFallback.test.ts supplies rows of its own.
+      fastest_lap_rank: null as number | null,
       driver_id: result.driver_id,
       constructor_id: result.constructor_id,
       laps: result.laps,
       pit_stops: result.pit_stops,
-      gap_to_winner_ms: result.gap_to_winner_ms,
+      gap_to_winner_ms: result.gap_to_winner_ms as number | null,
       // The sample data has no real ingested points column to read (unlike
       // production race_results), so this fixture stands in with the same
       // base-scale value the derivation would produce — existing

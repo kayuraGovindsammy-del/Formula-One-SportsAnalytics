@@ -4,13 +4,27 @@
 - Hand-written API only. No endpoint-generating services.
 - Statistics are DERIVED from event records. Never return stored
   totals in place of derivation output.
-  EXCEPTION: `race_results.points`, per session, in
-  driverStatistics.ts. Jolpica writes it straight from the source and
-  it already applies era/sprint/half-point rules pointsTable.ts does
-  not implement, so it is a published fact, not a derived statistic
-  (docs/ingestion/jolpica-ingestion.md §4.2) — preferred over the
-  derived P1-P10 scale when a row exists, which also falls back to
-  when it doesn't. Don't generalize this to other fields without the
+  EXCEPTION: published `race_results` facts, per session, in
+  driverStatistics.ts. Jolpica writes them straight from the source, so
+  they are published facts, not derived statistics
+  (docs/ingestion/jolpica-ingestion.md §4.2). Two tiers:
+  - `points` is PREFERRED over the derived P1-P10 scale whenever a row
+    exists (it already applies era/sprint/half-point rules
+    pointsTable.ts does not implement), falling back to the derived
+    scale when it doesn't.
+  - `position`, `grid_position` and the `fastest_lap_rank = 1` flag are
+    FALLBACK ONLY: laps always win, and these are read solely when the
+    driver (position, grid) or the whole session (fastest lap) has no
+    lap data — the shape of every Jolpica-ingested race. They feed
+    wins, podiums, average_finish_position, positions_gained_lost_avg
+    and fastest_laps. Derived qualifying positions beat
+    `grid_position`, and `grid_position` 0 (a pit-lane start) is
+    skipped, never guessed at.
+  The position used is the raw nullable `classified_position`, never
+  `position`: the model's `position` falls back to the row's ordinal so
+  classifications render, and would invent finishes for retirements.
+  average_race_pace_ms stays lap-derived only — no published fact can
+  stand in for it. Don't generalize this to other fields without the
   same "published fact, not a derived statistic" reasoning.
   The same exception covers constructorStatistics.ts, which sums those
   same published values per season, grouped by each row's own
@@ -32,8 +46,8 @@
 
 ## Baseline
 `npm test` in src/backend reports:
-  Test Files  34 passed | 1 skipped (35)
-       Tests  446 passed | 9 skipped (455)
+  Test Files  35 passed | 1 skipped (36)
+       Tests  457 passed | 9 skipped (466)
 Any change that reduces the passing count is a regression, not a
 flaky test.
 

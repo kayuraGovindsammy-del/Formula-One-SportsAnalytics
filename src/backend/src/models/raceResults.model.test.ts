@@ -46,6 +46,7 @@ describe("raceResultsModel.findByRace", () => {
         resultsRows([
           {
             position: 1,
+            grid_position: 3,
             driver_id: "PIA",
             constructor_id: "MCL",
             laps_completed: 44,
@@ -58,7 +59,8 @@ describe("raceResultsModel.findByRace", () => {
             status: "FINISHED",
           },
           {
-            position: 16,
+            position: null,
+            grid_position: 0,
             driver_id: "HAM",
             constructor_id: "FER",
             laps_completed: 20,
@@ -79,6 +81,9 @@ describe("raceResultsModel.findByRace", () => {
     expect(result?.classification).toEqual([
       {
         position: 1,
+        classified_position: 1,
+        grid_position: 3,
+        fastest_lap_rank: 2,
         driver_id: "PIA",
         constructor_id: "MCL",
         laps: 44,
@@ -88,7 +93,13 @@ describe("raceResultsModel.findByRace", () => {
         status: "FINISHED",
       },
       {
-        position: 16,
+        // Unclassified in race_results: `position` falls back to the ordinal
+        // so the classification still renders, but classified_position stays
+        // null so driverStatistics never counts it as a finish.
+        position: 2,
+        classified_position: null,
+        grid_position: 0,
+        fastest_lap_rank: 5,
         driver_id: "HAM",
         constructor_id: "FER",
         laps: 20,

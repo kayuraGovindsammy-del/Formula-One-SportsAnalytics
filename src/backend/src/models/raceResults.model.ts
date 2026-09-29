@@ -5,6 +5,18 @@ export type RaceResultStatus = "FINISHED" | "DNF" | "DSQ";
 
 export interface RaceResultRow {
   position: number;
+  /**
+   * The raw `race_results.position` column: NULL for a driver who was not
+   * classified (retired, disqualified, did not start). Unlike `position`,
+   * which falls back to the row's ordinal so classifications always render,
+   * this is never invented — consumers that count wins, podiums or finishes
+   * must read this one (see driverStatistics.ts).
+   */
+  classified_position: number | null;
+  /** Starting grid slot as published by Jolpica; 0 is a pit-lane start. */
+  grid_position: number | null;
+  /** 1 marks the session's fastest lap; NULL when no FastestLap was published. */
+  fastest_lap_rank: number | null;
   driver_id: string;
   constructor_id: string;
   laps: number;
@@ -34,6 +46,7 @@ export interface RaceResultData {
 
 interface RaceResultSqlRow {
   position: number | null;
+  grid_position: number | null;
   driver_id: string;
   constructor_id: string;
   laps_completed: number;
@@ -76,6 +89,7 @@ export async function findClassificationsBySessions(
       SELECT
         session_id,
         position,
+        grid_position,
         driver_id,
         constructor_id,
         laps_completed,
@@ -105,6 +119,9 @@ export async function findClassificationsBySessions(
     // own ordered block rather than across the whole result set.
     rows.push({
       position: row.position ?? rows.length + 1,
+      classified_position: row.position,
+      grid_position: row.grid_position,
+      fastest_lap_rank: row.fastest_lap_rank,
       driver_id: row.driver_id,
       constructor_id: row.constructor_id,
       laps: row.laps_completed,
@@ -139,6 +156,7 @@ export async function findByRace(
     `
       SELECT
         position,
+        grid_position,
         driver_id,
         constructor_id,
         laps_completed,
@@ -203,6 +221,9 @@ export async function findByRace(
     fastest_lap: fastestLap,
     classification: results.rows.map((row, index) => ({
       position: row.position ?? index + 1,
+      classified_position: row.position,
+      grid_position: row.grid_position,
+      fastest_lap_rank: row.fastest_lap_rank,
       driver_id: row.driver_id,
       constructor_id: row.constructor_id,
       laps: row.laps_completed,
