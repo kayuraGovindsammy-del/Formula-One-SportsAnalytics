@@ -39,6 +39,26 @@ export interface DriverSessionInput {
    * scale remains the fallback for a session with no ingested row at all.
    */
   stored_points?: number;
+  /**
+   * This driver's classified `race_results.position` for this session —
+   * `undefined` when there is no row or the driver was not classified. Unlike
+   * stored_points this is a FALLBACK ONLY: the lap-derived finishing position
+   * always wins when the driver has laps, and this is read solely for a
+   * session with none (the shape of every Jolpica-ingested race). Same
+   * "published fact, not a derived statistic" reasoning as stored_points.
+   */
+  stored_position?: number;
+  /**
+   * This driver's `race_results.grid_position`, used for positions_gained_lost_avg
+   * only when no qualifying LAP_COMPLETED position is derivable. 0 (a pit-lane
+   * start) is deliberately ignored rather than guessed at.
+   */
+  stored_grid_position?: number;
+  /**
+   * True when this driver's `race_results.fastest_lap_rank` is 1. Fallback only,
+   * and only consulted when the session has no laps at all — see fastest_laps.
+   */
+  stored_fastest_lap?: boolean;
 }
 
 export interface DriverStatisticsInput {
@@ -160,23 +180,30 @@ export function buildDriverStatistics(
 
     racesEntered += 1;
 
-    const position = finishingPosition(driverLaps);
+    // Laps always win; the ingested classification only fills in when this
+    // driver has none.
+    const position =
+      finishingPosition(driverLaps) ?? session.stored_position ?? null;
 
     if (position !== null) {
       finishPositions.push(position);
 
-      if (session.qualifying_events !== undefined) {
-        const gridPosition = qualifyingPosition(
-          session.qualifying_events,
-          input.driver_id
-        );
+      const derivedGridPosition =
+        session.qualifying_events !== undefined
+          ? qualifyingPosition(session.qualifying_events, input.driver_id)
+          : null;
+      const storedGridPosition =
+        session.stored_grid_position !== undefined &&
+        session.stored_grid_position > 0
+          ? session.stored_grid_position
+          : null;
+      const gridPosition = derivedGridPosition ?? storedGridPosition;
 
-        if (gridPosition !== null) {
-          // grid - finish, positive = gained places. See the comment on
-          // positions_gained_lost_avg below for why this sign convention was
-          // chosen over docs/f1-statistics.md §3's inverted one.
-          positionsGainedLost.push(gridPosition - position);
-        }
+      if (gridPosition !== null) {
+        // grid - finish, positive = gained places. See the comment on
+        // positions_gained_lost_avg below for why this sign convention was
+        // chosen over docs/f1-statistics.md §3's inverted one.
+        positionsGainedLost.push(gridPosition - position);
       }
 
       if (position === 1) {
@@ -211,6 +238,13 @@ export function buildDriverStatistics(
     const sessionFastest = fastestLap(session.laps);
 
     if (sessionFastest?.driver_id === input.driver_id) {
+      fastestLaps += 1;
+    } else if (
+      session.laps.length === 0 &&
+      session.stored_fastest_lap === true
+    ) {
+      // No driver has any laps, so nothing could have beaten the published
+      // rank-1 lap — safe to credit it from race_results.
       fastestLaps += 1;
     }
 

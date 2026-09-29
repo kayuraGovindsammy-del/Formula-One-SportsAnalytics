@@ -350,11 +350,13 @@ production Zod schemas, so a test cannot assert against a shape the API never se
   `position_changes` and `penalties` are still untouched by this pipeline. The derivation
   engine has nothing per-lap to work from for an ingested race, which is why
   `race_results.fastest_lap_*` exists as a fallback (§4.7).
-- **`grid_position` is written but never read.** It was added for
-  `positions_gained_lost_avg`, which now takes its starting grid from QUALIFYING events
-  instead. The column is correct and populated; no consumer uses it yet.
+- **`grid_position` is a fallback, not a derivation.** `driverStatistics.ts` reads it for
+  `positions_gained_lost_avg` only when no qualifying `LAP_COMPLETED` position is
+  derivable; `0` (a pit-lane start) is skipped. The same fallback-only treatment applies to
+  the classified `position` (wins, podiums, average finish) and `fastest_lap_rank = 1`
+  (`fastest_laps`) when a session has no laps. `average_race_pace_ms` still needs laps.
 - **Qualifying is not ingested.** Nothing in this pipeline writes a QUALIFYING session, so
-  the qualifying events that `positions_gained_lost_avg` needs come only from sample data.
+  the qualifying events that `positions_gained_lost_avg` would otherwise prefer come only from sample data.
 - **Sprints are opt-in.** Without `--include-sprints`, any points total derived from
   `race_results` undercounts a sprint season. `grand_prix.has_sprint` is still set
   correctly either way, from the calendar.
