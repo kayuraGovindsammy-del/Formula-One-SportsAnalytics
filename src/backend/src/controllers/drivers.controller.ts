@@ -134,14 +134,26 @@ export const getDriverStats = asyncHandler(async (req, res) => {
           }
         : {}),
       ...(storedResult ? { stored_points: storedResult.points } : {}),
+      // Fallback-only published facts (see DriverSessionInput): each is left
+      // out when null, so buildDriverStatistics sees "unknown", not a value.
+      ...(storedResult?.classified_position != null
+        ? { stored_position: storedResult.classified_position }
+        : {}),
+      ...(storedResult?.grid_position != null
+        ? { stored_grid_position: storedResult.grid_position }
+        : {}),
+      ...(storedResult?.fastest_lap_rank === 1
+        ? { stored_fastest_lap: true }
+        : {}),
     };
   });
 
   // Everything below this line is derived from the logs above, with one
   // deliberate exception: buildDriverStatistics prefers each session's
   // stored_points (race_results.points, an ingested published fact) over its
-  // own from-scratch derivation when a row exists — see the doc comment on
-  // DriverSessionInput.stored_points.
+  // own from-scratch derivation when a row exists, and uses the stored
+  // position / grid / fastest-lap rank only as fallbacks when a session has no
+  // laps — see the doc comments on DriverSessionInput.
   const statistics = buildDriverStatistics({
     driver_id: driver.driver_id,
     season: query.season,

@@ -293,9 +293,12 @@ paths:
         `positions_gained_lost_avg`. A race with no qualifying data simply
         contributes nothing to that average.
 
-        Coverage depends on what is loaded in the database — a race whose lap
-        log has never been ingested contributes nothing here, even if it has
-        `race_results` rows.
+        Coverage depends on what is loaded in the database. A race whose lap
+        log has never been ingested still counts toward `races_entered`, and
+        contributes `points`, finishing position (`wins`, `podiums`,
+        `average_finish_position`), grid position and the fastest-lap flag
+        from its `race_results` rows as fallbacks. It cannot contribute
+        `average_race_pace_ms`, which needs lap times.
       security: []
       parameters:
         - $ref: "#/components/parameters/DriverId"
@@ -1136,8 +1139,18 @@ components:
             an ingested `race_results` row for that session (see `points`
             below) — the latter covers a Jolpica-ingested race with no
             lap-by-lap telemetry at all.
-        wins: { type: integer }
-        podiums: { type: integer }
+        wins:
+          type: integer
+          description: |
+            Sessions where the driver's finishing position was 1. The position
+            is lap-derived when the driver has laps; otherwise it falls back to
+            that session's classified `race_results.position` (see
+            `average_finish_position`). A driver with neither counts no win.
+        podiums:
+          type: integer
+          description: |
+            Sessions where the driver's finishing position was 3 or better,
+            from the same lap-derived-then-stored position as `wins`.
         dnf_count:
           type: integer
           description: Sessions containing a RETIREMENT event for this driver.
@@ -1153,9 +1166,25 @@ components:
             Sessions where this driver set the quickest racing lap. Derived
             across all drivers' laps, deliberately NOT read from the
             FASTEST_LAP_SET event.
+
+            Fallback: only for a session in which NO driver has any laps, the
+            driver holding the published `race_results.fastest_lap_rank = 1`
+            is credited instead. If any driver has laps, the derived answer
+            stands and the stored flag is ignored.
         average_finish_position:
           type: [number, "null"]
-          description: Rounded to 2 dp. `null` when no position was recorded.
+          description: |
+            Rounded to 2 dp. `null` when no position was recorded.
+
+            Each session's position is the driver's position on their last
+            recorded lap. Only when the driver has no laps in that session does
+            it fall back to the session's classified `race_results.position`
+            (a published fact from Jolpica, like `points` - a deliberate,
+            narrow exception to "statistics are derived"; see
+            docs/ingestion/jolpica-ingestion.md §4.2). The raw nullable column
+            is used: an unclassified driver (retired, disqualified, did not
+            start) has no position and contributes no finish, rather than an
+            invented one. Laps always take precedence when present.
         average_race_pace_ms:
           type: [integer, "null"]
           description: |
@@ -1182,8 +1211,9 @@ components:
             whole season, so "scored nothing" and "no data" stay distinct. A
             session backed only by an ingested row, with no lap or event log,
             still counts toward `races_entered` and contributes its stored
-            points, even though it can't contribute to
-            `average_finish_position`, `wins`, etc.
+            points. Its finishing position, if classified, also feeds
+            `average_finish_position`, `wins` and `podiums` via the fallback
+            described there.
 
             KNOWN LIMITATION: the derived fallback only implements the base
             P1–P10 race scale — no fastest-lap bonus point, no separate sprint
@@ -1198,8 +1228,13 @@ components:
             the driver typically gained places. `null` when no session had
             both.
 
-            The grid comes from the grand prix's QUALIFYING session events,
-            not from `race_results.grid_position`.
+            The grid comes from the grand prix's QUALIFYING session events
+            when they exist. Otherwise it falls back to the driver's
+            `race_results.grid_position` for that race, which is the only
+            source for Jolpica-ingested races since no QUALIFYING session is
+            ingested. A stored grid of `0` (a pit-lane start) is skipped, not
+            guessed at. The finishing position is lap-derived, then stored, as
+            for `average_finish_position`.
 
             SIGN CONVENTION: this implements docs/f1-statistics.md §2
             (`grid − finish`). §3's "qualifying-vs-race performance" defines

@@ -152,6 +152,8 @@ Backs the "Wins / DNFs / Average Finish / Fastest Laps / Positions Gained / Cons
 
 `points` and `positions_gained_lost_avg` are `null` with the reason not embedded in the payload — see §9 for what's blocking them and why the fields still exist on the contract now.
 
+**Ingested races.** These fields are derived from lap data, but Jolpica-ingested races have none. For a driver with no laps in a session, `wins`, `podiums` and `average_finish_position` fall back to that session's classified `race_results.position` (NULL for an unclassified driver, which counts as no finish). `positions_gained_lost_avg` falls back to `race_results.grid_position` when there is no qualifying data (`0`, a pit-lane start, is skipped), and `fastest_laps` credits the stored `fastest_lap_rank = 1` only for a session where no driver has laps. Laps always take precedence when present. `average_race_pace_ms` needs lap times and stays `null` for such races. Details: [`f1-statistics.md`](f1-statistics.md) "Fallback to ingested `race_results`".
+
 ### 4.4 `GET /api/v1/races` — race list
 
 Backs `Races.tsx`. `has_results` tells the frontend whether a statistics/results endpoint call for this race will return real data or an empty derivation — this replaces the frontend's current hardcoded `race.round === belgianGpStatistics.round` check in `RaceDetails.tsx`.
@@ -466,7 +468,7 @@ Everything below is computed from `database/schema.sql` + the event log per [`f1
 **Derivable today**, assuming a session's full event log exists:
 
 - Lap time, pit stop count/duration, position per lap (raw, direct from events)
-- Finishing position, fastest lap, race pace, consistency (stddev), DNF-per-race (derived, per `f1-statistics.md` §2)
+- Finishing position, fastest lap, race pace, consistency (stddev), DNF-per-race (derived, per `f1-statistics.md` §2). On the driver stats endpoint, finishing position, starting grid and fastest lap also fall back to published `race_results` values for a session with no lap data (§4.3)
 - DNF rate per season (derived, per `f1-statistics.md` §3)
 
 **Blocked — flagging explicitly:**

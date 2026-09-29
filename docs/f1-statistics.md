@@ -14,16 +14,16 @@ Every statistic below is computed from the event log defined in `event-schema.md
 | Pit stop count | Done and verified | `pitStatistics.ts`'s `pitStopCount`, tested in `pitStatistics.test.ts`. Live via `/races/:grand_prix_id/statistics` (`pit_stop_count`, `classification[].pit_stops`), fully derived for `2025_R13` (`races.controller.ts` only falls back to the stored `race_results` block when the derived classification is empty). `classification[].pit_stops` is `0` for VER/RUS/ALB/HAM/LAW/BOR/GAS specifically, though — only a `LAP_COMPLETED` event was added for each (issue #55), no `PIT_STOP` event, so the derivation honestly reports 0 rather than their real count of 1 |
 | Pit stop duration | Implemented, not exposed | `totalPitTime()` in `pitStatistics.ts`, tested in isolation in `pitStatistics.test.ts`; no route or statistics object surfaces it anywhere |
 | Position per lap | Implemented, not reachable via the API | `runningOrder.ts`'s `runningOrderAtLap`, tested in `runningOrder.test.ts`; no lap-by-lap position route exists |
-| Finishing position | Done and verified | `finishingPosition()` (`driverStatistics.ts`) and `lastRecordedLap()` (`raceStatistics.ts`). Live via `/drivers/:id/stats` (`average_finish_position`) and `/races/:id/statistics` (`classification[].position`), both fully derived for `2025_R13` |
+| Finishing position | Done and verified | `finishingPosition()` (`driverStatistics.ts`) and `lastRecordedLap()` (`raceStatistics.ts`). Live via `/drivers/:id/stats` (`average_finish_position`, `wins`, `podiums`) and `/races/:id/statistics` (`classification[].position`), both fully derived for `2025_R13`. On `/drivers/:id/stats` only, a driver with no laps in a session falls back to that session's classified `race_results.position` (see "Fallback to ingested `race_results`" below); `/races/:id/statistics` is unchanged |
 | Positions gained/lost (per-race) | Not implemented | Only the season-averaged form exists (`positions_gained_lost_avg`, see below) — no per-race "gained N places in this race" field exists in `ClassificationRow` or anywhere else |
-| Fastest lap | Done and verified | `fastestLap()` (`lapStatistics.ts`), tested in `lapStatistics.test.ts` and `raceStatistics.test.ts`. Live via `/races/:id/statistics` (`fastest_lap`, field name `lap_time_ms`), fully derived for `2025_R13` — `races.controller.ts` only falls back to the stored block's shape (field name `time_ms`) when no fastest lap can be derived at all |
+| Fastest lap | Done and verified | `fastestLap()` (`lapStatistics.ts`), tested in `lapStatistics.test.ts` and `raceStatistics.test.ts`. `fastest_laps` on `/drivers/:id/stats` also falls back to the stored `race_results.fastest_lap_rank = 1` flag, but only for a session in which no driver has any laps. Live via `/races/:id/statistics` (`fastest_lap`, field name `lap_time_ms`), fully derived for `2025_R13` — `races.controller.ts` only falls back to the stored block's shape (field name `time_ms`) when no fastest lap can be derived at all |
 | Race pace | Done and verified, season-level only | `averageLapTime()` (`lapStatistics.ts`) and `average_race_pace_ms` (`driverStatistics.ts`), both tested, live via `/drivers/:id/stats`. There is no per-race (single-session) race-pace field in `raceStatistics.ts` — unlike consistency, which does have one |
 | Consistency | Done and verified | `lapConsistency()` (`lapStatistics.ts`) wired into `classification[].consistency_ms` (`raceStatistics.ts`), tested in both, live via `/races/:id/statistics` (fully derived for `2025_R13`) |
 | DNF (per race) | Done and verified | `retirement_count`/`dnf_count` (`raceStatistics.ts`), tested, live via `/races/:id/statistics` |
 | Driver points | Done and verified | `pointsForPosition()` (`pointsTable.ts`, tested in `pointsTable.test.ts`) and `points` (`driverStatistics.ts`, tested). Live via `/drivers/:id/stats` for all 10 classified Belgian GP drivers (issue #55). Base race scale only — see below for what's excluded |
 | Constructor points | Done and verified, not reachable via the API | `buildConstructorStatistics()` (`constructorStatistics.ts`), tested in `constructorStatistics.test.ts`. No route or controller exists for constructor statistics at all |
 | DNF rate | Done and verified | `dnf_rate` (`driverStatistics.ts`), tested, live via `/drivers/:id/stats` |
-| Qualifying-vs-race performance | Done and verified, not reachable via the API | Implemented as `positions_gained_lost_avg` (`driverStatistics.ts`), tested against real sample data (PIA/NOR/LEC) and 5 hand-constructed cases in `driverStatistics.test.ts`. `drivers.controller.ts` never fetches or attaches `qualifying_events` when building its input, so this field always returns `null` over HTTP regardless of season — tracked in issue #62 |
+| Qualifying-vs-race performance | Done and verified | Implemented as `positions_gained_lost_avg` (`driverStatistics.ts`), tested against real sample data (PIA/NOR/LEC), hand-constructed cases and the ingested-grid fallback in `driverStatistics.test.ts`. `drivers.controller.ts` attaches each race's QUALIFYING events and each driver's `race_results.grid_position`, so over HTTP the grid comes from qualifying events when they exist and from the stored `grid_position` otherwise (a stored `0`, a pit-lane start, is skipped). Production ingests no QUALIFYING sessions, so ingested races use the stored grid |
 
 **Not implemented at all:**
 - **Fastest-lap bonus point.** No scale for it is documented anywhere in this file or `api-design.md`.
@@ -65,6 +65,19 @@ Every statistic below is computed from the event log defined in `event-schema.md
 | Constructor points | `sum(points)` of both drivers registered to that constructor for the season |
 | DNF rate | `count(sessions with RETIREMENT for this driver) / count(sessions entered)` |
 | Qualifying-vs-race performance | `average(race finishing position − qualifying position)` across all races in the season — negative means the driver typically gains positions in the race |
+
+### Fallback to ingested `race_results` (driver stats only)
+
+The Jolpica ingestion pipeline writes a classification per race but no lap log (`docs/ingestion/jolpica-ingestion.md` §9), so a purely lap-derived `/drivers/:id/stats` would report 0 wins and podiums and a null average finish for every ingested race. To avoid silently wrong numbers, `driverStatistics.ts` uses published `race_results` facts as a **fallback only**: laps always win when they exist.
+
+| Statistic | Derived first | Falls back to, when there is no derived value |
+|---|---|---|
+| Finishing position (feeds `wins`, `podiums`, `average_finish_position`) | Position on the driver's last recorded lap | `race_results.position`, the raw nullable column. An unclassified driver (retired, disqualified, did not start) has NULL and contributes no finish |
+| Starting grid (feeds `positions_gained_lost_avg`) | Position in the QUALIFYING session's events | `race_results.grid_position`. `0` (a pit-lane start) is skipped, never guessed at |
+| `fastest_laps` | Quickest racing lap across all drivers' laps in the session | `race_results.fastest_lap_rank = 1`, only when **no** driver has any laps in the session |
+| `points` | Not a fallback: `race_results.points` is *preferred* when a row exists, and the derived scale covers a session with no row | n/a |
+
+`average_race_pace_ms` has no such fallback: it needs lap times, so it stays null for an ingested race.
 
 ### Points-per-position table
 
