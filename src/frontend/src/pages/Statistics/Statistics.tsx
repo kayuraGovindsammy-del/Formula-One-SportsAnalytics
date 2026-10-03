@@ -197,7 +197,6 @@ if (defaultRace) {
     setError(
       "Statistics are not available for this race."
     );
-  } finally {
   }
 };
 
