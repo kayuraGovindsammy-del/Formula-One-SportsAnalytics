@@ -110,6 +110,36 @@ export interface RecentRace {
   fastestLapTime: string;
 }
 
+export type RaceEventType =
+  | "SESSION_START"
+  | "SESSION_END"
+  | "LAP_COMPLETED"
+  | "PIT_STOP"
+  | "POSITION_CHANGE"
+  | "PENALTY_ISSUED"
+  | "RETIREMENT"
+  | "FASTEST_LAP_SET";
+
+export interface RaceEvent {
+  eventId: string;
+  sessionId: string;
+  driverId?: string;
+  type: RaceEventType;
+  lapNumber?: number;
+  timestamp: string | null;
+  payload: Record<string, unknown>;
+}
+
+interface ApiRaceEvent {
+  event_id: string;
+  session_id: string;
+  driver_id?: string;
+  type: RaceEventType;
+  lap_number?: number;
+  timestamp: string | null;
+  payload: Record<string, unknown>;
+}
+
 interface ApiDriver {
   driver_id: string;
   permanent_number: number;
@@ -352,6 +382,47 @@ export async function fetchRace(grandPrixId: string): Promise<RaceDetail> {
   };
 }
 
+export async function fetchRaceEvents(
+  grandPrixId: string
+): Promise<RaceEvent[]> {
+  const eventTypes: RaceEventType[] = [
+    "PIT_STOP",
+    "POSITION_CHANGE",
+    "RETIREMENT",
+    "FASTEST_LAP_SET",
+    "PENALTY_ISSUED",
+  ];
+
+  const results = await Promise.all(
+    eventTypes.map((type) =>
+      apiGet<ApiRaceEvent[]>(
+        `/races/${encodeURIComponent(
+          grandPrixId
+        )}/events?session_type=RACE&type=${encodeURIComponent(
+          type
+        )}&per_page=100`
+      )
+    )
+  );
+
+  return results
+    .flat()
+    .map((event) => ({
+      eventId: event.event_id,
+      sessionId: event.session_id,
+      driverId: event.driver_id,
+      type: event.type,
+      lapNumber: event.lap_number,
+      timestamp: event.timestamp,
+      payload: event.payload,
+    }))
+    .sort(
+      (a, b) =>
+        (a.lapNumber ?? 0) -
+        (b.lapNumber ?? 0)
+    );
+}
+
 export async function fetchRaceStatistics(
   grandPrixId: string,
   drivers?: Driver[]
@@ -372,6 +443,7 @@ export async function fetchRaceStatistics(
       driverId
     );
   };
+  
 
   const constructorName = (constructorId: string | null): string => {
     if (!constructorId) {

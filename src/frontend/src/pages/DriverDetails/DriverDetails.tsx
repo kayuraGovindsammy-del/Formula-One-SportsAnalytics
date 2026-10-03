@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import StatCard from "../../components/StatCard";
 import type { CSSProperties } from "react";
 import { getDriverImage } from "../../data/driverImages";
+import "./DriverDetails.css"
 import { getTeamStyle } from "../../data/teamStyles";
 import {
   fetchDriver,
@@ -164,7 +165,9 @@ function DriverDetails() {
             <div>
               <dt>Average Finish</dt>
               <dd>
-                {statistics.averageFinishPosition ?? "Not available"}
+                {statistics.averageFinishPosition === null
+                  ? "Not available"
+                  : statistics.averageFinishPosition.toFixed(1)}
               </dd>
             </div>
 
@@ -185,7 +188,11 @@ function DriverDetails() {
             <div>
               <dt>Positions Gained/Lost</dt>
               <dd>
-                {statistics.positionsGainedLostAvg ?? "Not available"}
+                {statistics.positionsGainedLostAvg === null
+                  ? "Not available"
+                  : `${
+                     statistics.positionsGainedLostAvg > 0 ? "+" : ""
+                     }${statistics.positionsGainedLostAvg.toFixed(1)}`}
               </dd>
             </div>
 

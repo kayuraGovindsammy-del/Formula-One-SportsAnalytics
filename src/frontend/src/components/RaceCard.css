@@ -1,0 +1,384 @@
+/* =========================================================
+   RACE CARD
+   ========================================================= */
+
+.race-list-card {
+  overflow: hidden;
+
+  background: #1c1c1c;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.race-list-card:hover {
+  transform: translateY(-4px);
+
+  border-color: rgba(225, 6, 0, 0.45);
+
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.race-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 1rem 1.25rem;
+
+  background: #141414;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.race-list-header span {
+  color: #e10600;
+
+  font-weight: 800;
+}
+
+.race-list-header time {
+  color: #b7b7b7;
+
+  font-size: 0.9rem;
+}
+
+
+/* =========================================================
+   MAIN LINK
+   ========================================================= */
+
+.race-card-main-link {
+  display: block;
+
+  color: inherit;
+  text-decoration: none;
+}
+
+.race-card-main-link:focus-visible {
+  outline: 2px solid #e10600;
+  outline-offset: -2px;
+}
+
+
+/* =========================================================
+   CIRCUIT IMAGE
+   ========================================================= */
+
+.race-circuit-container {
+  height: 190px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 1.5rem;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.05),
+      transparent 65%
+    );
+}
+
+.race-circuit-image {
+  width: 100%;
+  height: 100%;
+
+  object-fit: contain;
+
+  transition:
+    transform 0.25s ease;
+}
+
+.race-list-card:hover .race-circuit-image {
+  transform: scale(1.05);
+}
+
+
+/* =========================================================
+   RACE CONTENT
+   ========================================================= */
+
+.race-card-content {
+  padding: 1.25rem;
+}
+
+.race-card-content h2 {
+  margin-top: 0;
+  margin-bottom: 0.9rem;
+
+  color: white;
+
+  font-size: 1.5rem;
+}
+
+.race-card-content p {
+  margin: 0.25rem 0;
+
+  color: #b7b7b7;
+}
+
+.race-country {
+  color: white !important;
+
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   TABS
+   ========================================================= */
+
+.race-card-tabs {
+  display: grid;
+
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  gap: 0.4rem;
+
+  padding: 0 1.25rem;
+
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.race-card-tabs button {
+  padding: 0.6rem 0.35rem;
+
+  background: rgba(255, 255, 255, 0.05);
+
+  color: #b7b7b7;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.race-card-tabs button:hover {
+  transform: translateY(-1px);
+
+  background: rgba(255, 255, 255, 0.09);
+
+  color: white;
+}
+
+.race-card-tabs button.active {
+  background: rgba(225, 6, 0, 0.16);
+
+  color: #e10600;
+
+  border-color: rgba(225, 6, 0, 0.45);
+}
+
+.race-card-tabs button:focus-visible {
+  outline: 2px solid #e10600;
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   TAB CONTENT
+   ========================================================= */
+
+.race-card-tab-content {
+  min-height: 115px;
+
+  padding: 0 1.25rem 1rem;
+}
+
+.race-tab-panel {
+  animation: raceTabFade 0.2s ease;
+}
+
+.race-tab-placeholder {
+  min-height: 82px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  padding: 0.9rem 1rem;
+
+  background: rgba(255, 255, 255, 0.035);
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+}
+
+.race-tab-placeholder strong {
+  color: white;
+
+  font-size: 0.95rem;
+}
+
+.race-tab-placeholder p {
+  margin: 0.4rem 0 0;
+
+  color: #929292;
+
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+
+/* =========================================================
+   RACE INFO ROWS
+   ========================================================= */
+
+.race-info-row {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  padding: 0.75rem 0;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.race-info-row:first-child {
+  border-top: none;
+}
+
+.race-info-row span {
+  color: #9e9e9e;
+
+  font-size: 0.9rem;
+}
+
+.race-info-row strong {
+  color: white;
+
+  text-align: right;
+
+  font-size: 0.9rem;
+}
+
+
+/* =========================================================
+   VIEW RACE BUTTON
+   ========================================================= */
+
+.race-card-view-button {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  margin: 0 1.25rem 1.25rem;
+
+  padding: 0.75rem 1rem;
+
+  background: #e10600;
+
+  color: white;
+
+  border-radius: 8px;
+
+  font-weight: 800;
+
+  text-decoration: none;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.race-card-view-button:hover {
+  transform: translateY(-2px);
+
+  background: #c90500;
+}
+
+.race-card-view-button:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 3px;
+}
+
+
+/* =========================================================
+   TAB ANIMATION
+   ========================================================= */
+
+@keyframes raceTabFade {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .race-circuit-container {
+    height: 165px;
+
+    padding: 1.25rem;
+  }
+
+  .race-card-content {
+    padding: 1rem;
+  }
+
+  .race-card-content h2 {
+    font-size: 1.3rem;
+  }
+
+  .race-card-tabs {
+    padding: 0 1rem;
+
+    gap: 0.3rem;
+  }
+
+  .race-card-tabs button {
+    padding: 0.55rem 0.2rem;
+
+    font-size: 0.74rem;
+  }
+
+  .race-card-tab-content {
+    padding: 0 1rem 1rem;
+  }
+
+  .race-card-view-button {
+    margin: 0 1rem 1rem;
+  }
+
+  .race-info-row {
+    gap: 0.6rem;
+  }
+}

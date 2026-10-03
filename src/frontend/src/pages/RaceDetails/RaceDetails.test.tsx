@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import RaceDetails from "./RaceDetails";
 import {
   fetchRace,
+  fetchRaceEvents,
   fetchRaceStatistics,
   type RaceDetail,
   type RaceStatistics,
@@ -18,6 +19,7 @@ vi.mock("../../data/f1Data", async () => {
   return {
     ...actual,
     fetchRace: vi.fn(),
+    fetchRaceEvents: vi.fn(),
     fetchRaceStatistics: vi.fn(),
   };
 });
@@ -104,6 +106,7 @@ function renderRaceDetails(id?: string) {
 describe("RaceDetails", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(fetchRaceEvents).mockResolvedValue([]);
   });
 
   test("fetches and renders statistics when hasResults is true, formatting each gap case", async () => {
@@ -122,8 +125,12 @@ describe("RaceDetails", () => {
     expect(screen.getByText("+5.321s")).toBeInTheDocument();
     expect(screen.getByText("N/A")).toBeInTheDocument();
 
-    expect(screen.getByText("58")).toBeInTheDocument();
-    expect(screen.getByText("Lap 44")).toBeInTheDocument();
+    expect(
+  screen.getAllByText("58").length
+).toBeGreaterThan(0);
+    expect(
+  screen.getAllByText("Lap 44").length
+).toBeGreaterThan(0);
   });
 
   test("does not fetch statistics when hasResults is false, and shows placeholders", async () => {

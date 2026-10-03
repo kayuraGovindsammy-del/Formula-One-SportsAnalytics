@@ -1,0 +1,1491 @@
+/* =========================================================
+   STATISTICS PAGE
+   ========================================================= */
+
+
+/* =========================================================
+   RACE SELECTOR
+   ========================================================= */
+
+.statistics-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+
+  margin: 2rem 0;
+  padding: 1.25rem 1.5rem;
+
+  background: #181818;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 4px solid #e10600;
+  border-radius: 10px;
+}
+
+.statistics-controls label {
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.statistics-controls select {
+  flex: 1;
+
+  padding: 0.8rem 2.5rem 0.8rem 1rem;
+
+  background: #242424;
+  color: white;
+
+  border: 1px solid #444;
+  border-radius: 8px;
+
+  font: inherit;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.statistics-controls select:hover {
+  background: #2b2b2b;
+  border-color: #666;
+}
+
+.statistics-controls select:focus {
+  outline: none;
+  border-color: #e10600;
+  box-shadow: 0 0 0 3px rgba(225, 6, 0, 0.15);
+}
+
+.statistics-controls select option {
+  background: #242424;
+  color: white;
+}
+
+
+/* =========================================================
+   OVERVIEW CARDS
+   ========================================================= */
+
+.statistics-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.statistics-overview-card {
+  position: relative;
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+
+  min-height: 130px;
+  padding: 1.25rem;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(225, 6, 0, 0.08),
+      transparent 55%
+    ),
+    #1c1c1c;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 3px solid #e10600;
+  border-radius: 10px;
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.statistics-overview-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(225, 6, 0, 0.4);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+}
+
+.statistics-overview-card span {
+  color: #999;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statistics-overview-card strong {
+  margin-top: 0.6rem;
+
+  color: white;
+
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.statistics-overview-card small {
+  margin-top: auto;
+  padding-top: 0.75rem;
+
+  color: #999;
+  font-size: 0.78rem;
+}
+
+
+/* =========================================================
+   STATISTICS GRID
+   ========================================================= */
+
+.statistics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.statistics-card {
+  padding: 1.5rem;
+
+  background-color: #1c1c1c;
+
+  border: 1px solid #333;
+  border-top: 3px solid #e10600;
+  border-radius: 10px;
+}
+
+.statistics-card h2 {
+  margin-top: 0;
+}
+
+
+/* =========================================================
+   STATISTICS LIST
+   ========================================================= */
+
+.statistics-list {
+  margin: 0;
+}
+
+.statistics-list div {
+  display: flex;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  padding: 0.9rem 0;
+
+  border-bottom: 1px solid #333;
+}
+
+.statistics-list div:last-child {
+  border-bottom: none;
+}
+
+.statistics-list dt {
+  color: #aaa;
+}
+
+.statistics-list dd {
+  margin: 0;
+
+  font-weight: bold;
+  text-align: right;
+}
+
+
+/* =========================================================
+   STATISTICS RANKING
+   ========================================================= */
+
+.statistics-ranking {
+  list-style: none;
+
+  margin: 0;
+  padding: 0;
+}
+
+.statistics-ranking li {
+  display: flex;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  padding: 1rem 0;
+
+  border-bottom: 1px solid #333;
+}
+
+.statistics-ranking li:last-child {
+  border-bottom: none;
+}
+
+.statistics-ranking strong {
+  color: #aaa;
+  text-align: right;
+}
+
+
+/* =========================================================
+   RACE STATISTICS + CIRCUIT
+   ========================================================= */
+
+
+.statistics-circuit-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 280px;
+
+  padding: 1.5rem;
+
+  background: #111;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.statistics-circuit-image {
+  display: block;
+
+  width: 100%;
+  max-width: 380px;
+  max-height: 250px;
+
+  object-fit: contain;
+
+  transition: transform 0.25s ease;
+}
+
+.statistics-circuit-container:hover .statistics-circuit-image {
+  transform: scale(1.04);
+}
+
+/* =========================================================
+   CIRCUIT CARD
+   ========================================================= */
+
+.statistics-circuit-card {
+  grid-column: 1 / -1;
+
+  padding: 2rem;
+
+  background: #1c1c1c;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 3px solid #e10600;
+  border-radius: 12px;
+}
+
+.statistics-circuit-heading {
+  margin-bottom: 1.25rem;
+}
+
+.statistics-circuit-heading h2 {
+  margin: 0;
+
+  color: white;
+
+  font-size: 1.5rem;
+}
+
+.statistics-circuit-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 300px;
+
+  padding: 2rem;
+
+  background:
+    radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.05),
+      transparent 65%
+    ),
+    #111;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.statistics-circuit-image {
+  display: block;
+
+  width: 100%;
+  max-width: 500px;
+  max-height: 300px;
+
+  object-fit: contain;
+
+  transition: transform 0.25s ease;
+}
+
+.statistics-circuit-container:hover
+.statistics-circuit-image {
+  transform: scale(1.04);
+}
+
+/* =========================================================
+   CONSTRUCTOR PERFORMANCE
+   ========================================================= */
+
+.constructor-performance-card {
+  grid-column: 1 / -1;
+}
+
+.constructor-performance-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(auto-fit, minmax(220px, 1fr));
+
+  gap: 1rem;
+
+  margin-top: 1.25rem;
+}
+
+.constructor-performance-item {
+  position: relative;
+
+  padding: 1.25rem;
+
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(
+        in srgb,
+        var(--constructor-color, #e10600) 10%,
+        transparent
+      ),
+      transparent 55%
+    ),
+    #181818;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 4px solid var(--constructor-color, #e10600);
+  border-radius: 10px;
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.constructor-performance-item:hover {
+  transform: translateY(-3px);
+
+  border-color:
+    var(--constructor-color, #e10600);
+
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.constructor-performance-name {
+  display: block;
+
+  margin-bottom: 1rem;
+
+  color: var(--constructor-color, white);
+
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.constructor-performance-stats {
+  display: grid;
+
+  grid-template-columns: repeat(2, 1fr);
+
+  gap: 1rem;
+}
+
+.constructor-performance-stats div {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.3rem;
+}
+
+.constructor-performance-stats span {
+  color: #999;
+
+  font-size: 0.75rem;
+
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.constructor-performance-stats strong {
+  color: #e10600;
+
+  font-size: 1.4rem;
+}
+
+@media (max-width: 600px) {
+  .constructor-performance-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* =========================================================
+   SECTION HEADINGS
+   ========================================================= */
+
+.statistics-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 1rem;
+
+  margin-bottom: 1rem;
+}
+
+.statistics-section-heading h2 {
+  margin: 0;
+
+  color: white;
+
+  font-size: 1.8rem;
+}
+
+.statistics-section-label {
+  margin: 0 0 0.3rem;
+
+  color: #e10600;
+
+  font-size: 0.75rem;
+  font-weight: 800;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.statistics-selected-race {
+  padding: 0.45rem 0.8rem;
+
+  background: rgba(225, 6, 0, 0.12);
+  color: #e10600;
+
+  border: 1px solid rgba(225, 6, 0, 0.3);
+  border-radius: 20px;
+
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   PODIUM
+   ========================================================= */
+
+.statistics-podium-section {
+  margin-top: 3rem;
+}
+
+.statistics-podium {
+  display: flex;
+
+  align-items: flex-end;
+  justify-content: center;
+
+  gap: 1rem;
+
+  min-height: 340px;
+
+  padding: 2rem 2rem 0;
+
+  background:
+    radial-gradient(
+      circle at center top,
+      rgba(225, 6, 0, 0.08),
+      transparent 55%
+    ),
+    #181818;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+
+  overflow: hidden;
+}
+
+.podium-driver {
+  flex: 1;
+
+  max-width: 250px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  text-align: center;
+
+  animation: podiumRise 0.65s ease both;
+}
+
+.podium-driver strong {
+  color: white;
+  font-size: 1.05rem;
+}
+
+.podium-driver small {
+  min-height: 35px;
+
+  margin-top: 0.35rem;
+
+  color: #999;
+  font-size: 0.8rem;
+}
+
+.podium-position {
+  margin-bottom: 0.65rem;
+
+  color: var(--podium-color, #e10600);
+
+  font-size: 0.8rem;
+  font-weight: 900;
+
+  letter-spacing: 0.08em;
+}
+
+
+/* =========================================================
+   PODIUM PLACES
+   ========================================================= */
+
+.podium-first {
+  animation-delay: 0.1s;
+}
+
+.podium-second {
+  animation-delay: 0.2s;
+}
+
+.podium-third {
+  animation-delay: 0.3s;
+}
+
+.podium-first .podium-block {
+  height: 170px;
+
+  background:
+    linear-gradient(
+      180deg,
+      var(--podium-color, #e10600),
+      color-mix(
+        in srgb,
+        var(--podium-color, #e10600) 55%,
+        black
+      )
+    );
+}
+
+.podium-second .podium-block {
+  height: 125px;
+
+  background:
+    linear-gradient(
+      180deg,
+      var(--podium-color, #777),
+      color-mix(
+        in srgb,
+        var(--podium-color, #777) 55%,
+        black
+      )
+    );
+}
+
+.podium-third .podium-block {
+  height: 125px;
+
+  background:
+    linear-gradient(
+      180deg,
+      var(--podium-color, #555),
+      color-mix(
+        in srgb,
+        var(--podium-color, #555) 55%,
+        black
+      )
+    );
+}
+
+.podium-block {
+  width: 100%;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+
+  margin-top: 1rem;
+  padding-top: 1rem;
+
+  color: white;
+
+  border-radius: 8px 8px 0 0;
+
+  font-size: 2.5rem;
+  font-weight: 900;
+
+  box-shadow:
+    0 -5px 20px rgba(0, 0, 0, 0.2);
+}
+
+
+/* =========================================================
+   PODIUM ANIMATION
+   ========================================================= */
+
+@keyframes podiumRise {
+  from {
+    opacity: 0;
+    transform: translateY(45px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* =========================================================
+   FULL CLASSIFICATION
+   ========================================================= */
+
+.statistics-classification-section {
+  margin-top: 3rem;
+}
+
+.statistics-classification {
+  overflow: hidden;
+
+  background: #1c1c1c;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.statistics-classification-row {
+  display: flex;
+  align-items: center;
+
+  gap: 1.25rem;
+
+  padding: 1rem 1.25rem;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.07);
+
+  transition:
+    background 0.2s ease,
+    padding-left 0.2s ease;
+}
+
+.statistics-classification-row:last-child {
+  border-bottom: none;
+}
+
+.statistics-classification-row:hover {
+  padding-left: 1.5rem;
+
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.classification-position {
+  min-width: 45px;
+
+  color: #e10600;
+
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.classification-driver {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.2rem;
+}
+
+.classification-driver strong {
+  color: white;
+  font-size: 1rem;
+}
+
+.classification-driver small {
+  color: #999;
+  font-size: 0.82rem;
+}
+
+/* P1 - Gold */
+.statistics-classification-row:nth-child(1)
+.classification-position {
+  color: #ffd90091;
+}
+
+/* P2 - Silver */
+.statistics-classification-row:nth-child(2)
+.classification-position {
+  color: #c0c0c0;
+}
+
+/* P3 - Bronze */
+.statistics-classification-row:nth-child(3)
+.classification-position {
+  color: #cd7f32;
+}
+
+
+/* =========================================================
+   CHART
+   ========================================================= */
+
+.statistics-chart-section {
+  margin-top: 3rem;
+}
+
+.statistics-chart-card {
+  padding: 1.75rem;
+}
+
+.statistics-chart-header {
+  margin-bottom: 1rem;
+}
+
+.statistics-chart-header h3 {
+  margin: 0;
+
+  color: white;
+
+  font-size: 1.3rem;
+}
+
+.statistics-chart-header p {
+  margin: 0.4rem 0 0;
+
+  color: #999;
+
+  line-height: 1.5;
+}
+
+.statistics-chart {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+
+/* =========================================================
+   EMPTY STATES
+   ========================================================= */
+
+.statistics-empty {
+  padding: 2rem 0;
+  color: #999;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 800px) {
+  .statistics-race-card {
+    grid-template-columns: 1fr;
+  }
+
+  .statistics-circuit-container {
+    min-height: 230px;
+  }
+
+  .statistics-circuit-image {
+    max-height: 210px;
+  }
+
+  .statistics-podium {
+    min-height: 300px;
+    padding: 1.5rem 1rem 0;
+  }
+
+  .podium-first .podium-block {
+    height: 145px;
+  }
+
+  .podium-second .podium-block {
+    height: 110px;
+  }
+
+  .podium-third .podium-block {
+    height: 110px;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .statistics-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .statistics-controls select {
+    width: 100%;
+  }
+
+  .statistics-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .statistics-chart-card {
+    padding: 1rem;
+  }
+
+  .statistics-overview-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .statistics-overview-card {
+    min-height: 120px;
+    padding: 1rem;
+  }
+
+  .statistics-overview-card strong {
+    font-size: 1.5rem;
+  }
+
+  .statistics-podium {
+    gap: 0.4rem;
+
+    min-height: 270px;
+
+    padding: 1.5rem 0.5rem 0;
+  }
+
+  .podium-driver strong {
+    font-size: 0.85rem;
+  }
+
+  .podium-driver small {
+    font-size: 0.7rem;
+  }
+
+  .podium-position {
+    font-size: 0.7rem;
+  }
+
+  .podium-first .podium-block {
+    height: 125px;
+  }
+
+  .podium-second .podium-block {
+    height: 95px;
+  }
+
+  .podium-third .podium-block {
+    height: 95px;
+  }
+
+  .podium-block {
+    font-size: 2rem;
+  }
+
+  .statistics-classification-row {
+    padding: 0.9rem 1rem;
+  }
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 420px) {
+  .statistics-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .statistics-podium {
+    gap: 0.25rem;
+  }
+
+  .podium-driver strong {
+    font-size: 0.75rem;
+  }
+
+  .podium-driver small {
+    font-size: 0.65rem;
+  }
+}
+/* =========================================================
+   DRIVER HEAD-TO-HEAD
+   ========================================================= */
+
+.driver-comparison-section {
+  margin-top: 3rem;
+}
+
+.driver-comparison-card {
+  padding: 2rem;
+}
+
+.driver-comparison-controls {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 1.5rem;
+}
+
+.driver-comparison-controls > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.driver-comparison-controls label {
+  color: #b5b5b5;
+
+  font-size: 0.8rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.driver-comparison-controls select {
+  width: 100%;
+
+  padding: 0.85rem 1rem;
+
+  background: #181818;
+  color: white;
+
+  border: 1px solid #444;
+  border-radius: 8px;
+
+  font: inherit;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.driver-comparison-controls select:hover {
+  background: #202020;
+  border-color: #666;
+}
+
+.driver-comparison-controls select:focus {
+  outline: none;
+
+  border-color: #e10600;
+
+  box-shadow:
+    0 0 0 3px rgba(225, 6, 0, 0.15);
+}
+
+.driver-comparison-vs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 48px;
+  height: 48px;
+
+  margin-bottom: 1px;
+
+  background: #e10600;
+  color: white;
+
+  border-radius: 50%;
+
+  font-size: 0.8rem;
+  font-weight: 900;
+
+  letter-spacing: 0.05em;
+}
+
+.driver-comparison-button {
+  display: block;
+
+  min-width: 180px;
+
+  margin: 1.5rem auto 0;
+  padding: 0.85rem 1.4rem;
+
+  background: #e10600;
+  color: white;
+
+  border: none;
+  border-radius: 8px;
+
+  font: inherit;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.driver-comparison-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #c90500;
+}
+
+.driver-comparison-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   COMPARISON RESULTS
+   ========================================================= */
+
+.driver-comparison-results {
+  display: grid;
+
+  grid-template-columns:
+    minmax(150px, 1fr)
+    minmax(120px, 0.7fr)
+    minmax(150px, 1fr);
+
+  gap: 0;
+
+  margin-top: 2rem;
+
+  overflow: hidden;
+
+  background: #181818;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.driver-comparison-results > * {
+  padding: 1rem;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.07);
+}
+
+.driver-comparison-results > strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: white;
+
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.driver-comparison-results > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #999;
+
+  font-size: 0.78rem;
+  font-weight: 700;
+
+  text-align: center;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+
+/* =========================================================
+   DRIVER HEADERS
+   ========================================================= */
+
+.driver-comparison-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  min-height: 95px;
+
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(
+        in srgb,
+        var(--driver-color, #e10600) 16%,
+        transparent
+      ),
+      transparent 70%
+    ),
+    #151515;
+
+  border-top:
+    4px solid var(--driver-color, #e10600);
+}
+
+.driver-comparison-header strong {
+  color: white;
+
+  font-size: 1.15rem;
+}
+
+.driver-comparison-header span {
+  margin-top: 0.3rem;
+
+  color: var(--driver-color, #e10600);
+
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.driver-one {
+  text-align: left;
+}
+
+.driver-two {
+  text-align: right;
+}
+
+
+/* =========================================================
+   CENTRE LABEL
+   ========================================================= */
+
+.driver-comparison-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #111;
+
+  color: #e10600;
+
+  font-size: 0.8rem;
+  font-weight: 900;
+
+  text-align: center;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+
+/* =========================================================
+   REMOVE FINAL ROW BORDER
+   ========================================================= */
+
+.driver-comparison-results > *:nth-last-child(-n + 3) {
+  border-bottom: none;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 800px) {
+  .driver-comparison-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .driver-comparison-vs {
+    width: 42px;
+    height: 42px;
+
+    margin: 0 auto;
+  }
+
+  .driver-comparison-results {
+    grid-template-columns:
+      minmax(110px, 1fr)
+      minmax(95px, 0.8fr)
+      minmax(110px, 1fr);
+  }
+
+  .driver-comparison-results > * {
+    padding: 0.85rem 0.65rem;
+  }
+
+  .driver-comparison-header strong {
+    font-size: 1rem;
+  }
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 600px) {
+  .driver-comparison-card {
+    padding: 1rem;
+  }
+
+  .driver-comparison-results {
+    grid-template-columns:
+      minmax(85px, 1fr)
+      minmax(75px, 0.8fr)
+      minmax(85px, 1fr);
+  }
+
+  .driver-comparison-results > * {
+    padding: 0.75rem 0.4rem;
+  }
+
+  .driver-comparison-results > strong {
+    font-size: 0.95rem;
+  }
+
+  .driver-comparison-results > span,
+  .driver-comparison-label {
+    font-size: 0.65rem;
+  }
+
+  .driver-comparison-header {
+    min-height: 85px;
+  }
+
+  .driver-comparison-header strong {
+    font-size: 0.9rem;
+  }
+
+  .driver-comparison-header span {
+    font-size: 0.72rem;
+  }
+
+  .driver-comparison-button {
+    width: 100%;
+  }
+}
+
+/* =========================================================
+   RACE ANALYSIS HEADING
+   ========================================================= */
+
+.statistics-race-heading {
+  margin-top: 4rem;
+  padding-top: 2.5rem;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.statistics-race-heading h1 {
+  margin: 0;
+
+  color: white;
+
+  font-size: 2rem;
+}
+
+.statistics-race-heading > p:last-child {
+  max-width: 650px;
+
+  margin: 0.6rem 0 0;
+
+  color: #999;
+
+  line-height: 1.6;
+}
+
+.comparison-better {
+  color: #3ddc84 !important;
+  text-shadow:
+    0 0 10px rgba(61, 220, 132, 0.25);
+}
+
+.comparison-worse {
+  color: #f80909e8 !important;
+  opacity: 0.7;
+}
+
+.comparison-tie {
+  color: #f1c40f !important;
+}
+
+.positions-analysis-section {
+  margin-top: 3rem;
+  margin-bottom: 4rem;
+}
+
+.positions-analysis-section
+  .statistics-section-heading
+  > div
+  > p:last-child {
+  margin-top: 0.5rem;
+  color: #999;
+  line-height: 1.6;
+}
+
+/* =========================================================
+   PAGE SECTION SPACING
+   ========================================================= */
+
+.driver-comparison-section,
+.positions-analysis-section,
+.statistics-race-heading,
+.statistics-podium-section,
+.statistics-classification-section,
+.statistics-chart-section {
+  margin-top: 3.5rem;
+}
+
+.statistics-grid {
+  margin-top: 2rem;
+}
+
+.statistics-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+
+  margin-bottom: 1.25rem;
+}
+
+.statistics-section-heading h2,
+.statistics-race-heading h2 {
+  margin: 0;
+  color: white;
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.statistics-section-label {
+  margin: 0 0 0.35rem;
+
+  color: #e10600;
+
+  font-size: 0.75rem;
+  font-weight: 800;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.statistics-section-heading p,
+.statistics-race-heading p {
+  color: #999;
+}
+
+
+/* =========================================================
+   RACE SELECTOR POLISH
+   ========================================================= */
+
+.statistics-controls {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+
+  background: #181818;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.statistics-controls label {
+  display: block;
+
+  margin-bottom: 0.5rem;
+
+  color: #b5b5b5;
+
+  font-size: 0.8rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statistics-controls select {
+  width: 100%;
+
+  padding: 0.9rem 1rem;
+
+  background: #111;
+  color: white;
+
+  border: 1px solid #444;
+  border-radius: 8px;
+
+  font: inherit;
+}
+
+.statistics-controls select:focus {
+  outline: none;
+
+  border-color: #e10600;
+
+  box-shadow:
+    0 0 0 3px rgba(225, 6, 0, 0.15);
+}
+
+
+/* =========================================================
+   CARD CONSISTENCY
+   ========================================================= */
+
+.statistics-card {
+  border-radius: 12px;
+}
+
+.statistics-chart-card,
+.constructor-performance-card,
+.statistics-circuit-card,
+.driver-comparison-card {
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .driver-comparison-section,
+  .positions-analysis-section,
+  .statistics-race-heading,
+  .statistics-podium-section,
+  .statistics-classification-section,
+  .statistics-chart-section {
+    margin-top: 2.5rem;
+  }
+
+  .statistics-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .statistics-section-heading h2,
+  .statistics-race-heading h2 {
+    font-size: 1.5rem;
+  }
+
+  .statistics-chart-card {
+    padding: 1rem;
+  }
+
+  .statistics-chart {
+    overflow-x: auto;
+  }
+}

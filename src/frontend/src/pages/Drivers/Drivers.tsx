@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import DatasetDownloads from "../../components/DatasetDownloads";
 import DriverCard from "../../components/DriverCard";
 import { fetchDrivers, type Driver } from "../../data/f1Data";
+import "./Drivers.css"
 
 const SEASON = "2025";
 
