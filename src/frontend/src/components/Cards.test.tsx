@@ -37,7 +37,11 @@ describe("reusable cards", () => {
           locality="Monza" country="Italy" date="2025-09-07" hasSprint={true} hasResults={true} />
       </MemoryRouter>
     );
-    expect(screen.getByRole("link")).toHaveAttribute("href", "/races/ITA");
+    expect(
+  screen.getByRole("link", {
+    name: /view race/i,
+  })
+).toHaveAttribute("href", "/races/ITA");
     expect(screen.getByText("Sprint Weekend")).toBeInTheDocument();
     expect(screen.getByText("Available")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Italian Grand Prix circuit layout" })).toBeInTheDocument();

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { getCircuitImage } from "../data/circuitImages";
+import "./RaceCard.css";
 
 type RaceCardProps = {
   grandPrixId: string;
@@ -13,6 +15,8 @@ type RaceCardProps = {
   hasResults: boolean;
 };
 
+type RaceTab = "race" | "qualifying" | "predictions";
+
 function RaceCard({
   grandPrixId,
   round,
@@ -25,14 +29,27 @@ function RaceCard({
   hasResults,
 }: RaceCardProps) {
   const circuitImage = getCircuitImage(country);
- return (
-    <Link to={`/races/${grandPrixId}`} className="race-card-link">
-      <article className="race-list-card">
-        <header className="race-list-header">
-          <span>Round {round}</span>
-          <time dateTime={date}>{date}</time>
-        </header>
 
+  const [activeTab, setActiveTab] = useState<RaceTab>("race");
+
+  const buttonLabel =
+    activeTab === "race"
+      ? "View Race"
+      : activeTab === "qualifying"
+        ? "View Qualifying"
+        : "View Predictions";
+
+  return (
+    <article className="race-list-card">
+      <header className="race-list-header">
+        <span>Round {round}</span>
+        <time dateTime={date}>{date}</time>
+      </header>
+
+      <Link
+        to={`/races/${grandPrixId}`}
+        className="race-card-main-link"
+      >
         <div className="race-circuit-container">
           {circuitImage && (
             <img
@@ -51,23 +68,78 @@ function RaceCard({
           </p>
 
           <p className="race-country">{country}</p>
-
-          <div className="race-info-row">
-            <span>Format</span>
-            <strong>
-              {hasSprint ? "Sprint Weekend" : "Standard Weekend"}
-            </strong>
-          </div>
-
-          <div className="race-info-row">
-            <span>Statistics</span>
-            <strong>
-              {hasResults ? "Available" : "Not available"}
-            </strong>
-          </div>
         </div>
-      </article>
-    </Link>
+      </Link>
+
+      <div className="race-card-tabs">
+        <button
+          type="button"
+          className={activeTab === "race" ? "active" : ""}
+          onClick={() => setActiveTab("race")}
+        >
+          Race
+        </button>
+
+        <button
+          type="button"
+          className={activeTab === "qualifying" ? "active" : ""}
+          onClick={() => setActiveTab("qualifying")}
+        >
+          Qualifying
+        </button>
+
+        <button
+          type="button"
+          className={activeTab === "predictions" ? "active" : ""}
+          onClick={() => setActiveTab("predictions")}
+        >
+          Predictions
+        </button>
+      </div>
+
+      <div className="race-card-tab-content">
+        {activeTab === "race" && (
+          <div className="race-tab-panel">
+            <div className="race-info-row">
+              <span>Format</span>
+              <strong>
+                {hasSprint ? "Sprint Weekend" : "Standard Weekend"}
+              </strong>
+            </div>
+
+            <div className="race-info-row">
+              <span>Statistics</span>
+              <strong>
+                {hasResults ? "Available" : "Not available"}
+              </strong>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "qualifying" && (
+          <div className="race-tab-panel race-tab-placeholder">
+            <strong>Qualifying</strong>
+            <p>Qualifying data coming soon.</p>
+          </div>
+        )}
+
+        {activeTab === "predictions" && (
+          <div className="race-tab-panel race-tab-placeholder">
+            <strong>Predicted Times</strong>
+            <p>
+              Predictions will be available once qualifying data is recorded.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <Link
+        to={`/races/${grandPrixId}`}
+        className="race-card-view-button"
+      >
+        {buttonLabel}
+      </Link>
+    </article>
   );
 }
 
