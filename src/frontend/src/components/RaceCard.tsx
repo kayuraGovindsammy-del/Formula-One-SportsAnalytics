@@ -119,7 +119,7 @@ function RaceCard({
         {activeTab === "qualifying" && (
           <div className="race-tab-panel race-tab-placeholder">
             <strong>Qualifying</strong>
-            <p>Qualifying data coming soon.</p>
+            <p>Open the race details to view qualifying results.</p>
           </div>
         )}
 
@@ -134,7 +134,11 @@ function RaceCard({
       </div>
 
       <Link
-        to={`/races/${grandPrixId}`}
+        to={
+          activeTab === "qualifying"
+            ? `/races/${grandPrixId}#qualifying`
+            : `/races/${grandPrixId}`
+        }
         className="race-card-view-button"
       >
         {buttonLabel}

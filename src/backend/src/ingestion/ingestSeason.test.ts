@@ -278,6 +278,7 @@ describe("writeSeasonPlan", () => {
       constructors: 1,
       driver_constructor_links: 1,
       race_results: 2,
+      qualifying_results: 0,
       pit_stops: 0,
       retirements: 0,
     });
