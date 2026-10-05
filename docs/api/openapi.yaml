@@ -165,12 +165,14 @@ paths:
           in: query
           required: true
           description: |
-            Required. Validated as a non-empty trimmed string — same as
-            `/drivers/{driver_id}/stats` — so a season with no matching
-            sessions returns 200 with `points: null` rather than 404 or 400.
+            Required. A four-digit season, the same rule as
+            `/drivers/{driver_id}/stats` and `/export`; anything else (e.g.
+            `?season=abc`) is a 400 VALIDATION_ERROR. A well-formed season
+            with no matching sessions returns 200 with `points: null` rather
+            than 404.
           schema:
             type: string
-            minLength: 1
+            pattern: "^\\d{4}$"
           example: "2025"
       responses:
         "200":
@@ -307,17 +309,17 @@ paths:
           in: query
           required: true
           description: |
-            Required. Validated as a non-empty trimmed string — **not** as a
-            year, so `?season=banana` is accepted and returns an all-zero
-            result with HTTP 200.
+            Required. A four-digit season (`utils/queryValidation.ts`
+            `seasonParam`); anything else, e.g. `?season=abc`, is a 400
+            VALIDATION_ERROR.
 
             TODO(discrepancy): docs/api-design.md §6 marks `season` required
-            but specifies no behaviour for an unknown or non-numeric season.
+            but specifies no behaviour for a well-formed season with no data.
             The implementation returns 200 with `races_entered: 0` rather than
-            404 or 400.
+            404.
           schema:
             type: string
-            minLength: 1
+            pattern: "^\\d{4}$"
           example: "2025"
       responses:
         "200":
@@ -701,6 +703,57 @@ paths:
                   meta: { $ref: "#/components/schemas/EmptyMeta" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /races/{grand_prix_id}/qualifying:
+    get:
+      tags: [races]
+      operationId: getRaceQualifying
+      summary: Published qualifying classification for a race.
+      description: |
+        Source: the `qualifying_results` table via
+        `models/qualifyingResults.model.ts`, joined to `drivers` and
+        `constructors` for names and ordered by `(position, driver_id)`.
+        Written by the Jolpica ingestion; these are published facts, not
+        derived statistics.
+
+        A race that exists but has no QUALIFYING session returns 200 with
+        `session_id: null` and an empty `classification`; a session with no
+        stored rows returns its `session_id` and an empty `classification`.
+        Only an unknown `grand_prix_id` is a 404.
+
+        `grand_prix_id` echoes the path parameter as given (the lookup is
+        case-insensitive, so it is not normalised).
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/GrandPrixId"
+      responses:
+        "200":
+          description: The qualifying classification.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                additionalProperties: false
+                properties:
+                  data: { $ref: "#/components/schemas/RaceQualifying" }
+                  meta: { $ref: "#/components/schemas/EmptyMeta" }
+              example:
+                data:
+                  grand_prix_id: 2025_R13
+                  session_id: 2025_R13_QUALIFYING
+                  classification:
+                    - position: 1
+                      driver_id: NOR
+                      given_name: Lando
+                      family_name: Norris
+                      constructor_id: MCL
+                      constructor_name: McLaren
+                      q1_time_ms: 64962
+                      q2_time_ms: 64634
+                      q3_time_ms: 63971
+                meta: {}
+        "404": { $ref: "#/components/responses/NotFound" }
+
   # ---------------------------------------------------------------------------
   /users/me:
     delete:
@@ -753,21 +806,13 @@ paths:
                 meta: {}
         "401":
           description: |
-            Either no valid Firebase ID token was supplied, or the token is
-            too old for a destructive action.
-
-            NOTE: these two cases use **different envelopes**. The missing or
-            invalid token is rejected by `middleware/authenticate.ts` with the
-            bare-string shape (see `AuthErrorLegacyShape`); the stale-token
-            case is thrown as an `ApiError` and therefore uses the documented
-            `{ error: { code, message } }` shape with code
-            `RECENT_LOGIN_REQUIRED`.
+            Either no valid Firebase ID token was supplied (code
+            `UNAUTHENTICATED`, from `middleware/authenticate.ts`), or the
+            token is too old for a destructive action (code
+            `RECENT_LOGIN_REQUIRED`). Both use the standard envelope.
           content:
             application/json:
-              schema:
-                oneOf:
-                  - $ref: "#/components/schemas/ApiErrorBody"
-                  - $ref: "#/components/schemas/ApiErrorLegacyBody"
+              schema: { $ref: "#/components/schemas/ApiErrorBody" }
               example:
                 error:
                   code: RECENT_LOGIN_REQUIRED
@@ -813,8 +858,8 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/SubmissionRecord" }
                   meta: { $ref: "#/components/schemas/EmptyMeta" }
-        "401": { $ref: "#/components/responses/AuthErrorLegacyShape" }
-        "403": { $ref: "#/components/responses/AuthErrorLegacyShape" }
+        "401": { $ref: "#/components/responses/AuthError" }
+        "403": { $ref: "#/components/responses/AuthError" }
 
     post:
       tags: [submissions]
@@ -847,8 +892,8 @@ paths:
                   meta: { $ref: "#/components/schemas/EmptyMeta" }
         "400":
           $ref: "#/components/responses/ValidationError"
-        "401": { $ref: "#/components/responses/AuthErrorLegacyShape" }
-        "403": { $ref: "#/components/responses/AuthErrorLegacyShape" }
+        "401": { $ref: "#/components/responses/AuthError" }
+        "403": { $ref: "#/components/responses/AuthError" }
         "500":
           description: |
             Returned when the event references a `session_id` absent from the
@@ -862,6 +907,46 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiErrorBody" }
+
+  /submissions/mine:
+    get:
+      tags: [submissions]
+      operationId: listMySubmissions
+      summary: List the caller's own submissions.
+      description: |
+        Requires a valid Firebase ID token but **no role**: any signed-in
+        user may call it, so a submitter whose role is later revoked can
+        still see their history. Mounted before `/submissions/{submission_id}`
+        in routes/submissions.routes.ts, so `mine` is never parsed as an id.
+
+        Returns every submission owned by the caller, newest first
+        (`submitted_at DESC, submission_id DESC`). Unpaginated, so `meta` is
+        `{}`. The query is strict: any parameter other than `status` is a 400.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Only return submissions in this state.
+          schema:
+            type: string
+            enum: [pending, accepted, rejected]
+      responses:
+        "200":
+          description: The caller's submissions, newest first.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                additionalProperties: false
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/SubmissionRecord" }
+                  meta: { $ref: "#/components/schemas/EmptyMeta" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "401": { $ref: "#/components/responses/AuthError" }
+        "403": { $ref: "#/components/responses/AuthError" }
 
   /submissions/{submission_id}:
     get:
@@ -889,7 +974,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiErrorBody" }
-        "401": { $ref: "#/components/responses/AuthErrorLegacyShape" }
+        "401": { $ref: "#/components/responses/AuthError" }
         "403":
           description: |
             A non-admin requesting someone else's submission. Note this 403
@@ -957,8 +1042,8 @@ paths:
                   meta: { $ref: "#/components/schemas/EmptyMeta" }
         "400":
           $ref: "#/components/responses/ValidationError"
-        "401": { $ref: "#/components/responses/AuthErrorLegacyShape" }
-        "403": { $ref: "#/components/responses/AuthErrorLegacyShape" }
+        "401": { $ref: "#/components/responses/AuthError" }
+        "403": { $ref: "#/components/responses/AuthError" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: Already reviewed.
@@ -1125,48 +1210,26 @@ components:
               code: NOT_FOUND
               message: "Driver 'ZZZ' was not found."
 
-    AuthErrorLegacyShape:
-      # -----------------------------------------------------------------------
-      # TODO(discrepancy): SECOND ERROR ENVELOPE.
-      #
-      # docs/api-design.md §2 mandates one error shape for every response:
-      #     { "error": { "code": ..., "message": ... } }
-      #
-      # middleware/authenticate.ts and middleware/authorization.ts instead
-      # return a bare string:
-      #     { "error": "Firebase ID token required." }
-      #
-      # There is no `code` field at all, so the documented UNAUTHENTICATED,
-      # FORBIDDEN and SUBMITTER_NOT_APPROVED codes (§2, §7) are never emitted
-      # by any code path — `ApiError.unauthenticated()` is defined in
-      # middleware/ApiError.ts and never called.
-      #
-      # The frontend already handles both shapes defensively:
-      # src/frontend/src/data/f1Data.ts:243-250 and the fallback chain
-      # `result?.error?.message || result?.error` in
-      # pages/Admin/SubmissionReview.tsx.
-      #
-      # Modelled as the union that actually ships rather than normalised to
-      # the documented shape.
-      # -----------------------------------------------------------------------
+    AuthError:
       description: |
-        Authentication or authorization failure. **Uses a different envelope
-        from every other error in this API** — see the TODO above.
+        Authentication or authorization failure, raised as an `ApiError` by
+        `middleware/authenticate.ts` and `middleware/authorization.ts` and
+        rendered by `errorHandler` in the standard envelope.
 
-        401 messages: "Firebase ID token required." / "No Firestore user
-        profile exists." / "Invalid or expired Firebase token." /
+        401 `UNAUTHENTICATED`: "Firebase ID token required." / "Invalid or
+        expired Firebase token." / "No Firestore user profile exists." /
         "Authentication required."
 
-        403 messages: "Administrator access required." / "Approved submitter
-        or administrator access required."
+        403 `FORBIDDEN`: "Administrator access required." / "Approved
+        submitter or administrator access required." / "Account deletion has
+        been requested." / "Account deletion is in progress."
       content:
         application/json:
-          schema:
-            oneOf:
-              - $ref: "#/components/schemas/ApiErrorLegacyBody"
-              - $ref: "#/components/schemas/ApiErrorBody"
+          schema: { $ref: "#/components/schemas/ApiErrorBody" }
           example:
-            error: Firebase ID token required.
+            error:
+              code: UNAUTHENTICATED
+              message: Firebase ID token required.
 
   # ---------------------------------------------------------------------------
   schemas:
@@ -1212,25 +1275,19 @@ components:
               type: string
               description: |
                 Codes actually emitted by the running server:
-                VALIDATION_ERROR (400), NOT_FOUND (404),
-                SUBMISSION_ALREADY_REVIEWED (409), INTERNAL_ERROR (500), and
-                FORBIDDEN (403) from the submission-ownership check only.
+                VALIDATION_ERROR (400, including a request body that is not
+                valid JSON), UNAUTHENTICATED (401), RECENT_LOGIN_REQUIRED
+                (401), FORBIDDEN (403: role checks, account deletion,
+                submission ownership, and a CORS-rejected origin), NOT_FOUND
+                (404), SUBMISSION_ALREADY_REVIEWED (409) and INTERNAL_ERROR
+                (500).
 
                 TODO(discrepancy): docs/api-design.md §2 also defines
-                UNAUTHENTICATED (401) and RATE_LIMITED (429), and §7 defines
-                SUBMITTER_NOT_APPROVED (403). None are reachable — there is
-                no rate limiting anywhere in the codebase, and the auth
-                middleware emits no codes at all (see AuthErrorLegacyShape).
+                RATE_LIMITED (429), and §7 defines SUBMITTER_NOT_APPROVED
+                (403). Neither is reachable — there is no rate limiting
+                anywhere in the codebase, and an unapproved submitter gets
+                FORBIDDEN.
             message: { type: string }
-
-    ApiErrorLegacyBody:
-      type: object
-      required: [error]
-      additionalProperties: false
-      properties:
-        error:
-          type: string
-          description: Bare human-readable string. No machine-readable code.
 
     # -- Drivers -------------------------------------------------------------
     # types/driver.types.ts
@@ -1839,6 +1896,49 @@ components:
     # -- Submissions ---------------------------------------------------------
     # types/submission.types.ts
 
+    RaceQualifying:
+      description: |
+        Response of GET /races/{grand_prix_id}/qualifying:
+        `QualifyingData` from models/qualifyingResults.model.ts plus the
+        requested `grand_prix_id`.
+      type: object
+      required: [grand_prix_id, session_id, classification]
+      additionalProperties: false
+      properties:
+        grand_prix_id: { type: string, example: 2025_R13 }
+        session_id:
+          type: [string, "null"]
+          description: The QUALIFYING session, or null when the race has none.
+        classification:
+          type: array
+          items: { $ref: "#/components/schemas/QualifyingClassificationRow" }
+
+    QualifyingClassificationRow:
+      type: object
+      required:
+        [position, driver_id, given_name, family_name, constructor_id,
+         constructor_name, q1_time_ms, q2_time_ms, q3_time_ms]
+      additionalProperties: false
+      properties:
+        position: { type: integer, minimum: 1 }
+        driver_id: { type: string, example: NOR }
+        given_name: { type: string }
+        family_name: { type: string }
+        constructor_id: { type: string, example: MCL }
+        constructor_name: { type: string }
+        q1_time_ms:
+          type: [integer, "null"]
+          minimum: 1
+          description: Null when the driver set no Q1 time.
+        q2_time_ms:
+          type: [integer, "null"]
+          minimum: 1
+          description: Null when the driver did not reach or set a time in Q2.
+        q3_time_ms:
+          type: [integer, "null"]
+          minimum: 1
+          description: Null when the driver did not reach or set a time in Q3.
+
     SubmissionEvent:
       type: object
       required: [event_id, session_id, type, timestamp, payload]
@@ -1874,20 +1974,36 @@ components:
     SubmissionRecord:
       description: |
         Output of `toApiRecord` in controllers/submissions.controller.ts. The
-        stored columns `submitter_user_id`, `session_id`, `validation_message`,
-        `reviewed_at` and `reviewed_by` are deliberately not exposed.
+        stored columns `submitter_user_id`, `session_id` and
+        `validation_message` are not exposed directly.
+
+        Identity fields are redacted per viewer: `submitted_by` and
+        `submitted_by_email` are `null` unless the caller is an ADMIN or the
+        submitter; `reviewed_by` and `reviewed_by_email` are `null` unless
+        the caller is an ADMIN.
       type: object
       required:
-        [submission_id, submitted_by, submitted_by_email, submitted_at, status,
+        [submission_id, submitted_by, submitted_by_email, submitted_at,
+         reviewed_at, reviewed_by, reviewed_by_email, status,
          validation_errors, event]
       additionalProperties: false
       properties:
         submission_id: { type: integer, example: 42 }
         submitted_by:
-          type: string
-          description: The submitter's Firebase uid.
-        submitted_by_email: { type: string }
+          type: [string, "null"]
+          description: The submitter's Firebase uid, or null when redacted.
+        submitted_by_email: { type: [string, "null"] }
         submitted_at: { type: string, format: date-time }
+        reviewed_at:
+          type: [string, "null"]
+          format: date-time
+          description: Null while the submission is pending.
+        reviewed_by:
+          type: [string, "null"]
+          description: The reviewing admin's Firebase uid. ADMIN viewers only.
+        reviewed_by_email:
+          type: [string, "null"]
+          description: The reviewing admin's email. ADMIN viewers only.
         status:
           type: string
           enum: [pending, accepted, rejected]

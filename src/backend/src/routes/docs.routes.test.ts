@@ -86,8 +86,10 @@ describe("GET /api/openapi.json", () => {
       "/races/{grand_prix_id}",
       "/races/{grand_prix_id}/events",
       "/races/{grand_prix_id}/laps",
+      "/races/{grand_prix_id}/qualifying",
       "/races/{grand_prix_id}/statistics",
       "/submissions",
+      "/submissions/mine",
       "/submissions/{submission_id}",
       "/users/me",
     ]);
