@@ -34,6 +34,14 @@ function isSameOrigin(origin: string, req: cors.CorsRequest): boolean {
 export function createApp(): Express {
   const app = express();
 
+  // Railway runs exactly one reverse proxy in front of the app. Trusting one
+  // hop makes req.ip the client address that proxy appends to
+  // X-Forwarded-For (the per-client chat rate limit depends on it), and
+  // req.protocol honour X-Forwarded-Proto. Only the last hop is trusted, so a
+  // client cannot pick its own req.ip by sending an X-Forwarded-For header
+  // through the proxy.
+  app.set("trust proxy", 1);
+
   const allowedOrigins = (
     process.env.CORS_ORIGINS ??
     "http://localhost:5173"

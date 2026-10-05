@@ -327,6 +327,42 @@ describe("POST /api/v1/chat — rate limiting", () => {
     });
   });
 
+  it("limits each client by its X-Forwarded-For address, not the proxy's", async () => {
+    // Behind Railway every request arrives from the proxy; with "trust proxy"
+    // req.ip is the client address the proxy forwards.
+    llm.providers = [];
+    const from = (ip: string) =>
+      request(app).post("/api/v1/chat").set("X-Forwarded-For", ip).send(question);
+
+    for (let i = 0; i < 10; i += 1) {
+      expect((await from("203.0.113.1")).status).toBe(503);
+    }
+    expect((await from("203.0.113.1")).status).toBe(429);
+
+    // A different client behind the same proxy still has its full allowance.
+    expect((await from("203.0.113.2")).status).toBe(503);
+  });
+
+  it("trusts only the last hop, so a spoofed X-Forwarded-For entry is ignored", async () => {
+    llm.providers = [];
+
+    // The proxy appends the real client (203.0.113.1) after whatever the
+    // client sent; varying the spoofed first entry must not reset the count.
+    for (let i = 0; i < 10; i += 1) {
+      const res = await request(app)
+        .post("/api/v1/chat")
+        .set("X-Forwarded-For", `198.51.100.${i}, 203.0.113.1`)
+        .send(question);
+      expect(res.status).toBe(503);
+    }
+
+    const blocked = await request(app)
+      .post("/api/v1/chat")
+      .set("X-Forwarded-For", "198.51.100.99, 203.0.113.1")
+      .send(question);
+    expect(blocked.status).toBe(429);
+  });
+
   it("leaves the other endpoints unlimited", async () => {
     llm.providers = [];
     for (let i = 0; i < 11; i += 1) {
