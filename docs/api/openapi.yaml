@@ -820,13 +820,14 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
 
   # ---------------------------------------------------------------------------
-  # /submissions — the only routes that touch PostgreSQL, and the only routes
-  # requiring authentication. `authenticate` is applied to the whole router in
+  # /submissions — the submission workflow. Every route requires
+  # authentication: `authenticate` is applied to the whole router in
   # routes/submissions.routes.ts before any per-route authorization.
   #
-  # All four routes are covered by routes/submissions.routes.test.ts, per
-  # src/backend/CLAUDE.md ("Every new endpoint needs a Supertest test in
-  # src/routes/").
+  # All five routes (GET and POST /submissions, GET /submissions/mine, and
+  # GET and PATCH /submissions/{submission_id}) are covered by
+  # routes/submissions.routes.test.ts, per src/backend/CLAUDE.md ("Every new
+  # endpoint needs a Supertest test in src/routes/").
   # ---------------------------------------------------------------------------
   /submissions:
     get:
@@ -835,15 +836,31 @@ paths:
       summary: List submissions visible to the caller.
       description: |
         An ADMIN sees every submission; an approved SUBMITTER sees only their
-        own (filtered in the controller by `submitted_by === user.uid`, after
-        fetching all rows).
+        own. Both the ownership and `status` filters are applied in SQL by
+        `models/submissions.model.ts` `findAll`, newest first
+        (`submitted_at DESC, submission_id DESC`).
 
-        TODO(discrepancy): docs/api-design.md §7.2 specifies filters `status`
-        and `submitted_by`, and "Paginated per §5". The implementation
-        supports **neither** — it accepts no query parameters at all, returns
-        every visible row unpaginated, and sets `meta` to `{}` rather than a
-        pagination object. docs §5 also lists `/submissions` among the
-        endpoints accepting `page`/`per_page`; it does not.
+        The query is validated by `listSchema` in
+        controllers/submissions.controller.ts, a strict object: `status` is
+        the only accepted parameter, and any other parameter (including
+        `page` or `per_page`) is a 400 VALIDATION_ERROR.
+
+        TODO(discrepancy): docs/api-design.md §7.2 also specifies a
+        `submitted_by` filter and "Paginated per §5". Neither is implemented
+        — every visible row is returned unpaginated, and `meta` is `{}`
+        rather than a pagination object. docs §5 also lists `/submissions`
+        among the endpoints accepting `page`/`per_page`; it does not.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: |
+            Only return submissions in this state. Lowercase, matching the
+            `status` field of SubmissionRecord; the controller uppercases it
+            to the stored `submission_status` enum.
+          schema:
+            type: string
+            enum: [pending, accepted, rejected]
       responses:
         "200":
           description: All submissions visible to the caller. Unpaginated.
@@ -858,6 +875,7 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/SubmissionRecord" }
                   meta: { $ref: "#/components/schemas/EmptyMeta" }
+        "400": { $ref: "#/components/responses/ValidationError" }
         "401": { $ref: "#/components/responses/AuthError" }
         "403": { $ref: "#/components/responses/AuthError" }
 
