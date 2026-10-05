@@ -72,6 +72,7 @@ servers:
 
 tags:
   - name: health
+  - name: chat
   - name: constructors
   - name: drivers
   - name: exports
@@ -126,6 +127,95 @@ paths:
               example:
                 data: { status: ok }
                 meta: {}
+
+  # ---------------------------------------------------------------------------
+  /chat:
+    post:
+      tags: [chat]
+      operationId: postChat
+      summary: Ask the F1 assistant a question about this app's data.
+      description: |
+        Mounted by `routes/chat.routes.ts`; covered by
+        `routes/chat.routes.test.ts`. Public: no token is required.
+
+        An LLM (Groq, falling back to Gemini on a 429, a 5xx or a 15-second
+        timeout; see docs/third-party-services.md) answers using only
+        whitelisted, read-only tools that call the same code as this API
+        (`chat/tools.ts`): search_drivers, search_races, get_driver_stats,
+        get_constructor_standings, get_race_summary, get_race_events and
+        get_export_link. The model never supplies statistics itself.
+
+        Up to 3 tool rounds run, then the model must answer in text. Only
+        the 2025 season has data; when no season is named the assistant uses
+        2025 and says so.
+
+        Rate limited in memory per process (`middleware/rateLimit.ts`): 10
+        requests per minute per client IP and 800 per UTC day overall.
+        Requests over either limit get 429 with a `Retry-After` header.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ChatRequest" }
+            example:
+              messages:
+                - role: user
+                  content: How many podiums did Oscar Piastri get?
+      responses:
+        "200":
+          description: The assistant's reply.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                additionalProperties: false
+                properties:
+                  data: { $ref: "#/components/schemas/ChatReply" }
+                  meta: { $ref: "#/components/schemas/EmptyMeta" }
+              example:
+                data:
+                  reply: "Using the 2025 season: Oscar Piastri has 1 podium in our data."
+                  tools_used: [search_drivers, get_driver_stats]
+                meta: {}
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "429":
+          description: |
+            `RATE_LIMITED`: more than 10 requests in a minute from this
+            client, or the daily cap of 800 requests is reached.
+          headers:
+            Retry-After:
+              description: Seconds until the limit resets.
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiErrorBody" }
+              example:
+                error:
+                  code: RATE_LIMITED
+                  message: Too many requests. Please wait a minute and try again.
+        "502":
+          description: |
+            `BAD_GATEWAY`: every configured LLM provider failed or timed out.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiErrorBody" }
+              example:
+                error:
+                  code: BAD_GATEWAY
+                  message: The chat assistant is temporarily unavailable. Please try again later.
+        "503":
+          description: |
+            `SERVICE_UNAVAILABLE`: neither `GROQ_API_KEY` nor
+            `GEMINI_API_KEY` is configured on the server.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiErrorBody" }
+              example:
+                error:
+                  code: SERVICE_UNAVAILABLE
+                  message: The chat assistant is not configured.
 
   # ---------------------------------------------------------------------------
   /constructors/{constructor_id}/stats:
@@ -1297,15 +1387,65 @@ components:
                 valid JSON), UNAUTHENTICATED (401), RECENT_LOGIN_REQUIRED
                 (401), FORBIDDEN (403: role checks, account deletion,
                 submission ownership, and a CORS-rejected origin), NOT_FOUND
-                (404), SUBMISSION_ALREADY_REVIEWED (409) and INTERNAL_ERROR
-                (500).
+                (404), SUBMISSION_ALREADY_REVIEWED (409), RATE_LIMITED (429,
+                /chat only), INTERNAL_ERROR (500), BAD_GATEWAY (502, /chat)
+                and SERVICE_UNAVAILABLE (503, /chat).
 
-                TODO(discrepancy): docs/api-design.md §2 also defines
-                RATE_LIMITED (429), and §7 defines SUBMITTER_NOT_APPROVED
-                (403). Neither is reachable — there is no rate limiting
-                anywhere in the codebase, and an unapproved submitter gets
-                FORBIDDEN.
+                TODO(discrepancy): docs/api-design.md §7 also defines
+                SUBMITTER_NOT_APPROVED (403). It is not reachable: an
+                unapproved submitter gets FORBIDDEN.
             message: { type: string }
+
+    # -- Chat ----------------------------------------------------------------
+    # controllers/chat.controller.ts, chat/assistant.ts
+
+    ChatRequest:
+      type: object
+      required: [messages]
+      additionalProperties: false
+      properties:
+        messages:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: |
+            The conversation so far, oldest first. The last message must be
+            from the user. Earlier assistant replies may be included for
+            context.
+          items:
+            type: object
+            required: [role, content]
+            additionalProperties: false
+            properties:
+              role:
+                type: string
+                enum: [user, assistant]
+              content:
+                type: string
+                minLength: 1
+                maxLength: 1000
+                description: Trimmed before validation; whitespace-only is rejected.
+
+    ChatReply:
+      type: object
+      required: [reply, tools_used]
+      additionalProperties: false
+      properties:
+        reply:
+          type: string
+          description: The assistant's answer, as plain text.
+        tools_used:
+          type: array
+          description: |
+            Tools that ran successfully while answering, in first-use order,
+            without repeats. Empty when the model answered without data
+            (for example, declining an off-topic question).
+          items:
+            type: string
+            enum:
+              [search_drivers, search_races, get_driver_stats,
+               get_constructor_standings, get_race_summary, get_race_events,
+               get_export_link]
 
     # -- Drivers -------------------------------------------------------------
     # types/driver.types.ts
