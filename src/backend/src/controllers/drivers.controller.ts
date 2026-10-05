@@ -18,6 +18,7 @@ import {
   parseQuery,
   pathParam,
   perPageParam,
+  seasonParam,
 } from "../utils/queryValidation.js";
 import type { Session } from "../types/session.types.js";
 
@@ -63,7 +64,7 @@ export const getDriver = asyncHandler(async (req, res) => {
 });
 
 const driverStatsQuery = z.object({
-  season: z.string().trim().min(1),
+  season: seasonParam,
 });
 
 /** GET /api/v1/drivers/:driver_id/stats — docs/api-design.md §4.3 */
