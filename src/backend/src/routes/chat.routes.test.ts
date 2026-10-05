@@ -76,6 +76,7 @@ vi.mock("../models/events.model.js", async () => {
 import { MAX_TOOL_ROUNDS, SYSTEM_PROMPT } from "../chat/assistant.js";
 import { loadDriverStatistics } from "../controllers/drivers.controller.js";
 import { createApp } from "../app.js";
+import { chatRateLimiter } from "./chat.routes.js";
 
 const app = createApp();
 
@@ -111,6 +112,7 @@ function toolCall(id: string, name: string, args: Record<string, unknown>) {
 const question = { messages: [{ role: "user", content: "How did Piastri do in 2025?" }] };
 
 beforeEach(() => {
+  chatRateLimiter.reset();
   llm.providers = [groq, gemini];
   llm.responses = [];
   llm.requests = [];
@@ -299,5 +301,40 @@ describe("POST /api/v1/chat — answering", () => {
       "auto",
       "none",
     ]);
+  });
+});
+
+describe("POST /api/v1/chat — rate limiting", () => {
+  it("answers 429 RATE_LIMITED after 10 requests a minute from one client", async () => {
+    // No keys configured, so each allowed request is a cheap 503 that never
+    // reaches a provider; the limiter runs before that check.
+    llm.providers = [];
+
+    for (let i = 0; i < 10; i += 1) {
+      const allowed = await request(app).post("/api/v1/chat").send(question);
+      expect(allowed.status).toBe(503);
+    }
+
+    const blocked = await request(app).post("/api/v1/chat").send(question);
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers["retry-after"]).toMatch(/^\d+$/);
+    expect(blocked.body).toEqual({
+      error: {
+        code: "RATE_LIMITED",
+        message: "Too many requests. Please wait a minute and try again.",
+      },
+    });
+  });
+
+  it("leaves the other endpoints unlimited", async () => {
+    llm.providers = [];
+    for (let i = 0; i < 11; i += 1) {
+      await request(app).post("/api/v1/chat").send(question);
+    }
+
+    const res = await request(app).get("/api/v1/health");
+
+    expect(res.status).toBe(200);
   });
 });
