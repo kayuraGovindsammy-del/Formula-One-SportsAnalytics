@@ -31,6 +31,7 @@ export interface IngestCounts {
   constructors: number;
   driver_constructor_links: number;
   race_results: number;
+  qualifying_results: number;
   pit_stops: number;
   retirements: number;
 }
@@ -203,6 +204,31 @@ export async function writeSeasonPlan(
 
 
 
+  for (const result of plan.qualifyingResults) {
+    await client.query(
+      `INSERT INTO qualifying_results (
+         session_id, driver_id, constructor_id, position,
+         q1_time_ms, q2_time_ms, q3_time_ms
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (session_id, driver_id) DO UPDATE SET
+         constructor_id = EXCLUDED.constructor_id,
+         position = EXCLUDED.position,
+         q1_time_ms = EXCLUDED.q1_time_ms,
+         q2_time_ms = EXCLUDED.q2_time_ms,
+         q3_time_ms = EXCLUDED.q3_time_ms`,
+      [
+        result.session_id,
+        result.driver_id,
+        result.constructor_id,
+        result.position,
+        result.q1_time_ms,
+        result.q2_time_ms,
+        result.q3_time_ms,
+      ]
+    );
+  }
+
   // Replace only source-ingested pit stops. Approved submission rows carry a
   // non-null submission_id and are deliberately preserved.
   const raceSessionIds = plan.sessions
@@ -298,6 +324,7 @@ export async function writeSeasonPlan(
     constructors: plan.constructors.length,
     driver_constructor_links: plan.driverConstructorLinks.length,
     race_results: plan.raceResults.length,
+    qualifying_results: plan.qualifyingResults.length,
     pit_stops: plan.pitStops.length,
     retirements: plan.retirements.length,
   };

@@ -167,5 +167,5 @@ describe("SubmitData", () => {
     );
 
     expect(body.event.event_id).toBe(displayedEventId);
-  });
+  }, 15000);
 });

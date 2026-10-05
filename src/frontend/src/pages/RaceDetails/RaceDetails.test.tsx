@@ -7,6 +7,7 @@ import {
   fetchRace,
   fetchRaceEvents,
   fetchRaceStatistics,
+  fetchRaceQualifying,
   type RaceDetail,
   type RaceStatistics,
 } from "../../data/f1Data";
@@ -21,6 +22,7 @@ vi.mock("../../data/f1Data", async () => {
     fetchRace: vi.fn(),
     fetchRaceEvents: vi.fn(),
     fetchRaceStatistics: vi.fn(),
+    fetchRaceQualifying: vi.fn(),
   };
 });
 
@@ -107,6 +109,11 @@ describe("RaceDetails", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(fetchRaceEvents).mockResolvedValue([]);
+    vi.mocked(fetchRaceQualifying).mockResolvedValue({
+      grandPrixId: "gp-australia",
+      sessionId: "gp-australia_qualifying",
+      classification: [],
+    });
   });
 
   test("fetches and renders statistics when hasResults is true, formatting each gap case", async () => {

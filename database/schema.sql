@@ -124,6 +124,17 @@ CREATE TABLE laps (
   PRIMARY KEY (session_id, driver_id, lap_number)
 );
 
+CREATE TABLE qualifying_results (
+  session_id VARCHAR(70) NOT NULL REFERENCES sessions(session_id),
+  driver_id VARCHAR(10) NOT NULL REFERENCES drivers(driver_id),
+  constructor_id VARCHAR(20) NOT NULL REFERENCES constructors(constructor_id),
+  position INTEGER NOT NULL CHECK (position > 0),
+  q1_time_ms INTEGER CHECK (q1_time_ms IS NULL OR q1_time_ms > 0),
+  q2_time_ms INTEGER CHECK (q2_time_ms IS NULL OR q2_time_ms > 0),
+  q3_time_ms INTEGER CHECK (q3_time_ms IS NULL OR q3_time_ms > 0),
+  PRIMARY KEY (session_id, driver_id)
+);
+
 CREATE TABLE pit_stops (
   pit_stop_id BIGSERIAL PRIMARY KEY,
   session_id VARCHAR(70) NOT NULL REFERENCES sessions(session_id),
@@ -186,6 +197,7 @@ CREATE TABLE race_results (
 CREATE INDEX idx_sessions_grand_prix ON sessions(grand_prix_id);
 CREATE INDEX idx_laps_driver ON laps(driver_id);
 CREATE INDEX idx_laps_session ON laps(session_id);
+CREATE INDEX idx_qualifying_results_session ON qualifying_results(session_id);
 CREATE INDEX idx_pit_stops_session ON pit_stops(session_id);
 CREATE INDEX idx_position_changes_session ON position_changes(session_id);
 CREATE INDEX idx_penalties_session ON penalties(session_id);

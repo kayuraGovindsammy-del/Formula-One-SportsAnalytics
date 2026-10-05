@@ -314,6 +314,11 @@ export class JolpicaClient {
     return races;
   }
 
+  /** Every qualifying classification for a season, across all pages. */
+  async fetchSeasonQualifyingResults(season: string): Promise<JolpicaRace[]> {
+    return this.fetchAllRaces(`${season}/qualifying`);
+  }
+
   /** Every sprint result for a season, across all pages. */
   async fetchSeasonSprintResults(season: string): Promise<JolpicaRace[]> {
     return this.fetchAllRaces(`${season}/sprint`);

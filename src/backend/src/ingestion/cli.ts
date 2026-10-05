@@ -117,6 +117,7 @@ export interface BuildPlanDeps {
     JolpicaClient,
     | "fetchSeasonResults"
     | "fetchSeasonSprintResults"
+    | "fetchSeasonQualifyingResults"
     | "fetchSeasonRaces"
     | "fetchSeasonPitStops"
   >;
@@ -133,8 +134,9 @@ export async function buildPlan({
   client,
   options,
 }: BuildPlanDeps): Promise<SeasonIngestPlan> {
-  const [raceResults, calendar] = await Promise.all([
+  const [raceResults, qualifyingResults, calendar] = await Promise.all([
     client.fetchSeasonResults(options.season),
+    client.fetchSeasonQualifyingResults(options.season),
     client.fetchSeasonRaces(options.season),
   ]);
 
@@ -154,6 +156,7 @@ export async function buildPlan({
   return buildSeasonIngestPlan({
     seasonId: options.season,
     raceResults,
+    qualifyingResults,
     ...(sprintResults ? { sprintResults } : {}),
     pitStopRaces,
     sprintRounds,
@@ -225,6 +228,7 @@ export async function runIngest({
       `  constructors             ${plan.constructors.length}`,
       `  driver_constructor_links ${plan.driverConstructorLinks.length}`,
       `  race_results             ${plan.raceResults.length}`,
+      `  qualifying_results       ${plan.qualifyingResults.length}`,
       `  pit_stops                ${plan.pitStops.length}`,
       `  retirements              ${plan.retirements.length}`,
     ].join("\n")
@@ -243,6 +247,7 @@ export async function runIngest({
 
   log(
     `\nWrote ${counts.race_results} race_results, ` +
+      `${counts.qualifying_results} qualifying_results, ` +
       `${counts.pit_stops} pit_stops and ${counts.retirements} retirements. Done.`
   );
 

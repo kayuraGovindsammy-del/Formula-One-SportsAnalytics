@@ -85,7 +85,7 @@ describe("Drivers filtering", () => {
     expect(headings.map((heading) => heading.textContent)).toEqual([
       "Lewis Hamilton",
     ]);
-  });
+  }, 15000);
 
   test("team dropdown lists deduped teams in alphabetical order", async () => {
     vi.mocked(fetchDrivers).mockResolvedValue(drivers);

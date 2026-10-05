@@ -4,6 +4,7 @@ import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";
 import * as racesModel from "../models/races.model.js"; 
 import * as raceResultsModel from "../models/raceResults.model.js";
+import * as qualifyingResultsModel from "../models/qualifyingResults.model.js";
 import { buildRaceStatistics } from "../services/raceStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
@@ -178,6 +179,25 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     data: statistics,
+    meta: {},
+  });
+});
+
+/** GET /api/v1/races/:grand_prix_id/qualifying */
+export const getRaceQualifying = asyncHandler(async (req, res) => {
+  const grandPrixId = pathParam(req.params.grand_prix_id);
+
+  if (!(await racesModel.exists(grandPrixId))) {
+    throw ApiError.notFound(`Race '${grandPrixId}' was not found.`);
+  }
+
+  const qualifying = await qualifyingResultsModel.findByRace(grandPrixId);
+
+  res.status(200).json({
+    data: {
+      grand_prix_id: grandPrixId,
+      ...qualifying,
+    },
     meta: {},
   });
 });

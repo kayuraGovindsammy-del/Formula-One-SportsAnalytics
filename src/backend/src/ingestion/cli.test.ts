@@ -144,6 +144,7 @@ function fakeClient() {
     fetchSeasonSprintResults: vi.fn(async () => [
       resultsRace("2", "SprintResults"),
     ]),
+    fetchSeasonQualifyingResults: vi.fn(async () => []),
     fetchSeasonPitStops: vi.fn(async (_season: string, rounds: readonly number[]) => {
       expect(rounds).toEqual([1, 2]);
       return [pitStopsRace("1")];
@@ -169,6 +170,7 @@ describe("buildPlan", () => {
     await buildPlan({ client, options: baseOptions });
 
     expect(client.fetchSeasonResults).toHaveBeenCalledTimes(1);
+    expect(client.fetchSeasonQualifyingResults).toHaveBeenCalledTimes(1);
     expect(client.fetchSeasonPitStops).toHaveBeenCalledTimes(1);
     expect(client.fetchSeasonSprintResults).not.toHaveBeenCalled();
   });

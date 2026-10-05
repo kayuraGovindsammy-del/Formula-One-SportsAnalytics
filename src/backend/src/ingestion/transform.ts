@@ -11,6 +11,7 @@ import type {
   JolpicaConstructor,
   JolpicaDriver,
   JolpicaPitStop,
+  JolpicaQualifyingResult,
   JolpicaRace,
   JolpicaResult,
 } from "./jolpica.types.js";
@@ -19,7 +20,8 @@ import type {
 export type ResultStatus = "FINISHED" | "DNF" | "DSQ";
 
 /** The subset of `session_type` this pipeline writes. */
-export type IngestedSessionType = "RACE" | "SPRINT";
+export type IngestedSessionType = "RACE" | "SPRINT" | "QUALIFYING";
+export type RaceResultSessionType = "RACE" | "SPRINT";
 
 export interface SeasonRow {
   season_id: string;
@@ -86,6 +88,16 @@ export interface RaceResultRow {
   status: ResultStatus;
 }
 
+export interface QualifyingResultRow {
+  session_id: string;
+  driver_id: string;
+  constructor_id: string;
+  position: number;
+  q1_time_ms: number | null;
+  q2_time_ms: number | null;
+  q3_time_ms: number | null;
+}
+
 export interface PitStopRow {
   session_id: string;
   driver_id: string;
@@ -109,6 +121,7 @@ export interface SeasonIngestPlan {
   constructors: ConstructorRow[];
   driverConstructorLinks: DriverConstructorLinkRow[];
   raceResults: RaceResultRow[];
+  qualifyingResults: QualifyingResultRow[];
   pitStops: PitStopRow[];
   retirements: RetirementRow[];
   warnings: string[];
@@ -359,7 +372,7 @@ function findWinnerMillis(results: readonly JolpicaResult[]): number | null {
 export function toRaceResultRows(
   race: JolpicaRace,
   seasonId: string,
-  sessionType: IngestedSessionType
+  sessionType: RaceResultSessionType
 ): RaceResultRow[] {
   const results = sessionType === "SPRINT" ? race.SprintResults : race.Results;
 
@@ -390,6 +403,31 @@ export function toRaceResultRows(
     fastest_lap_number: result.FastestLap?.lap ?? null,
     fastest_lap_time_ms: parseLapTimeMs(result.FastestLap?.Time?.time),
     status: toResultStatus(result.status, result.positionText),
+  }));
+}
+
+export function toQualifyingResultRows(
+  race: JolpicaRace,
+  seasonId: string
+): QualifyingResultRow[] {
+  const results: readonly JolpicaQualifyingResult[] =
+    race.QualifyingResults ?? [];
+
+  if (results.length === 0) return [];
+
+  const sessionId = toSessionId(
+    toGrandPrixId(seasonId, race.round),
+    "QUALIFYING"
+  );
+
+  return results.map((result) => ({
+    session_id: sessionId,
+    driver_id: toDriverId(result.Driver),
+    constructor_id: toConstructorId(result.Constructor.constructorId),
+    position: result.position,
+    q1_time_ms: parseLapTimeMs(result.Q1),
+    q2_time_ms: parseLapTimeMs(result.Q2),
+    q3_time_ms: parseLapTimeMs(result.Q3),
   }));
 }
 
@@ -518,6 +556,8 @@ export interface BuildPlanInput {
   raceResults: readonly JolpicaRace[];
   /** Races carrying `SprintResults`, from `{season}/sprint`. Optional. */
   sprintResults?: readonly JolpicaRace[];
+  /** Races carrying `QualifyingResults`, from `{season}/qualifying`. */
+  qualifyingResults?: readonly JolpicaRace[];
   /** Races carrying `PitStops`, from `{season}/pitstops`. */
   pitStopRaces?: readonly JolpicaRace[];
   /** Rounds known to hold a sprint, from the season calendar. */
@@ -540,6 +580,7 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
   const constructors = new Map<string, ConstructorRow>();
   const teamByDriver = new Map<string, DriverTeamSighting>();
   const raceResults: RaceResultRow[] = [];
+  const qualifyingResults: QualifyingResultRow[] = [];
   const retirements: RetirementRow[] = [];
   const driverIdBySlug = new Map<string, string>();
 
@@ -553,7 +594,7 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
 
   const ingestRace = (
     race: JolpicaRace,
-    sessionType: IngestedSessionType
+    sessionType: RaceResultSessionType
   ): void => {
     const grandPrixId = toGrandPrixId(seasonId, race.round);
     const results =
@@ -629,6 +670,46 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
     ingestRace(race, "SPRINT");
   }
 
+  for (const race of input.qualifyingResults ?? []) {
+    const results = race.QualifyingResults ?? [];
+    const grandPrixId = toGrandPrixId(seasonId, race.round);
+
+    upsertByKey(circuits, race.Circuit.circuitId, toCircuitRow(race));
+    upsertByKey(
+      grandPrix,
+      grandPrixId,
+      toGrandPrixRow(race, seasonId, sprintRounds.has(race.round))
+    );
+
+    if (results.length === 0) continue;
+
+    const sessionId = toSessionId(grandPrixId, "QUALIFYING");
+    upsertByKey(sessions, sessionId, {
+      session_id: sessionId,
+      grand_prix_id: grandPrixId,
+      type: "QUALIFYING",
+      total_laps: null,
+    });
+
+    for (const result of results) {
+      const driverId = toDriverId(result.Driver);
+      const constructorRow = toConstructorRow(result.Constructor);
+
+      upsertByKey(drivers, driverId, toDriverRow(result.Driver, result.number));
+      upsertByKey(constructors, constructorRow.constructor_id, constructorRow);
+
+      const existing = teamByDriver.get(driverId);
+      if (existing === undefined || race.round >= existing.round) {
+        teamByDriver.set(driverId, {
+          round: race.round,
+          constructorId: constructorRow.constructor_id,
+        });
+      }
+    }
+
+    qualifyingResults.push(...toQualifyingResultRows(race, seasonId));
+  }
+
   const pitStops = toPitStopRows(
     input.pitStopRaces ?? [],
     seasonId,
@@ -662,6 +743,7 @@ export function buildSeasonIngestPlan(input: BuildPlanInput): SeasonIngestPlan {
       seasonId
     ),
     raceResults,
+    qualifyingResults,
     pitStops,
     retirements,
     warnings,

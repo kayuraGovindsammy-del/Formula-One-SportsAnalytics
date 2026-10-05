@@ -97,6 +97,23 @@ export interface RaceStatistics {
   classification: RaceResult[];
 }
 
+export interface QualifyingResult {
+  position: number;
+  driverId: string;
+  driverName: string;
+  constructorId: string;
+  constructorName: string;
+  q1TimeMs: number | null;
+  q2TimeMs: number | null;
+  q3TimeMs: number | null;
+}
+
+export interface QualifyingData {
+  grandPrixId: string;
+  sessionId: string | null;
+  classification: QualifyingResult[];
+}
+
 export interface RecentRace {
   grandPrixId: string;
   round: number;
@@ -222,6 +239,22 @@ interface ApiRaceStatistics {
   retirement_count: number;
   dnf_count: number;
   classification: ApiClassificationRow[];
+}
+
+interface ApiQualifyingData {
+  grand_prix_id: string;
+  session_id: string | null;
+  classification: Array<{
+    position: number;
+    driver_id: string;
+    given_name: string;
+    family_name: string;
+    constructor_id: string;
+    constructor_name: string;
+    q1_time_ms: number | null;
+    q2_time_ms: number | null;
+    q3_time_ms: number | null;
+  }>;
 }
 
 interface ApiResponse<T> {
@@ -378,6 +411,29 @@ export async function fetchRace(grandPrixId: string): Promise<RaceDetail> {
       totalLaps: session.total_laps,
       startTime: session.start_time,
       endTime: session.end_time,
+    })),
+  };
+}
+
+export async function fetchRaceQualifying(
+  grandPrixId: string
+): Promise<QualifyingData> {
+  const data = await apiGet<ApiQualifyingData>(
+    `/races/${encodeURIComponent(grandPrixId)}/qualifying`
+  );
+
+  return {
+    grandPrixId: data.grand_prix_id,
+    sessionId: data.session_id,
+    classification: data.classification.map((result) => ({
+      position: result.position,
+      driverId: result.driver_id,
+      driverName: `${result.given_name} ${result.family_name}`,
+      constructorId: result.constructor_id,
+      constructorName: result.constructor_name,
+      q1TimeMs: result.q1_time_ms,
+      q2TimeMs: result.q2_time_ms,
+      q3TimeMs: result.q3_time_ms,
     })),
   };
 }
