@@ -47,10 +47,17 @@ account. Each account's limits are shown in the provider's console:
   The free tier covers the Flash and Flash-Lite models, including the default.
 
 To stay inside those limits, the backend limits the endpoint itself
-(`src/backend/src/middleware/rateLimit.ts`): 10 requests per minute per client
-and 800 per day overall, answering `429 RATE_LIMITED` beyond that. A single
-chat request can make up to four model calls (three tool rounds and a final
-answer).
+(`src/backend/src/middleware/rateLimit.ts`), answering `429 RATE_LIMITED`
+beyond either limit:
+
+- 10 requests per minute per client;
+- `CHAT_DAILY_LIMIT` requests per UTC day across all clients, 200 by default.
+
+A single chat request can make up to four model calls (three tool rounds and a
+final answer), so 200 chats can use up to 800 provider requests. That fits
+inside a free daily allowance of about 1,000 requests, such as Groq's for its
+default model. If your key's allowance differs, set `CHAT_DAILY_LIMIT` to a
+quarter of it or less.
 
 ## Data use and privacy
 

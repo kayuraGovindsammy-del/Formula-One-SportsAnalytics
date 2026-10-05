@@ -83,6 +83,7 @@ own data. It needs at least one LLM provider key in `src/backend/.env`:
 | `GROQ_MODEL` | No | Groq model id. Defaults to `openai/gpt-oss-20b`. |
 | `GEMINI_API_KEY` | One of the two keys | Fallback provider. Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). |
 | `GEMINI_MODEL` | No | Gemini model id. Defaults to `gemini-3.5-flash-lite`. |
+| `CHAT_DAILY_LIMIT` | No | Chat requests allowed per UTC day across all users. Defaults to `200`; an invalid value falls back to the default with a warning. |
 
 With neither key set, the endpoint answers `503 SERVICE_UNAVAILABLE` and the
 rest of the API works as normal. Any model you choose must support tool

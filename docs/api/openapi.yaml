@@ -150,7 +150,8 @@ paths:
         2025 and says so.
 
         Rate limited in memory per process (`middleware/rateLimit.ts`): 10
-        requests per minute per client IP and 800 per UTC day overall.
+        requests per minute per client IP, and `CHAT_DAILY_LIMIT` (default
+        200) per UTC day overall.
         Requests over either limit get 429 with a `Retry-After` header.
       security: []
       requestBody:
@@ -183,7 +184,8 @@ paths:
         "429":
           description: |
             `RATE_LIMITED`: more than 10 requests in a minute from this
-            client, or the daily cap of 800 requests is reached.
+            client, or the daily cap (`CHAT_DAILY_LIMIT`, default 200) is
+            reached.
           headers:
             Retry-After:
               description: Seconds until the limit resets.

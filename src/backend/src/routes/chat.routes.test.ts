@@ -76,7 +76,11 @@ vi.mock("../models/events.model.js", async () => {
 import { MAX_TOOL_ROUNDS, SYSTEM_PROMPT } from "../chat/assistant.js";
 import { loadDriverStatistics } from "../controllers/drivers.controller.js";
 import { createApp } from "../app.js";
-import { chatRateLimiter } from "./chat.routes.js";
+import {
+  chatDailyLimitFromEnv,
+  chatRateLimiter,
+  DEFAULT_CHAT_DAILY_LIMIT,
+} from "./chat.routes.js";
 
 const app = createApp();
 
@@ -372,5 +376,54 @@ describe("POST /api/v1/chat — rate limiting", () => {
     const res = await request(app).get("/api/v1/health");
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe("CHAT_DAILY_LIMIT", () => {
+  it("defaults to 200 when unset or blank", () => {
+    expect(DEFAULT_CHAT_DAILY_LIMIT).toBe(200);
+    expect(chatDailyLimitFromEnv({})).toBe(200);
+    expect(chatDailyLimitFromEnv({ CHAT_DAILY_LIMIT: "  " })).toBe(200);
+  });
+
+  it("reads a positive integer", () => {
+    expect(chatDailyLimitFromEnv({ CHAT_DAILY_LIMIT: "50" })).toBe(50);
+    expect(chatDailyLimitFromEnv({ CHAT_DAILY_LIMIT: " 1000 " })).toBe(1000);
+  });
+
+  it.each(["0", "-5", "12.5", "abc", "1e3", "99999999999999999999"])(
+    "falls back to the default, with a warning, for %s",
+    (value) => {
+      expect(chatDailyLimitFromEnv({ CHAT_DAILY_LIMIT: value })).toBe(200);
+      expect(console.warn).toHaveBeenCalledWith(
+        "Ignoring invalid CHAT_DAILY_LIMIT; using the default of 200."
+      );
+    }
+  );
+
+  it("caps the route at the default when the variable is unset", async () => {
+    // The test environment leaves CHAT_DAILY_LIMIT unset. Spread the requests
+    // over many clients so only the global cap, not the per-IP one, applies.
+    expect(process.env.CHAT_DAILY_LIMIT).toBeUndefined();
+    llm.providers = [];
+
+    for (let i = 0; i < DEFAULT_CHAT_DAILY_LIMIT; i += 1) {
+      const res = await request(app)
+        .post("/api/v1/chat")
+        .set("X-Forwarded-For", `10.0.${Math.floor(i / 10)}.1`)
+        .send(question);
+      expect(res.status).toBe(503);
+    }
+
+    const blocked = await request(app)
+      .post("/api/v1/chat")
+      .set("X-Forwarded-For", "10.9.9.9")
+      .send(question);
+
+    expect(blocked.status).toBe(429);
+    expect(blocked.body.error).toEqual({
+      code: "RATE_LIMITED",
+      message: "The daily request limit has been reached. Please try again tomorrow.",
+    });
   });
 });
