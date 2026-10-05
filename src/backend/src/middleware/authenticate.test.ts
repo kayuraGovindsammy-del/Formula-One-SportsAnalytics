@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { NextFunction, Response } from "express";
+import request from "supertest";
+import { ApiError } from "./ApiError.js";
 import type { AuthenticatedRequest } from "./authenticate.js";
 
 const mocks = vi.hoisted(() => ({
@@ -27,6 +29,7 @@ vi.mock("../config/firebaseAdmin.js", () => ({
 }));
 
 import { authenticate } from "./authenticate.js";
+import { createApp } from "../app.js";
 
 function makeResponse() {
   let statusCode = 200;
@@ -67,6 +70,27 @@ async function invoke(authorization?: string) {
   };
 }
 
+type InvokeResult = Awaited<ReturnType<typeof invoke>>;
+
+/**
+ * A rejection is forwarded to errorHandler as an ApiError, never written to
+ * the response directly — that is what keeps the envelope consistent.
+ */
+function expectRejected(
+  result: InvokeResult,
+  httpStatus: number,
+  code: string,
+  message: string
+) {
+  expect(result.json).not.toHaveBeenCalled();
+  expect(result.req.authenticatedUser).toBeUndefined();
+  expect(result.next).toHaveBeenCalledOnce();
+
+  const forwarded: unknown = vi.mocked(result.next).mock.calls[0]?.[0];
+  expect(forwarded).toBeInstanceOf(ApiError);
+  expect(forwarded).toMatchObject({ httpStatus, code, message });
+}
+
 const validToken = {
   uid: "uid-123",
   email: "driver@example.test",
@@ -94,20 +118,15 @@ describe("authenticate middleware", () => {
   it("rejects requests without a Bearer token", async () => {
     const result = await invoke();
 
-    expect(result.status).toBe(401);
-    expect(result.json).toHaveBeenCalledWith({
-      error: "Firebase ID token required.",
-    });
+    expectRejected(result, 401, "UNAUTHENTICATED", "Firebase ID token required.");
     expect(mocks.verifyIdToken).not.toHaveBeenCalled();
-    expect(result.next).not.toHaveBeenCalled();
   });
 
   it("rejects malformed authorization headers", async () => {
     const result = await invoke("Basic abc123");
 
-    expect(result.status).toBe(401);
+    expectRejected(result, 401, "UNAUTHENTICATED", "Firebase ID token required.");
     expect(mocks.verifyIdToken).not.toHaveBeenCalled();
-    expect(result.next).not.toHaveBeenCalled();
   });
 
   it("rejects invalid or expired Firebase tokens", async () => {
@@ -116,11 +135,7 @@ describe("authenticate middleware", () => {
     const result = await invoke("Bearer invalid-token");
 
     expect(mocks.verifyIdToken).toHaveBeenCalledWith("invalid-token", true);
-    expect(result.status).toBe(401);
-    expect(result.json).toHaveBeenCalledWith({
-      error: "Invalid or expired Firebase token.",
-    });
-    expect(result.next).not.toHaveBeenCalled();
+    expectRejected(result, 401, "UNAUTHENTICATED", "Invalid or expired Firebase token.");
   });
 
   it("rejects users with a durable SQL deletion request", async () => {
@@ -128,12 +143,8 @@ describe("authenticate middleware", () => {
 
     const result = await invoke("Bearer valid-token");
 
-    expect(result.status).toBe(403);
-    expect(result.json).toHaveBeenCalledWith({
-      error: "Account deletion has been requested.",
-    });
+    expectRejected(result, 403, "FORBIDDEN", "Account deletion has been requested.");
     expect(mocks.markerGet).not.toHaveBeenCalled();
-    expect(result.next).not.toHaveBeenCalled();
   });
 
   it("rejects users with a Firestore account-deletion marker", async () => {
@@ -141,12 +152,8 @@ describe("authenticate middleware", () => {
 
     const result = await invoke("Bearer valid-token");
 
-    expect(result.status).toBe(403);
-    expect(result.json).toHaveBeenCalledWith({
-      error: "Account deletion has been requested.",
-    });
+    expectRejected(result, 403, "FORBIDDEN", "Account deletion has been requested.");
     expect(mocks.userGet).not.toHaveBeenCalled();
-    expect(result.next).not.toHaveBeenCalled();
   });
 
   it("rejects authenticated users without a Firestore profile", async () => {
@@ -154,11 +161,7 @@ describe("authenticate middleware", () => {
 
     const result = await invoke("Bearer valid-token");
 
-    expect(result.status).toBe(401);
-    expect(result.json).toHaveBeenCalledWith({
-      error: "No Firestore user profile exists.",
-    });
-    expect(result.next).not.toHaveBeenCalled();
+    expectRejected(result, 401, "UNAUTHENTICATED", "No Firestore user profile exists.");
   });
 
   it("rejects users whose profile deletion is already in progress", async () => {
@@ -169,11 +172,7 @@ describe("authenticate middleware", () => {
 
     const result = await invoke("Bearer valid-token");
 
-    expect(result.status).toBe(403);
-    expect(result.json).toHaveBeenCalledWith({
-      error: "Account deletion is in progress.",
-    });
-    expect(result.next).not.toHaveBeenCalled();
+    expectRejected(result, 403, "FORBIDDEN", "Account deletion is in progress.");
   });
 
   it("authenticates a normal user and records auth_time", async () => {
@@ -188,7 +187,7 @@ describe("authenticate middleware", () => {
       role: "USER",
       submitterStatus: "NONE",
     });
-    expect(result.next).toHaveBeenCalledOnce();
+    expect(result.next).toHaveBeenCalledExactlyOnceWith();
   });
 
   it("uses the Firestore email when the Firebase token has no email", async () => {
@@ -200,7 +199,7 @@ describe("authenticate middleware", () => {
     const result = await invoke("Bearer valid-token");
 
     expect(result.req.authenticatedUser?.email).toBe("profile@example.test");
-    expect(result.next).toHaveBeenCalledOnce();
+    expect(result.next).toHaveBeenCalledExactlyOnceWith();
   });
 
   it("normalizes lowercase approved submitter state", async () => {
@@ -219,7 +218,7 @@ describe("authenticate middleware", () => {
       role: "SUBMITTER",
       submitterStatus: "APPROVED",
     });
-    expect(result.next).toHaveBeenCalledOnce();
+    expect(result.next).toHaveBeenCalledExactlyOnceWith();
   });
 
   it("preserves administrators and defaults unknown statuses safely", async () => {
@@ -238,7 +237,7 @@ describe("authenticate middleware", () => {
       role: "ADMIN",
       submitterStatus: "NONE",
     });
-    expect(result.next).toHaveBeenCalledOnce();
+    expect(result.next).toHaveBeenCalledExactlyOnceWith();
   });
 
   it("defaults unknown roles to USER", async () => {
@@ -256,7 +255,7 @@ describe("authenticate middleware", () => {
       role: "USER",
       submitterStatus: "PENDING",
     });
-    expect(result.next).toHaveBeenCalledOnce();
+    expect(result.next).toHaveBeenCalledExactlyOnceWith();
   });
 
   it("forwards unexpected authentication-service errors to Express", async () => {
@@ -269,5 +268,42 @@ describe("authenticate middleware", () => {
     expect(result.next).toHaveBeenCalledWith(error);
     expect(consoleError).toHaveBeenCalledWith("Authentication service unavailable.");
     consoleError.mockRestore();
+  });
+});
+
+describe("authenticate wired into the app", () => {
+  const app = createApp();
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("answers a missing token with the standard 401 envelope", async () => {
+    const response = await request(app).get("/api/v1/submissions/mine");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({
+      error: {
+        code: "UNAUTHENTICATED",
+        message: "Firebase ID token required.",
+      },
+    });
+  });
+
+  it("answers a pending account deletion with the standard 403 envelope", async () => {
+    mocks.verifyIdToken.mockResolvedValue(validToken);
+    mocks.deletionRequested.mockResolvedValue(true);
+
+    const response = await request(app)
+      .get("/api/v1/submissions/mine")
+      .set("Authorization", "Bearer valid-token");
+
+    expect(response.status).toBe(403);
+    expect(response.body).toEqual({
+      error: {
+        code: "FORBIDDEN",
+        message: "Account deletion has been requested.",
+      },
+    });
   });
 });

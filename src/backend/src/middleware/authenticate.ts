@@ -1,4 +1,5 @@
 import { deletionRequested } from "../services/accountDeletion.js";
+import { ApiError } from "./ApiError.js";
 
 import type { DecodedIdToken } from "firebase-admin/auth";
 
@@ -57,9 +58,14 @@ function normalizeSubmitterStatus(
   }
 }
 
+/**
+ * Rejections are forwarded as ApiError rather than thrown, so errorHandler
+ * formats them in the standard envelope without passing through the catch
+ * below, which is reserved for genuine authentication-service failures.
+ */
 export async function authenticate(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
@@ -69,9 +75,7 @@ export async function authenticate(
       !authorization ||
       !authorization.startsWith("Bearer ")
     ) {
-      res.status(401).json({
-        error: "Firebase ID token required.",
-      });
+      next(ApiError.unauthenticated("Firebase ID token required."));
       return;
     }
 
@@ -83,19 +87,19 @@ export async function authenticate(
     try {
       decodedToken = await adminAuth.verifyIdToken(token, true);
     } catch {
-      res.status(401).json({ error: "Invalid or expired Firebase token." });
+      next(ApiError.unauthenticated("Invalid or expired Firebase token."));
       return;
     }
     req.authTime = decodedToken.auth_time;
 
     if (await deletionRequested(decodedToken.uid)) {
-      res.status(403).json({ error: "Account deletion has been requested." });
+      next(ApiError.forbidden("Account deletion has been requested."));
       return;
     }
 
     const marker = await adminDb.collection("accountDeletions").doc(decodedToken.uid).get();
     if (marker.exists) {
-      res.status(403).json({ error: "Account deletion has been requested." });
+      next(ApiError.forbidden("Account deletion has been requested."));
       return;
     }
 
@@ -106,15 +110,13 @@ export async function authenticate(
         .get();
 
     if (!userSnapshot.exists) {
-      res.status(401).json({
-        error: "No Firestore user profile exists.",
-      });
+      next(ApiError.unauthenticated("No Firestore user profile exists."));
       return;
     }
 
     const data = userSnapshot.data();
     if (data?.deletionPending === true) {
-      res.status(403).json({ error: "Account deletion is in progress." });
+      next(ApiError.forbidden("Account deletion is in progress."));
       return;
     }
 

@@ -3,28 +3,25 @@ import type {
   Response,
 } from "express";
 
+import { ApiError } from "./ApiError.js";
 import type {
   AuthenticatedRequest,
 } from "./authenticate.js";
 
 export function requireAdmin(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): void {
   const user = req.authenticatedUser;
 
   if (!user) {
-    res.status(401).json({
-      error: "Authentication required.",
-    });
+    next(ApiError.unauthenticated("Authentication required."));
     return;
   }
 
   if (user.role !== "ADMIN") {
-    res.status(403).json({
-      error: "Administrator access required.",
-    });
+    next(ApiError.forbidden("Administrator access required."));
     return;
   }
 
@@ -33,15 +30,13 @@ export function requireAdmin(
 
 export function requireSubmitterOrAdmin(
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): void {
   const user = req.authenticatedUser;
 
   if (!user) {
-    res.status(401).json({
-      error: "Authentication required.",
-    });
+    next(ApiError.unauthenticated("Authentication required."));
     return;
   }
 
@@ -52,10 +47,11 @@ export function requireSubmitterOrAdmin(
     user.submitterStatus === "APPROVED";
 
   if (!isAdmin && !isApprovedSubmitter) {
-    res.status(403).json({
-      error:
-        "Approved submitter or administrator access required.",
-    });
+    next(
+      ApiError.forbidden(
+        "Approved submitter or administrator access required."
+      )
+    );
     return;
   }
 
