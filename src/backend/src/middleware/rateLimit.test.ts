@@ -127,6 +127,12 @@ describe("createRateLimiter", () => {
     expect([hit("1.1.1.1"), hit("1.1.1.1"), hit("1.1.1.1")].every((r) => r.allowed)).toBe(true);
   });
 
+  it("exposes its configured limits", () => {
+    const { limiter } = setup({ perIpLimit: 7, dailyCap: 42 });
+
+    expect(limiter.limits).toEqual({ perIpLimit: 7, windowMs: 60_000, dailyCap: 42 });
+  });
+
   it("clears every counter on reset", () => {
     const { limiter, hit } = setup({ perIpLimit: 1 });
 

@@ -28,6 +28,8 @@ export interface RateLimiterOptions {
 }
 
 export interface RateLimiter extends RequestHandler {
+  /** The configured limits, so callers and tests can check the wiring. */
+  readonly limits: { perIpLimit: number; windowMs: number; dailyCap: number };
   /** Clears all counters. For tests. */
   reset(): void;
 }
@@ -99,6 +101,11 @@ export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
   };
 
   return Object.assign(limiter, {
+    limits: {
+      perIpLimit: options.perIpLimit,
+      windowMs: options.windowMs,
+      dailyCap: options.dailyCap,
+    },
     reset(): void {
       perIp.clear();
       daily = { day: utcDay(now()), count: 0 };
