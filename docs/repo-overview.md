@@ -245,16 +245,22 @@ Outbound HTTP from application code:
 | Frontend → Firebase | Firebase Auth + Firestore SDK | `src/frontend/src/auth/firebase.ts`, `AuthContext.tsx`, `pages/Auth/Account.tsx`, `pages/Admin/SubmitterRequests.tsx` |
 | Backend → Firebase | `firebase-admin` — `verifyIdToken`, Firestore `users/{uid}` read | `src/backend/src/config/firebaseAdmin.ts`, used by `middleware/authenticate.ts` |
 | Backend → Postgres | `pg` pool over `DATABASE_URL` | `src/backend/src/config/database.ts` |
+| Backend → Jolpica-F1 | `fetch()`, rate-limited and cached; ingestion CLI only (`npm run ingest`), never per request | `src/backend/src/ingestion/jolpicaClient.ts`, driven by `ingestion/cli.ts` |
+| Backend → OpenF1 | `fetch()`; overtakes ingestion script only (`npm run ingest:overtakes`) | `src/backend/src/ingestion/openF1Overtakes.ts`, driven by `scripts/ingestOvertakes.ts` |
+| Backend → Groq, then Gemini | `fetch()` to OpenAI-compatible `/chat/completions`; per `POST /api/v1/chat` request, Gemini only as fallback | `src/backend/src/chat/llmClient.ts`, used by `chat/assistant.ts` |
 
-The backend makes **no** outbound HTTP calls to third-party sports data APIs. The Jolpica-F1
-and OpenF1 APIs are cited in `data/sample/*.json` `_source` fields and in the docs as where
-the sample data was manually sourced from — there is no client for either.
+The backend calls third-party APIs in two ways. The **Jolpica-F1** and **OpenF1** clients are
+used only by the ingestion scripts, which load data into Postgres; no API request reaches either
+service, and every read endpoint serves from the database. The **chat assistant** is the one
+request-time outbound call: each `POST /api/v1/chat` calls Groq (falling back to Gemini) when an
+API key is configured. See [Third-Party Services](third-party-services.md) for what is sent.
 
 Env var **names** (values never committed; all example files hold empty or clearly-fake
 placeholders):
 
-- Backend: `PORT`, `CORS_ORIGINS`, `DATABASE_URL`, `FIREBASE_PROJECT_ID`,
-  `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`
+- Backend: `PORT`, `CORS_ORIGINS`, `DATABASE_URL`, `DATABASE_CA_CERT`, `FIREBASE_PROJECT_ID`,
+  `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, and for the chat assistant `GROQ_API_KEY`,
+  `GROQ_MODEL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `CHAT_DAILY_LIMIT`
 - Frontend: `VITE_API_BASE_URL`, `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
   `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_APP_ID`
 - CI: `AZURE_WEBAPP_PUBLISH_PROFILE` (referenced as a secret in the inert deploy workflow)
