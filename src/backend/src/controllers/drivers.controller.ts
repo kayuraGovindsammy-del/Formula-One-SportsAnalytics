@@ -4,7 +4,10 @@ import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";
 import * as raceResultsModel from "../models/raceResults.model.js";
 import * as sessionsModel from "../models/sessions.model.js";
-import { buildDriverStatistics } from "../services/driverStatistics.js";
+import {
+  buildDriverStatistics,
+  type DriverStatistics,
+} from "../services/driverStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import {
@@ -67,18 +70,25 @@ const driverStatsQuery = z.object({
   season: seasonParam,
 });
 
-/** GET /api/v1/drivers/:driver_id/stats — docs/api-design.md §4.3 */
-export const getDriverStats = asyncHandler(async (req, res) => {
-  const driverId = pathParam(req.params.driver_id);
-  const query = parseQuery(driverStatsQuery, req.query);
-
+/**
+ * Loads everything a driver's season statistics need and derives them.
+ * Returns null when the driver does not exist.
+ *
+ * Exported so the chat assistant's tools (chat/tools.ts) read exactly the
+ * same numbers as GET /drivers/:driver_id/stats. The query budget is fixed
+ * regardless of calendar length (routes/driverStats.queryCount.test.ts).
+ */
+export async function loadDriverStatistics(
+  driverId: string,
+  season: string
+): Promise<DriverStatistics | null> {
   const driver = await driversModel.findById(driverId);
 
   if (!driver) {
-    throw ApiError.notFound(`Driver '${driverId}' was not found.`);
+    return null;
   }
 
-  const sessions = await sessionsModel.findBySeason(query.season);
+  const sessions = await sessionsModel.findBySeason(season);
 
   // Driver season statistics are race statistics.  QUALIFYING sessions are
   // supporting input only: their final LAP_COMPLETED positions provide the
@@ -155,11 +165,23 @@ export const getDriverStats = asyncHandler(async (req, res) => {
   // own from-scratch derivation when a row exists, and uses the stored
   // position / grid / fastest-lap rank only as fallbacks when a session has no
   // laps — see the doc comments on DriverSessionInput.
-  const statistics = buildDriverStatistics({
+  return buildDriverStatistics({
     driver_id: driver.driver_id,
-    season: query.season,
+    season,
     sessions: sessionInputs,
   });
+}
+
+/** GET /api/v1/drivers/:driver_id/stats — docs/api-design.md §4.3 */
+export const getDriverStats = asyncHandler(async (req, res) => {
+  const driverId = pathParam(req.params.driver_id);
+  const query = parseQuery(driverStatsQuery, req.query);
+
+  const statistics = await loadDriverStatistics(driverId, query.season);
+
+  if (!statistics) {
+    throw ApiError.notFound(`Driver '${driverId}' was not found.`);
+  }
 
   res.status(200).json({ data: statistics, meta: {} });
 });

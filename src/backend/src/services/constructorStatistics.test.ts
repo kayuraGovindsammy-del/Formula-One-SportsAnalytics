@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildConstructorStandings,
   buildConstructorStatistics,
   type ConstructorPointRow,
 } from "./constructorStatistics.js";
@@ -193,5 +194,79 @@ describe("buildConstructorStatistics", () => {
     });
 
     expect(stats.points).toBe(17);
+  });
+});
+
+describe("buildConstructorStandings", () => {
+  it("sums each constructor's rows and orders them highest first", () => {
+    const standings = buildConstructorStandings("2025", [
+      row("FER", "LEC", 15),
+      row("MCL", "PIA", 25),
+      row("FER", "HAM", 6),
+      row("MCL", "NOR", 18),
+    ]);
+
+    expect(standings).toEqual({
+      season: "2025",
+      standings: [
+        { position: 1, constructor_id: "MCL", points: 43 },
+        { position: 2, constructor_id: "FER", points: 21 },
+      ],
+    });
+  });
+
+  it("agrees with buildConstructorStatistics for every constructor", () => {
+    const rows = [
+      row("MCL", "PIA", 25),
+      row("RBR", "VER", 12),
+      row("MCL", "NOR", 18),
+      row("WIL", "ALB", 0),
+    ];
+
+    for (const entry of buildConstructorStandings("2025", rows).standings) {
+      expect(
+        buildConstructorStatistics({
+          constructor_id: entry.constructor_id,
+          season: "2025",
+          results: rows,
+        }).points
+      ).toBe(entry.points);
+    }
+  });
+
+  it("keeps a scoreless constructor with rows at 0 points", () => {
+    const { standings } = buildConstructorStandings("2025", [
+      row("MCL", "PIA", 25),
+      row("SAU", "HUL", 0),
+    ]);
+
+    expect(standings.at(-1)).toEqual({
+      position: 2,
+      constructor_id: "SAU",
+      points: 0,
+    });
+  });
+
+  it("gives tied totals the same position and skips the next one", () => {
+    const { standings } = buildConstructorStandings("2025", [
+      row("RBR", "VER", 10),
+      row("FER", "LEC", 10),
+      row("MCL", "PIA", 25),
+      row("WIL", "ALB", 4),
+    ]);
+
+    expect(standings).toEqual([
+      { position: 1, constructor_id: "MCL", points: 25 },
+      { position: 2, constructor_id: "FER", points: 10 },
+      { position: 2, constructor_id: "RBR", points: 10 },
+      { position: 4, constructor_id: "WIL", points: 4 },
+    ]);
+  });
+
+  it("returns an empty table for a season with no result rows", () => {
+    expect(buildConstructorStandings("1999", [])).toEqual({
+      season: "1999",
+      standings: [],
+    });
   });
 });

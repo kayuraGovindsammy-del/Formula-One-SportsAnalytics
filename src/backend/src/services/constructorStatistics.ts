@@ -74,3 +74,54 @@ export function buildConstructorStatistics(
         : null,
   };
 }
+
+export interface ConstructorStanding {
+  position: number;
+  constructor_id: string;
+  points: number;
+}
+
+export interface ConstructorStandings {
+  season: string;
+  standings: ConstructorStanding[];
+}
+
+/**
+ * Every constructor's season points, highest first — the same per-row
+ * grouping as buildConstructorStatistics, applied to all constructors at
+ * once. Only constructors with at least one result row appear, so an empty
+ * season yields an empty list rather than a table of zeros.
+ *
+ * Tied totals share a position (standard competition ranking) and are listed
+ * by constructor_id. The official tie-break (count of best finishes) needs
+ * per-race positions this input does not carry, so it is not guessed at.
+ */
+export function buildConstructorStandings(
+  season: string,
+  results: readonly ConstructorPointRow[]
+): ConstructorStandings {
+  const totals = new Map<string, number>();
+
+  for (const row of results) {
+    totals.set(row.constructor_id, (totals.get(row.constructor_id) ?? 0) + row.points);
+  }
+
+  const sorted = [...totals.entries()]
+    .map(([constructor_id, points]) => ({ constructor_id, points }))
+    .sort(
+      (a, b) =>
+        b.points - a.points || a.constructor_id.localeCompare(b.constructor_id)
+    );
+
+  const standings: ConstructorStanding[] = [];
+  for (const [index, entry] of sorted.entries()) {
+    const previous = standings[standings.length - 1];
+    const position =
+      previous !== undefined && previous.points === entry.points
+        ? previous.position
+        : index + 1;
+    standings.push({ position, ...entry });
+  }
+
+  return { season, standings };
+}

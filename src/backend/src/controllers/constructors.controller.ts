@@ -1,6 +1,10 @@
 import { z } from "zod";
 import * as constructorsModel from "../models/constructors.model.js";
-import { buildConstructorStatistics } from "../services/constructorStatistics.js";
+import {
+  buildConstructorStandings,
+  buildConstructorStatistics,
+  type ConstructorStandings,
+} from "../services/constructorStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { parseQuery, pathParam, seasonParam } from "../utils/queryValidation.js";
@@ -42,3 +46,17 @@ export const getConstructorStats = asyncHandler(async (req, res) => {
 
   res.status(200).json({ data: statistics, meta: {} });
 });
+
+/**
+ * Every constructor's points for a season, highest first. Not exposed as a
+ * route; used by the chat assistant's tools (chat/tools.ts).
+ *
+ * Sums the same published race_results.points as getConstructorStats, so the
+ * two always agree — see the CLAUDE.md published-points exception.
+ */
+export async function getConstructorStandings(
+  season: string
+): Promise<ConstructorStandings> {
+  const results = await constructorsModel.findSeasonPointRows(season);
+  return buildConstructorStandings(season, results);
+}
