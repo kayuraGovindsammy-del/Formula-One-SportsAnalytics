@@ -117,6 +117,14 @@ function DriverDetails() {
 </section>
 
       <section className="stats-grid driver-stats-grid">
+        <StatCard
+          title="Points"
+          value={
+            statistics.points === null
+              ? "Not available"
+              : String(statistics.points)
+          }
+        />
         <StatCard title="Wins" value={String(statistics.wins)} />
         <StatCard title="Podiums" value={String(statistics.podiums)} />
         <StatCard
