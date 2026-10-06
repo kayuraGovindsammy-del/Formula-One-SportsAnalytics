@@ -58,3 +58,12 @@ export const pageParam = z.coerce.number().int().min(1).default(1);
 export function perPageParam(defaultValue: number) {
   return z.coerce.number().int().min(1).default(defaultValue);
 }
+
+/**
+ * A required season. Four digits, the same rule as /export's optional
+ * `season`, so `?season=abc` is a 400 rather than an empty-but-valid season.
+ */
+export const seasonParam = z
+  .string()
+  .trim()
+  .regex(/^\d{4}$/, "Expected a four-digit season such as 2025");

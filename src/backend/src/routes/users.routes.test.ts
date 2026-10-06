@@ -20,7 +20,9 @@ vi.mock("../middleware/authenticate.js", () => ({
   next: () => void) => {
     const token = req.headers.authorization?.replace(/^Bearer /, "");
     if (!token) {
-      res.status(401).json({ error: "Authentication required." });
+      res.status(401).json({
+        error: { code: "UNAUTHENTICATED", message: "Authentication required." },
+      });
       return;
     }
     req.authenticatedUser = {

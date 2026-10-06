@@ -3,6 +3,7 @@ import express, { type Express } from "express";
 
 import apiV1Router from "./routes/index.js";
 import docsRouter from "./routes/docs.routes.js";
+import { ApiError } from "./middleware/ApiError.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { notFoundHandler } from "./middleware/notFoundHandler.js";
 
@@ -56,8 +57,10 @@ export function createApp(): Express {
         return;
       }
 
+      // An ApiError, so errorHandler answers 403 FORBIDDEN instead of
+      // treating the rejection as an unexpected 500.
       callback(
-        new Error(
+        ApiError.forbidden(
           `CORS blocked request from origin: ${origin}`
         )
       );

@@ -3,10 +3,10 @@ import * as constructorsModel from "../models/constructors.model.js";
 import { buildConstructorStatistics } from "../services/constructorStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { parseQuery, pathParam } from "../utils/queryValidation.js";
+import { parseQuery, pathParam, seasonParam } from "../utils/queryValidation.js";
 
 const constructorStatsQuery = z.object({
-  season: z.string().trim().min(1),
+  season: seasonParam,
 });
 
 /** GET /api/v1/constructors/:constructor_id/stats — docs/api-design.md §4.9 */

@@ -104,6 +104,19 @@ describe("GET /api/v1/constructors/:constructor_id/stats", () => {
     expect(res.body.error.code).toBe("VALIDATION_ERROR");
   });
 
+  it.each(["abc", "25", "20255", "2025a"])(
+    "rejects a season that is not four digits (%s)",
+    async (season) => {
+      const res = await request(app).get(
+        `/api/v1/constructors/MCL/stats?season=${season}`
+      );
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe("VALIDATION_ERROR");
+      expect(res.body.error.message).toContain("season");
+    }
+  );
+
   it("returns NOT_FOUND for an unknown constructor", async () => {
     const res = await request(app).get(
       "/api/v1/constructors/ZZZ/stats?season=2025"

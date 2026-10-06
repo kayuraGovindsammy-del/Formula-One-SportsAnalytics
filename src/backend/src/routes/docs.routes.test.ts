@@ -86,8 +86,10 @@ describe("GET /api/openapi.json", () => {
       "/races/{grand_prix_id}",
       "/races/{grand_prix_id}/events",
       "/races/{grand_prix_id}/laps",
+      "/races/{grand_prix_id}/qualifying",
       "/races/{grand_prix_id}/statistics",
       "/submissions",
+      "/submissions/mine",
       "/submissions/{submission_id}",
       "/users/me",
     ]);
@@ -159,7 +161,7 @@ describe("CORS from the docs page", () => {
   // Browsers omit Origin on same-origin GETs but attach it to same-origin
   // POST/PATCH/DELETE. Without same-origin acceptance, Swagger UI's
   // "Try it out" on a write endpoint is rejected by the server talking to
-  // itself — and the rejection surfaces as a 500, not a CORS message.
+  // itself — and the rejection surfaces as a 403 FORBIDDEN.
   it("accepts a write request from its own docs page", async () => {
     const response = await request(app)
       .post("/api/v1/submissions")
@@ -203,7 +205,7 @@ describe("CORS from the docs page", () => {
       .set("Host", "localhost:3001")
       .set("Origin", "https://evil.example");
 
-    expect(response.status).not.toBe(200);
+    expect(response.status).toBe(403);
   });
 
   it("treats a malformed Origin as not same-origin", async () => {
@@ -212,7 +214,7 @@ describe("CORS from the docs page", () => {
       .set("Host", "localhost:3001")
       .set("Origin", "not a url");
 
-    expect(response.status).not.toBe(200);
+    expect(response.status).toBe(403);
   });
 });
 
