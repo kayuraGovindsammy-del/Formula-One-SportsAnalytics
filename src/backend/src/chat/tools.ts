@@ -193,15 +193,32 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
 
 // -- Output shaping -------------------------------------------------------------
 
-/** 23_312 -> "23.3 s". Durations reach the model only in this form. */
-export function formatDuration(ms: number): string {
-  return `${(Math.round(ms / 100) / 10).toFixed(1)} s`;
+/**
+ * Milliseconds as a seconds display string: 23_312 -> "23.3 s" with one
+ * decimal, 64_012 -> "64.012 s" with three.
+ */
+export function formatDuration(ms: number, decimals: 1 | 3 = 1): string {
+  const factor = 10 ** decimals;
+  return `${(Math.round((ms / 1000) * factor) / factor).toFixed(decimals)} s`;
+}
+
+/**
+ * Stop and penalty durations (pit stops, time penalties), where a tenth of a
+ * second is plenty. Every other *_ms value is a lap or qualifying time, or is
+ * derived from them (pace, consistency, gaps), where gaps are often below
+ * 0.1 s, so those keep millisecond precision.
+ */
+const ONE_DECIMAL_KEYS: ReadonlySet<string> = new Set(["duration_ms", "total_pit_time_ms"]);
+
+export function decimalsFor(key: string): 1 | 3 {
+  return ONE_DECIMAL_KEYS.has(key) ? 1 : 3;
 }
 
 /**
  * Replaces every `<name>_ms` number in a tool result with a `<name>`
- * display string ("23.3 s"), at any depth; a null stays null under the new
- * name. Applied to every tool's output, so the model never sees raw
+ * display string, at any depth: "23.3 s" for stop and penalty durations,
+ * "64.012 s" for lap-based times (see decimalsFor). A null stays null under
+ * the new name. Applied to every tool's output, so the model never sees raw
  * milliseconds and cannot echo them back.
  */
 export function humanizeDurations(value: unknown): unknown {
@@ -216,7 +233,8 @@ export function humanizeDurations(value: unknown): unknown {
   const result: Record<string, unknown> = {};
   for (const [key, field] of Object.entries(value)) {
     if (key.endsWith("_ms") && (typeof field === "number" || field === null)) {
-      result[key.slice(0, -3)] = field === null ? null : formatDuration(field);
+      result[key.slice(0, -3)] =
+        field === null ? null : formatDuration(field, decimalsFor(key));
     } else {
       result[key] = humanizeDurations(field);
     }

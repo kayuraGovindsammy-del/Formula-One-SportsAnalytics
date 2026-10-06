@@ -79,6 +79,7 @@ import {
   MAX_EVENTS_SUMMARISED,
   MAX_TOOL_OUTPUT_CHARS,
   TOOL_DEFINITIONS,
+  decimalsFor,
   formatDuration,
   formatToolOutput,
   humanizeDurations,
@@ -218,7 +219,7 @@ describe("get_driver_stats", () => {
       JSON.parse(JSON.stringify(humanizeDurations(await loadDriverStatistics("PIA", "2025"))))
     );
     expect(result.body).not.toHaveProperty("average_race_pace_ms");
-    expect(result.body.average_race_pace).toMatch(/^\d+\.\d s$/);
+    expect(result.body.average_race_pace).toMatch(/^\d+\.\d{3} s$/);
   });
 
   it("tells the model when a driver does not exist", async () => {
@@ -281,9 +282,9 @@ describe("get_race_summary", () => {
       expect.objectContaining({
         position: 1,
         driver_id: "NOR",
-        q1_time: "65.0 s",
-        q2_time: "64.6 s",
-        q3_time: "64.0 s",
+        q1_time: "64.962 s",
+        q2_time: "64.634 s",
+        q3_time: "63.971 s",
       }),
     ]);
     expect(result.content).not.toMatch(/_ms"/);
@@ -438,12 +439,48 @@ describe("get_export_link", () => {
 });
 
 describe("duration conversion", () => {
-  it("formats milliseconds as seconds with one decimal", () => {
+  it("formats stop durations with one decimal", () => {
     expect(formatDuration(23_312)).toBe("23.3 s");
     expect(formatDuration(23_350)).toBe("23.4 s");
     expect(formatDuration(2_049)).toBe("2.0 s");
-    expect(formatDuration(83_456)).toBe("83.5 s");
     expect(formatDuration(0)).toBe("0.0 s");
+  });
+
+  it("formats lap and qualifying times with three decimals", () => {
+    expect(formatDuration(64_012, 3)).toBe("64.012 s");
+    expect(formatDuration(83_456, 3)).toBe("83.456 s");
+    expect(formatDuration(64_000, 3)).toBe("64.000 s");
+    expect(formatDuration(812, 3)).toBe("0.812 s");
+  });
+
+  it("uses one decimal only for stop and penalty durations", () => {
+    expect(decimalsFor("duration_ms")).toBe(1);
+    expect(decimalsFor("total_pit_time_ms")).toBe(1);
+    for (const key of [
+      "lap_time_ms",
+      "fastest_lap_time_ms",
+      "time_ms",
+      "q1_time_ms",
+      "q3_time_ms",
+      "average_race_pace_ms",
+      "consistency_ms",
+      "gap_to_winner_ms",
+      "some_future_ms",
+    ]) {
+      expect(decimalsFor(key)).toBe(3);
+    }
+  });
+
+  it("keeps a qualifying gap below 0.1 s visible", () => {
+    expect(
+      humanizeDurations([
+        { driver_id: "NOR", q3_time_ms: 63_971 },
+        { driver_id: "PIA", q3_time_ms: 64_012 },
+      ])
+    ).toEqual([
+      { driver_id: "NOR", q3_time: "63.971 s" },
+      { driver_id: "PIA", q3_time: "64.012 s" },
+    ]);
   });
 
   it("renames every *_ms number at any depth and keeps nulls", () => {
@@ -456,10 +493,10 @@ describe("duration conversion", () => {
         stops: [{ duration_ms: 23_312 }, { duration_ms: 2_400 }],
       })
     ).toEqual({
-      lap_time: "83.5 s",
+      lap_time: "83.456 s",
       gap_to_winner: null,
       position: 1,
-      fastest_lap: { driver_id: "NOR", lap_time: "64.0 s" },
+      fastest_lap: { driver_id: "NOR", lap_time: "63.971 s" },
       stops: [{ duration: "23.3 s" }, { duration: "2.4 s" }],
     });
   });
