@@ -154,6 +154,29 @@ export async function findSeasonPointRows(
   }));
 }
 
+/**
+ * Stands in for constructors.model.ts's findSeasonDrivers, from the sample
+ * race's classification (one race, so races_entered is 1).
+ */
+export async function findSeasonDrivers(
+  constructorId: string,
+  season: string
+): Promise<{ driver_id: string; driver_name: string; races_entered: number }[]> {
+  if (season !== seasonId) return [];
+
+  return rawSessionResult.classification
+    .filter((result) => result.constructor_id.toLowerCase() === constructorId.toLowerCase())
+    .map((result) => {
+      const raw = rawDrivers.find((candidate) => candidate.driver_id === result.driver_id);
+      return {
+        driver_id: result.driver_id,
+        driver_name: raw ? `${raw.given_name} ${raw.family_name}` : result.driver_id,
+        races_entered: 1,
+      };
+    })
+    .sort((a, b) => a.driver_id.localeCompare(b.driver_id));
+}
+
 function buildSampleSession(): Session {
   return {
     session_id: rawSessionSummary.session_id,

@@ -19,6 +19,7 @@ vi.mock("../models/constructors.model.js", async () => {
   return {
     findById: fixtures.findConstructorById,
     findSeasonPointRows: fixtures.findSeasonPointRows,
+    findSeasonDrivers: fixtures.findSeasonDrivers,
   };
 });
 
@@ -114,6 +115,7 @@ describe("tool definitions", () => {
       "get_driver_stats",
       "get_driver_standings",
       "get_constructor_standings",
+      "get_team_drivers",
       "get_race_summary",
       "get_race_events",
       "get_export_link",
@@ -318,6 +320,41 @@ describe("get_constructor_standings", () => {
       season: "1999",
       standings: [],
       note: "No race results are stored for 1999.",
+    });
+  });
+});
+
+describe("get_team_drivers", () => {
+  it("lists the team's drivers with full names and races entered", async () => {
+    const result = await call("get_team_drivers", { constructor_id: "mcl" });
+
+    expect(result.ok).toBe(true);
+    expect(result.body).toEqual({
+      constructor_id: "MCL",
+      team_name: "McLaren",
+      season: "2025",
+      drivers: [
+        { driver_id: "NOR", driver_name: "Lando Norris", races_entered: 1 },
+        { driver_id: "PIA", driver_name: "Oscar Piastri", races_entered: 1 },
+      ],
+    });
+  });
+
+  it("tells the model when a team does not exist", async () => {
+    const result = await call("get_team_drivers", { constructor_id: "XYZ" });
+
+    expect(result.ok).toBe(false);
+    expect(result.body.error).toBe(
+      "Team 'XYZ' was not found. Use get_constructor_standings to find the constructor_id."
+    );
+  });
+
+  it("says when the team has no results that season", async () => {
+    const result = await call("get_team_drivers", { constructor_id: "MCL", season: "1999" });
+
+    expect(result.body).toMatchObject({
+      drivers: [],
+      note: "No race results are stored for McLaren in 1999.",
     });
   });
 });

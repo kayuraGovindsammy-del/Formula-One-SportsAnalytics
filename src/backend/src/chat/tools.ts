@@ -17,6 +17,7 @@ import {
 } from "../controllers/drivers.controller.js";
 import { loadRaceStatistics } from "../controllers/races.controller.js";
 import { ApiError } from "../middleware/ApiError.js";
+import * as constructorsModel from "../models/constructors.model.js";
 import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as qualifyingResultsModel from "../models/qualifyingResults.model.js";
@@ -90,6 +91,10 @@ const argumentSchemas = {
     limit: z.coerce.number().int().min(1).max(MAX_STANDINGS_LIMIT).default(10),
   }),
   get_constructor_standings: z.strictObject({
+    season,
+  }),
+  get_team_drivers: z.strictObject({
+    constructor_id: id("constructor_id"),
     season,
   }),
   get_race_summary: z.strictObject({
@@ -194,6 +199,18 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
     "Every constructor's points for a season, highest first.",
     { season: seasonProperty },
     []
+  ),
+  tool(
+    "get_team_drivers",
+    "The drivers who raced for a team in a season, with how many races each drove for it. Use it for 'who drives for X' and for a driver's teammate.",
+    {
+      constructor_id: {
+        type: "string",
+        description: "Team id, e.g. RBR. Find it with get_constructor_standings.",
+      },
+      season: seasonProperty,
+    },
+    ["constructor_id"]
   ),
   tool(
     "get_race_summary",
@@ -460,6 +477,28 @@ const implementations: {
     return standings.standings.length > 0
       ? standings
       : { ...standings, note: `No race results are stored for ${season}.` };
+  },
+
+  async get_team_drivers({ constructor_id, season }) {
+    const constructor = await constructorsModel.findById(constructor_id);
+
+    if (!constructor) {
+      throw new ToolInputError(
+        `Team '${constructor_id}' was not found. Use get_constructor_standings to find the constructor_id.`
+      );
+    }
+
+    const drivers = await constructorsModel.findSeasonDrivers(constructor.constructor_id, season);
+
+    return {
+      constructor_id: constructor.constructor_id,
+      team_name: constructor.name,
+      season,
+      drivers,
+      ...(drivers.length === 0
+        ? { note: `No race results are stored for ${constructor.name} in ${season}.` }
+        : {}),
+    };
   },
 
   async get_race_summary({ grand_prix_id }) {

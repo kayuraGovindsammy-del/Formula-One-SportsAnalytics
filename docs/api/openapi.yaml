@@ -142,8 +142,8 @@ paths:
         timeout; see docs/third-party-services.md) answers using only
         whitelisted, read-only tools that call the same code as this API
         (`chat/tools.ts`): search_drivers, search_races, get_driver_stats,
-        get_driver_standings, get_constructor_standings, get_race_summary,
-        get_race_events and get_export_link. The model never supplies
+        get_driver_standings, get_constructor_standings, get_team_drivers,
+        get_race_summary, get_race_events and get_export_link. The model never supplies
         statistics itself.
 
         Up to 3 tool rounds run, then the model must answer in text. Only
@@ -1454,7 +1454,8 @@ components:
             enum:
               [search_drivers, search_races, get_driver_stats,
                get_driver_standings, get_constructor_standings,
-               get_race_summary, get_race_events, get_export_link]
+               get_team_drivers, get_race_summary, get_race_events,
+               get_export_link]
 
     # -- Drivers -------------------------------------------------------------
     # types/driver.types.ts
