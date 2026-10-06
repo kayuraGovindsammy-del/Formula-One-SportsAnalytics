@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import { formatReply } from "./formatReply.js";
-import type { ChatMessage, LlmClient } from "./llmClient.js";
+import type { ChatMessage, LlmClient, LlmProvider } from "./llmClient.js";
 import {
   DEFAULT_SEASON,
   TOOL_DEFINITIONS,
@@ -68,12 +68,19 @@ export interface AssistantReply {
   tools_used: string[];
 }
 
+/** The reply plus how it was produced, for server-side logging only. */
+export interface AssistantResult extends AssistantReply {
+  provider: LlmProvider["name"];
+  /** Rounds in which the model called tools (0 to MAX_TOOL_ROUNDS). */
+  tool_rounds: number;
+}
+
 export async function runAssistant(
   client: LlmClient,
   turns: readonly UserTurn[],
   context: ToolContext
-): Promise<AssistantReply> {
-  return client.runWithFallback(async (complete) => {
+): Promise<AssistantResult> {
+  return client.runWithFallback(async (complete, provider) => {
     // Rebuilt per provider: a fallback restarts the conversation from here.
     const messages: ChatMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -95,6 +102,8 @@ export async function runAssistant(
         return {
           reply: formatReply(message.content ?? "") || FALLBACK_REPLY,
           tools_used: toolsUsed,
+          provider: provider.name,
+          tool_rounds: round,
         };
       }
 
@@ -122,6 +131,11 @@ export async function runAssistant(
     }
 
     // Unreachable: the last round always returns.
-    return { reply: FALLBACK_REPLY, tools_used: toolsUsed };
+    return {
+      reply: FALLBACK_REPLY,
+      tools_used: toolsUsed,
+      provider: provider.name,
+      tool_rounds: MAX_TOOL_ROUNDS,
+    };
   });
 }

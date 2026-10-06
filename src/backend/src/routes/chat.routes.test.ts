@@ -123,11 +123,13 @@ function toolCall(id: string, name: string, args: Record<string, unknown>) {
 const question = { messages: [{ role: "user", content: "How did Piastri do in 2025?" }] };
 
 beforeEach(() => {
+  // Fresh call history per test, so log assertions see only that request.
+  vi.spyOn(console, "info").mockImplementation(() => {}).mockClear();
   chatRateLimiter.reset();
   llm.providers = [groq, gemini];
   llm.responses = [];
   llm.requests = [];
-  vi.spyOn(console, "warn").mockImplementation(() => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {}).mockClear();
 });
 
 describe("POST /api/v1/chat — request validation", () => {
@@ -388,6 +390,68 @@ describe("POST /api/v1/chat — answering", () => {
       "auto",
       "none",
     ]);
+  });
+});
+
+describe("POST /api/v1/chat — logging", () => {
+  const ANSWER_LOG = /^chat answered provider=(groq|gemini) tool_rounds=\d+ duration_ms=\d+$/;
+
+  function logged(spy: typeof console.info): string[] {
+    return vi.mocked(spy).mock.calls.map((call) => String(call[0]));
+  }
+
+  it("logs the provider, tool rounds and duration, and nothing else", async () => {
+    llm.responses = [
+      reply({
+        role: "assistant",
+        content: null,
+        tool_calls: [toolCall("call_1", "get_driver_stats", { driver_id: "PIA" })],
+      }),
+      reply({ role: "assistant", content: "Secret reply text about Piastri." }),
+    ];
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    expect(res.status).toBe(200);
+    const lines = logged(console.info).filter((line) => line.startsWith("chat "));
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toMatch(ANSWER_LOG);
+    expect(lines[0]).toMatch(/provider=groq tool_rounds=1 /);
+
+    const everything = [...logged(console.info), ...logged(console.warn)].join("\n");
+    expect(everything).not.toContain("Piastri");
+    expect(everything).not.toContain("Secret reply");
+    expect(everything).not.toContain("test-groq-key");
+  });
+
+  it("names the fallback provider when it answered", async () => {
+    llm.responses = [status(429), reply({ role: "assistant", content: "Hi." })];
+
+    await request(app).post("/api/v1/chat").send(question);
+
+    expect(logged(console.info).find((line) => line.startsWith("chat "))).toMatch(
+      /^chat answered provider=gemini tool_rounds=0 duration_ms=\d+$/
+    );
+  });
+
+  it("logs a failure without content and keeps provider details out of the response", async () => {
+    llm.responses = [status(500), status(503)];
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    expect(res.status).toBe(502);
+    expect(logged(console.warn)).toContainEqual(
+      expect.stringMatching(/^chat failed: no provider answered duration_ms=\d+$/)
+    );
+    expect(JSON.stringify(res.body)).not.toMatch(/groq|gemini|tool_rounds|duration/);
+  });
+
+  it("never sends the provider or tool rounds to the client", async () => {
+    llm.responses = [reply({ role: "assistant", content: "Hello." })];
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    expect(Object.keys(res.body.data)).toEqual(["reply", "tools_used"]);
   });
 });
 
