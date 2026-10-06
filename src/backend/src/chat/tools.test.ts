@@ -20,6 +20,7 @@ vi.mock("../models/constructors.model.js", async () => {
     findById: fixtures.findConstructorById,
     findSeasonPointRows: fixtures.findSeasonPointRows,
     findSeasonDrivers: fixtures.findSeasonDrivers,
+    search: fixtures.searchConstructors,
   };
 });
 
@@ -111,6 +112,7 @@ describe("tool definitions", () => {
 
     expect(names).toEqual([
       "search_drivers",
+      "search_constructors",
       "search_races",
       "get_driver_stats",
       "get_driver_standings",
@@ -324,6 +326,43 @@ describe("get_constructor_standings", () => {
   });
 });
 
+describe("search_constructors", () => {
+  it.each(["red bull racing", "Red Bull", "RBR", "rbr", "red bull racing team"])(
+    "finds Red Bull Racing from %j",
+    async (query) => {
+      const result = await call("search_constructors", { query });
+      const constructors = result.body.constructors as Array<Record<string, unknown>>;
+
+      expect(result.ok).toBe(true);
+      expect(constructors[0]).toEqual({
+        constructor_id: "RBR",
+        team_name: "Red Bull Racing",
+        nationality: "",
+      });
+    }
+  );
+
+  it("puts an exact id first when a word matches several teams", async () => {
+    const racing = await call("search_constructors", { query: "racing" });
+    expect((racing.body.constructors as Array<{ constructor_id: string }>).map((c) => c.constructor_id))
+      .toEqual(["RB", "RBR"]);
+
+    const rb = await call("search_constructors", { query: "RB" });
+    expect((rb.body.constructors as Array<{ constructor_id: string }>)[0]?.constructor_id).toBe("RB");
+  });
+
+  it("returns no matches, not an error, for an unknown team", async () => {
+    const result = await call("search_constructors", { query: "Brawn" });
+
+    expect(result.ok).toBe(true);
+    expect(result.body).toEqual({ total_matches: 0, constructors: [] });
+  });
+
+  it("requires a query", async () => {
+    expect((await call("search_constructors", {})).ok).toBe(false);
+  });
+});
+
 describe("get_team_drivers", () => {
   it("lists the team's drivers with full names and races entered", async () => {
     const result = await call("get_team_drivers", { constructor_id: "mcl" });
@@ -345,7 +384,7 @@ describe("get_team_drivers", () => {
 
     expect(result.ok).toBe(false);
     expect(result.body.error).toBe(
-      "Team 'XYZ' was not found. Use get_constructor_standings to find the constructor_id."
+      "Team 'XYZ' was not found. Use search_constructors to find the constructor_id."
     );
   });
 

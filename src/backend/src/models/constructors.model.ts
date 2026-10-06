@@ -134,3 +134,37 @@ export async function findSeasonDrivers(
 
   return result.rows;
 }
+
+export interface ConstructorMatch {
+  constructor_id: string;
+  name: string;
+  nationality: string;
+}
+
+/**
+ * Finds constructors by free text, so "RBR", "Red Bull" and "red bull racing
+ * team" all find Red Bull Racing: an exact id, a name containing the query, or
+ * a query containing the name. Exact id and exact name matches come first.
+ * The query's LIKE wildcards are escaped, so "%" and "_" match literally.
+ */
+export async function search(
+  query: string,
+  limit: number
+): Promise<ConstructorMatch[]> {
+  const escaped = query.replace(/[\\%_]/g, "\\$&");
+
+  const result = await getPool().query<ConstructorMatch>(
+    `SELECT constructor_id, name, nationality
+       FROM constructors
+      WHERE LOWER(constructor_id) = LOWER($1)
+         OR name ILIKE '%' || $2 || '%'
+         OR $1 ILIKE '%' || name || '%'
+      ORDER BY (LOWER(constructor_id) = LOWER($1)) DESC,
+               (LOWER(name) = LOWER($1)) DESC,
+               name
+      LIMIT $3`,
+    [query, escaped, limit]
+  );
+
+  return result.rows;
+}

@@ -76,6 +76,9 @@ const argumentSchemas = {
   search_drivers: z.strictObject({
     query: z.string().trim().min(1).max(100),
   }),
+  search_constructors: z.strictObject({
+    query: z.string().trim().min(1).max(100),
+  }),
   search_races: z.strictObject({
     query: z.string().trim().max(100).optional(),
     season,
@@ -158,6 +161,12 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
     ["query"]
   ),
   tool(
+    "search_constructors",
+    "Find teams (constructors) by name or id, e.g. \"Red Bull\", \"red bull racing\" or \"RBR\". Returns constructor ids and team names.",
+    { query: { type: "string", description: "Part of a team's name, or its id." } },
+    ["query"]
+  ),
+  tool(
     "search_races",
     "Find races in a season by race name, circuit or country, or list the whole season when query is omitted. Returns grand_prix_id, round, date and whether results exist.",
     {
@@ -206,7 +215,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
     {
       constructor_id: {
         type: "string",
-        description: "Team id, e.g. RBR. Find it with get_constructor_standings.",
+        description: "Team id, e.g. RBR. Find it with search_constructors.",
       },
       season: seasonProperty,
     },
@@ -426,6 +435,19 @@ const implementations: {
     };
   },
 
+  async search_constructors({ query }) {
+    const matches = await constructorsModel.search(query, SEARCH_LIMIT);
+
+    return {
+      total_matches: matches.length,
+      constructors: matches.map((constructor) => ({
+        constructor_id: constructor.constructor_id,
+        team_name: constructor.name,
+        nationality: constructor.nationality,
+      })),
+    };
+  },
+
   async search_races({ query, season }) {
     const { rows, total_items } = await racesModel.findAll({
       page: 1,
@@ -484,7 +506,7 @@ const implementations: {
 
     if (!constructor) {
       throw new ToolInputError(
-        `Team '${constructor_id}' was not found. Use get_constructor_standings to find the constructor_id.`
+        `Team '${constructor_id}' was not found. Use search_constructors to find the constructor_id.`
       );
     }
 

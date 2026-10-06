@@ -154,6 +154,25 @@ export async function findSeasonPointRows(
   }));
 }
 
+/** Stands in for constructors.model.ts's search, with the same matching rules. */
+export async function searchConstructors(query: string, limit: number) {
+  const wanted = query.trim().toLowerCase();
+  return Object.entries(CONSTRUCTOR_NAMES)
+    .filter(
+      ([id, name]) =>
+        id.toLowerCase() === wanted ||
+        name.toLowerCase().includes(wanted) ||
+        wanted.includes(name.toLowerCase())
+    )
+    .sort(([idA, nameA], [idB, nameB]) => {
+      const rank = (id: string, name: string) =>
+        id.toLowerCase() === wanted ? 0 : name.toLowerCase() === wanted ? 1 : 2;
+      return rank(idA, nameA) - rank(idB, nameB) || nameA.localeCompare(nameB);
+    })
+    .slice(0, limit)
+    .map(([constructor_id, name]) => ({ constructor_id, name, nationality: "" }));
+}
+
 /**
  * Stands in for constructors.model.ts's findSeasonDrivers, from the sample
  * race's classification (one race, so races_entered is 1).
