@@ -383,10 +383,14 @@ paths:
         stored total.
 
         Only `RACE` sessions count as races entered. `QUALIFYING` sessions for
-        the same grand prix are loaded as supporting input only: their final
-        `LAP_COMPLETED` positions supply the starting grid used by
-        `positions_gained_lost_avg`. A race with no qualifying data simply
-        contributes nothing to that average.
+        the same grand prix are loaded as supporting input only: when they
+        have events, their final `LAP_COMPLETED` positions supply the starting
+        grid used by `positions_gained_lost_avg`. Otherwise the grid is the
+        driver's stored `race_results.grid_position`; a race with neither
+        contributes nothing to that average. The Jolpica ingestion writes no
+        qualifying events (only `qualifying_results` rows, which this endpoint
+        does not read), so for real ingested races the stored grid is the live
+        source.
 
         Coverage depends on what is loaded in the database. A race whose lap
         log has never been ingested still counts toward `races_entered`, and
@@ -580,10 +584,12 @@ paths:
         `models/races.model.ts`, ordered by `season_id` descending then
         `round`.
 
-        `has_results` is computed per row by checking whether any `sessions`
-        row exists for that race. It is therefore `true` for every race a
-        season ingest has loaded, and `false` for a scheduled round with no
-        session yet.
+        `has_results` is computed per row by checking whether the race's
+        `RACE` session has at least one `race_results` row. It is therefore
+        `true` for a race whose results a season ingest has loaded, and
+        `false` for a scheduled round with no `RACE` session, or a `RACE`
+        session with no result rows (for example one that has only a
+        QUALIFYING session so far).
       security: []
       parameters:
         - $ref: "#/components/parameters/Page"
@@ -1589,9 +1595,10 @@ components:
             The grid comes from the grand prix's QUALIFYING session events
             when they exist. Otherwise it falls back to the driver's
             `race_results.grid_position` for that race, which is the only
-            source for Jolpica-ingested races since no QUALIFYING session is
-            ingested. A stored grid of `0` (a pit-lane start) is skipped, not
-            guessed at. The finishing position is lap-derived, then stored, as
+            source for Jolpica-ingested races: the ingestion creates a
+            QUALIFYING session and `qualifying_results` rows but writes no
+            events for it, and `qualifying_results` is not read here. A stored
+            grid of `0` (a pit-lane start) is skipped, not guessed at. The finishing position is lap-derived, then stored, as
             for `average_finish_position`.
 
             SIGN CONVENTION: this implements docs/f1-statistics.md §2
@@ -1612,12 +1619,12 @@ components:
         points:
           type: [number, "null"]
           description: |
-            Sum of both registered drivers' `DriverStatistics.points` for the
-            season, per docs/f1-statistics.md §3 — not a separately-scored
-            total. A driver with no derivable points contributes 0, not
-            `null`, to this sum; the total is `null` only when NEITHER
-            registered driver has any points to contribute (same convention
-            as `DriverStatistics.points`).
+            Sum of the season's stored `race_results.points` over the `RACE`
+            result rows whose own `constructor_id` is this constructor, per
+            docs/f1-statistics.md §3 — not a separately-scored total and not
+            a composition of `DriverStatistics.points`. `null` means no
+            result rows exist for this constructor that season; `0` means
+            rows exist but total nothing (a scoreless season).
 
     # -- Exports -------------------------------------------------------------
     # models/exports.model.ts, controllers/exports.controller.ts
@@ -1729,9 +1736,10 @@ components:
             has_results:
               type: boolean
               description: |
-                True when at least one session exists for the race, i.e. when
-                a `/statistics` call will return 200 rather than 404. True for
-                exactly one of the 24 sample races.
+                True when the race's `RACE` session has at least one
+                `race_results` row. This is not the condition for
+                `/statistics` returning 404, which depends only on whether a
+                `RACE` session exists.
 
     RaceDetail:
       allOf:
@@ -2184,3 +2192,5 @@ components:
             - $ref: "#/components/schemas/SubmissionEvent"
           description: |
             The `event_data` JSONB column, echoed back exactly as submitted.
+
+# This document was edited with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]

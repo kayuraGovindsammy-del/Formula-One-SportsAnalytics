@@ -17,13 +17,13 @@ Every statistic below is computed from the event log defined in `event-schema.md
 | Finishing position | Done and verified | `finishingPosition()` (`driverStatistics.ts`) and `lastRecordedLap()` (`raceStatistics.ts`). Live via `/drivers/:id/stats` (`average_finish_position`, `wins`, `podiums`) and `/races/:id/statistics` (`classification[].position`), both fully derived for `2025_R13`. On `/drivers/:id/stats` only, a driver with no laps in a session falls back to that session's classified `race_results.position` (see "Fallback to ingested `race_results`" below); `/races/:id/statistics` is unchanged |
 | Positions gained/lost (per-race) | Not implemented | Only the season-averaged form exists (`positions_gained_lost_avg`, see below) — no per-race "gained N places in this race" field exists in `ClassificationRow` or anywhere else |
 | Fastest lap | Done and verified | `fastestLap()` (`lapStatistics.ts`), tested in `lapStatistics.test.ts` and `raceStatistics.test.ts`. `fastest_laps` on `/drivers/:id/stats` also falls back to the stored `race_results.fastest_lap_rank = 1` flag, but only for a session in which no driver has any laps. Live via `/races/:id/statistics` (`fastest_lap`, field name `lap_time_ms`), fully derived for `2025_R13` — `races.controller.ts` only falls back to the stored block's shape (field name `time_ms`) when no fastest lap can be derived at all |
-| Race pace | Done and verified, season-level only | `averageLapTime()` (`lapStatistics.ts`) and `average_race_pace_ms` (`driverStatistics.ts`), both tested, live via `/drivers/:id/stats`. There is no per-race (single-session) race-pace field in `raceStatistics.ts` — unlike consistency, which does have one |
+| Race pace | Done and verified, season-level only | `averageLapTime()` (`lapStatistics.ts`) and `average_race_pace_ms` (`driverStatistics.ts`), both tested, live via `/drivers/:id/stats`. There is no per-race (single-session) race-pace field in `raceStatistics.ts` — unlike consistency, which does have one. `average_race_pace_ms` pools every racing lap the driver ran and is derived only from races that have lap data; it has no fallback for races without it. For the 2025 season that is currently the single Belgian GP sample (`2025_R13`, the only session with lap rows in `database/seed.sql` and `data/sample/`), because Jolpica ingestion writes no laps. So the figure is a one-race pace, not a season average, even though `races_entered` counts every race |
 | Consistency | Done and verified | `lapConsistency()` (`lapStatistics.ts`) wired into `classification[].consistency_ms` (`raceStatistics.ts`), tested in both, live via `/races/:id/statistics` (fully derived for `2025_R13`) |
 | DNF (per race) | Done and verified | `retirement_count`/`dnf_count` (`raceStatistics.ts`), tested, live via `/races/:id/statistics` |
-| Driver points | Done and verified | `pointsForPosition()` (`pointsTable.ts`, tested in `pointsTable.test.ts`) and `points` (`driverStatistics.ts`, tested). Live via `/drivers/:id/stats` for all 10 classified Belgian GP drivers (issue #55). Base race scale only — see below for what's excluded |
-| Constructor points | Done and verified, not reachable via the API | `buildConstructorStatistics()` (`constructorStatistics.ts`), tested in `constructorStatistics.test.ts`. No route or controller exists for constructor statistics at all |
+| Driver points | Done and verified | `points` (`driverStatistics.ts`, tested). Per race session, the stored `race_results.points` is used when a row exists for the driver; `pointsForPosition()` (`pointsTable.ts`, tested in `pointsTable.test.ts`) is used only for a session with no stored row. Live via `/drivers/:id/stats`. The derived scale is the base race scale only — see below for what's excluded |
+| Constructor points | Done and verified, live | `buildConstructorStatistics()` (`constructorStatistics.ts`, tested in `constructorStatistics.test.ts`), exposed as `GET /constructors/:constructor_id/stats?season=` (`constructors.controller.ts`). Sums the season's stored `race_results.points` over the rows whose own `constructor_id` is that constructor, so a driver who changed teams mid-season counts for each team only for the races they scored for |
 | DNF rate | Done and verified | `dnf_rate` (`driverStatistics.ts`), tested, live via `/drivers/:id/stats` |
-| Qualifying-vs-race performance | Done and verified | Implemented as `positions_gained_lost_avg` (`driverStatistics.ts`), tested against real sample data (PIA/NOR/LEC), hand-constructed cases and the ingested-grid fallback in `driverStatistics.test.ts`. `drivers.controller.ts` attaches each race's QUALIFYING events and each driver's `race_results.grid_position`, so over HTTP the grid comes from qualifying events when they exist and from the stored `grid_position` otherwise (a stored `0`, a pit-lane start, is skipped). Production ingests no QUALIFYING sessions, so ingested races use the stored grid |
+| Qualifying-vs-race performance | Done and verified | Implemented as `positions_gained_lost_avg` (`driverStatistics.ts`), tested against real sample data (PIA/NOR/LEC), hand-constructed cases and the ingested-grid fallback in `driverStatistics.test.ts`. `drivers.controller.ts` attaches each race's QUALIFYING events and each driver's `race_results.grid_position`, so over HTTP the grid comes from qualifying events when they exist and from the stored `grid_position` otherwise (a stored `0`, a pit-lane start, is skipped). The Jolpica ingestion does create a QUALIFYING session and `qualifying_results` rows per race, but writes no events for that session, so real ingested races have no qualifying events and the stored `grid_position` is the live source. `qualifying_results` is served only by `GET /races/:grand_prix_id/qualifying` and does not feed this statistic |
 
 **Not implemented at all:**
 - **Fastest-lap bonus point.** No scale for it is documented anywhere in this file or `api-design.md`.
@@ -51,7 +51,7 @@ Every statistic below is computed from the event log defined in `event-schema.md
 | Statistic | Formula |
 |---|---|
 | Finishing position | Final `position` from the last valid `LAP_COMPLETED` event of the session, or the position recorded at `RETIREMENT` |
-| Positions gained/lost | Starting grid position (from the qualifying session's classification) minus finishing position |
+| Positions gained/lost | Starting grid position minus finishing position. The grid is the qualifying session's `LAP_COMPLETED` position when such events exist, otherwise the stored `race_results.grid_position` (see "Fallback to ingested `race_results`") |
 | Fastest lap | `min(lap_time_ms)` where `is_valid = true` and `is_pit_lap = false`, across all `LAP_COMPLETED` events in the session |
 | Race pace | `average(lap_time_ms)` where `is_valid = true` and `is_pit_lap = false` — pit laps are excluded because they're artificially slow |
 | Consistency | `stddev(lap_time_ms)` over the same filtered set used for race pace — lower stddev = more consistent |
@@ -61,10 +61,10 @@ Every statistic below is computed from the event log defined in `event-schema.md
 
 | Statistic | Formula |
 |---|---|
-| Driver points | `sum(points)` from each session's derived `RaceResult`, across all races in the season |
-| Constructor points | `sum(points)` of both drivers registered to that constructor for the season |
+| Driver points | `sum(points)` across all race sessions in the season: the stored `race_results.points` where a row exists, otherwise `pointsForPosition()` of the derived finishing position |
+| Constructor points | `sum(race_results.points)` over the season's race rows whose own `constructor_id` is that constructor (per-row attribution, not "both registered drivers") |
 | DNF rate | `count(sessions with RETIREMENT for this driver) / count(sessions entered)` |
-| Qualifying-vs-race performance | `average(race finishing position − qualifying position)` across all races in the season — negative means the driver typically gains positions in the race |
+| Qualifying-vs-race performance | `average(race finishing position − starting grid position)` across all races in the season, where the grid is the qualifying events' position when present and the stored `race_results.grid_position` otherwise — negative means the driver typically gains positions in the race |
 
 ### Fallback to ingested `race_results` (driver stats only)
 
@@ -73,7 +73,7 @@ The Jolpica ingestion pipeline writes a classification per race but no lap log (
 | Statistic | Derived first | Falls back to, when there is no derived value |
 |---|---|---|
 | Finishing position (feeds `wins`, `podiums`, `average_finish_position`) | Position on the driver's last recorded lap | `race_results.position`, the raw nullable column. An unclassified driver (retired, disqualified, did not start) has NULL and contributes no finish |
-| Starting grid (feeds `positions_gained_lost_avg`) | Position in the QUALIFYING session's events | `race_results.grid_position`. `0` (a pit-lane start) is skipped, never guessed at |
+| Starting grid (feeds `positions_gained_lost_avg`) | Position in the QUALIFYING session's `LAP_COMPLETED` events, when the grand prix has such events | `race_results.grid_position`. `0` (a pit-lane start) is skipped, never guessed at. Real ingested races have no qualifying events (the ingestion writes `qualifying_results` rows, not events), so for them this fallback is the live source |
 | `fastest_laps` | Quickest racing lap across all drivers' laps in the session | `race_results.fastest_lap_rank = 1`, only when **no** driver has any laps in the session |
 | `points` | Not a fallback: `race_results.points` is *preferred* when a row exists, and the derived scale covers a session with no row | n/a |
 
@@ -81,13 +81,13 @@ The Jolpica ingestion pipeline writes a classification per race but no lap log (
 
 ### Points-per-position table
 
-`points` above is `sum(pointsForPosition(finishing_position))` per race session, using the standard F1 scale:
+When a race session has no stored `race_results` row for the driver, `points` above falls back to `pointsForPosition(finishing_position)` for that session, using the base F1 scale:
 
 | Position | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11+ |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Points | 25 | 18 | 15 | 12 | 10 | 8 | 6 | 4 | 2 | 1 | 0 |
 
-Constructor points are the sum of both registered drivers' points for the season — not a separately-scored total.
+Constructor points are the sum of the stored `race_results.points` rows scored for that constructor in the season (`constructorStatistics.ts`) — not a separately-scored total, and not a composition of the driver totals. The stored value already applies the era, sprint and half-point rules this table does not.
 
 **Not yet computed, because no scale is defined for them:**
 - **Fastest-lap bonus point.** The real F1 scale awards +1 point for the fastest lap of the race (usually conditional on finishing in the top 10). No such rule is documented here or in `api-design.md`, so it is not applied.
@@ -98,6 +98,8 @@ Constructor points are the sum of both registered drivers' points for the season
 ### Positions gained/lost — sign convention
 
 §2's "Positions gained/lost" (`grid − finish`, positive = gained places) and §3's "Qualifying-vs-race performance" (`finish − qualifying`, negative = gained places) describe the same underlying comparison with opposite signs. There is one field for this, `positions_gained_lost_avg`, implementing §2's convention (positive = gained places) — not two separately-signed fields. To read a value as §3's figure instead, negate it.
+
+**Precedence.** When both exist for a race, the qualifying events' position wins over the stored `race_results.grid_position`. Real ingested races have no qualifying events, so the stored grid is what the live API uses for them. The published qualifying classification (`qualifying_results`, ingested from Jolpica) is exposed separately by `GET /races/:grand_prix_id/qualifying` and is not an input to any statistic.
 
 **Sample-data coverage.** `data/sample/events.json` now includes a minimal `2025_R13_QUALIFYING` session (`evt_011`-`evt_013`): one `LAP_COMPLETED` event per driver, position-only, for PIA, NOR and LEC — the same three drivers whose race finishing position is trustworthy (see above). NOR's pole position and PIA's P2 grid slot are corroborated by existing data (`session_result.pole_position`, and `evt_004`'s `position_before` with no earlier `POSITION_CHANGE`) and marked `"source": "real"`. LEC's grid position is an unconfirmed placeholder marked `"source": "illustrative"` — replace it with the real qualifying classification (Jolpica/ESPN) before treating it as fact. See issue #55.
 
@@ -120,4 +122,4 @@ Constructor points are the sum of both registered drivers' points for the season
 
 
 ---
-*This document was generated with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]*
+*This document was edited with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]*
