@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import chatRouter from "./chat.routes.js";
 import constructorsRouter from "./constructors.routes.js";
 import driversRouter from "./drivers.routes.js";
 import exportsRouter from "./exports.routes.js";
@@ -11,6 +12,8 @@ import usersRouter from "./users.routes.js";
 const router = Router();
 
 router.use(healthRouter);
+
+router.use("/chat", chatRouter);
 
 router.use("/constructors", constructorsRouter);
 

@@ -5,7 +5,16 @@ import * as lapsModel from "../models/laps.model.js";
 import * as racesModel from "../models/races.model.js"; 
 import * as raceResultsModel from "../models/raceResults.model.js";
 import * as qualifyingResultsModel from "../models/qualifyingResults.model.js";
-import { buildRaceStatistics } from "../services/raceStatistics.js";
+import type {
+  FastestLapData,
+  RaceResultStatus,
+} from "../models/raceResults.model.js";
+import type { FastestLap } from "../services/lapStatistics.js";
+import {
+  buildRaceStatistics,
+  type ClassificationRow,
+  type RaceStatistics,
+} from "../services/raceStatistics.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import {
@@ -102,16 +111,36 @@ export const getRace = asyncHandler(async (req, res) => {
   res.status(200).json({ data: race, meta: {} });
 });
 
-/** GET /api/v1/races/:grand_prix_id/statistics — docs/api-design.md §4.8 */
-export const getRaceStatistics = asyncHandler(async (req, res) => {
-  const grandPrixId = pathParam(req.params.grand_prix_id);
+/**
+ * GET /races/:grand_prix_id/statistics's payload: the derived statistics,
+ * with `fastest_lap` and `classification` falling back to the stored
+ * race_results rows when the lap log cannot produce them.
+ *
+ * The two `fastest_lap` shapes differ (`lap_time_ms` when derived, `time_ms`
+ * when stored), and only fallback classification rows carry `status`; both
+ * are documented in docs/api/openapi.yaml.
+ */
+export interface RaceStatisticsView
+  extends Omit<RaceStatistics, "fastest_lap" | "classification"> {
+  fastest_lap: FastestLap | FastestLapData | null;
+  classification: (ClassificationRow & { status?: RaceResultStatus })[];
+}
 
+/**
+ * Loads a race's RACE session and derives its statistics. Returns null when
+ * the race does not exist; throws NOT_FOUND when it exists but has no RACE
+ * session, so both callers report the same message.
+ *
+ * Exported so the chat assistant's tools (chat/tools.ts) read exactly the
+ * same numbers as GET /races/:grand_prix_id/statistics.
+ */
+export async function loadRaceStatistics(
+  grandPrixId: string
+): Promise<RaceStatisticsView | null> {
   const race = await racesModel.findById(grandPrixId);
 
   if (!race) {
-    throw ApiError.notFound(
-      `Race '${grandPrixId}' was not found.`
-    );
+    return null;
   }
 
   const session = race.sessions.find(
@@ -158,7 +187,7 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
    * override.  The same rule applies to fastest lap: use the derived value
    * first, then the stored Jolpica value only when no lap-derived value exists.
    */
-  const statistics = {
+  return {
     ...derivedStatistics,
     fastest_lap:
       derivedStatistics.fastest_lap ?? storedRaceResults?.fastest_lap ?? null,
@@ -176,6 +205,19 @@ export const getRaceStatistics = asyncHandler(async (req, res) => {
             status: result.status,
           })) ?? []),
   };
+}
+
+/** GET /api/v1/races/:grand_prix_id/statistics — docs/api-design.md §4.8 */
+export const getRaceStatistics = asyncHandler(async (req, res) => {
+  const grandPrixId = pathParam(req.params.grand_prix_id);
+
+  const statistics = await loadRaceStatistics(grandPrixId);
+
+  if (!statistics) {
+    throw ApiError.notFound(
+      `Race '${grandPrixId}' was not found.`
+    );
+  }
 
   res.status(200).json({
     data: statistics,

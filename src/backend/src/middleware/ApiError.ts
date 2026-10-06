@@ -28,4 +28,16 @@ export class ApiError extends Error {
   static conflict(code: string, message: string): ApiError {
     return new ApiError(409, code, message);
   }
+
+  static rateLimited(message: string): ApiError {
+    return new ApiError(429, "RATE_LIMITED", message);
+  }
+
+  static badGateway(message: string): ApiError {
+    return new ApiError(502, "BAD_GATEWAY", message);
+  }
+
+  static serviceUnavailable(message: string): ApiError {
+    return new ApiError(503, "SERVICE_UNAVAILABLE", message);
+  }
 }

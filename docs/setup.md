@@ -40,6 +40,21 @@ Fill in `.env` from the template. `src/backend/.env.example` documents every
 variable; the ones you cannot start without are `DATABASE_URL` (the Aiven
 connection string) and the CA certificate covered next.
 
+Paste the Aiven connection string into `DATABASE_URL` **without** its
+`?sslmode=require` suffix. `src/backend/src/config/database.ts` already makes
+the connection use TLS and verifies the server against Aiven's CA certificate.
+If the URL carries `sslmode`, the `pg` driver replaces that TLS setting with
+its own, the CA certificate is never used, and the first query fails with:
+
+```
+Error: self-signed certificate in certificate chain (SELF_SIGNED_CERT_IN_CHAIN)
+```
+
+Remove `sslmode` from the URL to fix it. Do not work around the error by
+turning off certificate verification (`rejectUnauthorized: false`,
+`sslmode=no-verify` or `NODE_TLS_REJECT_UNAUTHORIZED=0`): that would accept
+any server claiming to be the database.
+
 ### Database CA certificate
 
 The database is Aiven for PostgreSQL. Aiven enforces TLS and signs its
@@ -71,6 +86,25 @@ Database CA certificate is not configured. Set DATABASE_CA_CERT or provide certs
 
 The *Database CA certificate* section of `src/backend/README.md` has the full
 explanation, including the `\n` escaping `DATABASE_CA_CERT` expects.
+
+### Chat assistant (optional)
+
+`POST /api/v1/chat` is a small F1 assistant that answers only from this API's
+own data. It needs at least one LLM provider key in `src/backend/.env`:
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `GROQ_API_KEY` | One of the two keys | Primary provider. Free key from [console.groq.com/keys](https://console.groq.com/keys). |
+| `GROQ_MODEL` | No | Groq model id. Defaults to `openai/gpt-oss-20b`. |
+| `GEMINI_API_KEY` | One of the two keys | Fallback provider. Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey). |
+| `GEMINI_MODEL` | No | Gemini model id. Defaults to `gemini-3.5-flash-lite`. |
+| `CHAT_DAILY_LIMIT` | No | Chat requests allowed per UTC day across all users. Defaults to `200`; an invalid value falls back to the default with a warning. |
+
+With neither key set, the endpoint answers `503 SERVICE_UNAVAILABLE` and the
+rest of the API works as normal. Any model you choose must support tool
+(function) calling. Deployed environments set the same variables in Railway.
+See [Third-party services](third-party-services.md) for what is sent to each
+provider and the free-tier terms.
 
 ### Run it
 
