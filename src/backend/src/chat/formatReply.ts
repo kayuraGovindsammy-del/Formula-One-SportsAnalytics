@@ -7,8 +7,10 @@
 //   - "# Heading" lines lose the #s
 //   - [text](url) becomes "text: url"
 //   - markdown tables become "- a, b, c" lines
+//   - every http(s) URL goes on its own line, without trailing punctuation
 //   - runs of blank lines collapse to one
-// Plain "- " lists, numbered lists and bare URLs pass through unchanged.
+// Plain "- " lists and numbered lists pass through unchanged, as does a URL
+// that already sits alone on its line.
 // Single underscores are left alone: ids such as 2025_R13 contain them.
 // ---------------------------------------------------------------------------
 
@@ -96,11 +98,83 @@ function cleanLine(line: string): string {
   );
 }
 
+const URL_PATTERN = /https?:\/\/[^\s<>"'`]+/g;
+const URL_TRAILING_PUNCTUATION = new Set([",", ".", ";", ":", ")", "!"]);
+const LIST_MARKER = /^\s*(?:-|\d+\.)\s*$/;
+
+function countChar(text: string, char: string): number {
+  return text.split(char).length - 1;
+}
+
+/**
+ * Splits trailing sentence punctuation off a URL. A ")" stays when it closes
+ * a "(" inside the URL, as in .../wiki/Spa_(circuit).
+ */
+export function trimUrl(raw: string): string {
+  let url = raw;
+  for (;;) {
+    const last = url.slice(-1);
+    if (!URL_TRAILING_PUNCTUATION.has(last)) break;
+    if (last === ")" && countChar(url, "(") >= countChar(url, ")")) break;
+    url = url.slice(0, -1);
+  }
+  return url;
+}
+
+/** Text before a URL: keep it, ending in a colon unless it already ends a sentence. */
+function leadIn(text: string): string | undefined {
+  const trimmed = text.trimEnd();
+  if (trimmed === "") return undefined;
+  return /[:.!?]$/.test(trimmed) ? trimmed : `${trimmed}:`;
+}
+
+/** Text after a URL: drop the punctuation left behind and start it with a capital. */
+function followOn(text: string): string | undefined {
+  const trimmed = text.replace(/^[\s,.;:!)]+/, "").trim();
+  if (trimmed === "") return undefined;
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
+/**
+ * Puts every URL in the line on a line of its own. "See the list: URL, or
+ * ask..." becomes "See the list:", "URL", "Or ask...". A line that is only a
+ * URL, or a list marker and a URL, is returned as it is apart from trailing
+ * punctuation.
+ */
+function isolateUrls(line: string): string[] {
+  const matches = [...line.matchAll(URL_PATTERN)];
+  if (matches.length === 0) return [line];
+
+  const output: string[] = [];
+  let cursor = 0;
+
+  for (const [index, match] of matches.entries()) {
+    const url = trimUrl(match[0]);
+    const before = line.slice(cursor, match.index);
+
+    if (index === 0 && LIST_MARKER.test(before)) {
+      output.push(`${before}${url}`);
+    } else {
+      const text = index === 0 ? leadIn(before) : followOn(before);
+      if (text !== undefined) output.push(index === 0 ? text : (leadIn(text) ?? text));
+      output.push(url);
+    }
+
+    cursor = match.index + url.length;
+  }
+
+  const rest = followOn(line.slice(cursor));
+  if (rest !== undefined) output.push(rest);
+
+  return output;
+}
+
 export function formatReply(reply: string): string {
   const lines = reply.replace(/\r\n?/g, "\n").split("\n");
 
   return flattenTables(lines)
     .map(cleanLine)
+    .flatMap(isolateUrls)
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

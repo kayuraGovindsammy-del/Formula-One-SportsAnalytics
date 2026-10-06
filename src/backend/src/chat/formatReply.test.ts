@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { formatReply } from "./formatReply.js";
+import { formatReply, trimUrl } from "./formatReply.js";
+
+const LIST_URL =
+  "https://example.test/api/v1/races/2025_R13/events?type=PIT_STOP&per_page=100";
 
 describe("formatReply", () => {
   it("leaves an already-plain reply unchanged", () => {
@@ -45,10 +48,10 @@ describe("formatReply", () => {
     expect(formatReply("# Summary #")).toBe("Summary");
   });
 
-  it("turns [text](url) into text: url", () => {
+  it("turns [text](url) into text: url, with the url on its own line", () => {
     expect(
       formatReply("Download the [results CSV](https://example.test/export/results?format=csv).")
-    ).toBe("Download the results CSV: https://example.test/export/results?format=csv.");
+    ).toBe("Download the results CSV:\nhttps://example.test/export/results?format=csv");
   });
 
   it("does not repeat a link whose text is the url", () => {
@@ -101,6 +104,53 @@ describe("formatReply", () => {
   it("keeps - lists and numbered lists, and turns * bullets into -", () => {
     expect(formatReply("- one\n- two\n1. first\n* three\n+ four")).toBe(
       "- one\n- two\n1. first\n- three\n- four"
+    );
+  });
+
+  it("moves a mid-sentence URL onto its own line and keeps the sentence readable", () => {
+    expect(formatReply(`See the full list: ${LIST_URL}, or ask about a specific driver.`)).toBe(
+      `See the full list:\n${LIST_URL}\nOr ask about a specific driver.`
+    );
+  });
+
+  it("drops the full stop after a URL that ends a sentence", () => {
+    expect(formatReply(`The full list is at ${LIST_URL}.`)).toBe(
+      `The full list is at:\n${LIST_URL}`
+    );
+    expect(formatReply(`Here it is: ${LIST_URL}!`)).toBe(`Here it is:\n${LIST_URL}`);
+  });
+
+  it("strips each trailing punctuation mark that is not part of the URL", () => {
+    expect(trimUrl("https://example.test/a,")).toBe("https://example.test/a");
+    expect(trimUrl("https://example.test/a.")).toBe("https://example.test/a");
+    expect(trimUrl("https://example.test/a;")).toBe("https://example.test/a");
+    expect(trimUrl("https://example.test/a:")).toBe("https://example.test/a");
+    expect(trimUrl("https://example.test/a)")).toBe("https://example.test/a");
+    expect(trimUrl("https://example.test/a!")).toBe("https://example.test/a");
+    expect(trimUrl("https://example.test/a).")).toBe("https://example.test/a");
+  });
+
+  it("keeps a closing parenthesis that belongs to the URL", () => {
+    const url = "https://en.wikipedia.org/wiki/Circuit_de_Spa-Francorchamps_(track)";
+    expect(trimUrl(`${url}.`)).toBe(url);
+    expect(formatReply(`About the track: ${url}.`)).toBe(`About the track:\n${url}`);
+  });
+
+  it("splits two URLs in one line onto separate lines", () => {
+    expect(
+      formatReply("CSV: https://example.test/a.csv and JSON: https://example.test/a.json.")
+    ).toBe("CSV:\nhttps://example.test/a.csv\nAnd JSON:\nhttps://example.test/a.json");
+  });
+
+  it("adds a colon when the text before a URL does not end a sentence", () => {
+    expect(formatReply(`Download it from ${LIST_URL} to get every stop.`)).toBe(
+      `Download it from:\n${LIST_URL}\nTo get every stop.`
+    );
+  });
+
+  it("leaves a list item that is just a URL on its line", () => {
+    expect(formatReply(`- ${LIST_URL}\n1. ${LIST_URL}`)).toBe(
+      `- ${LIST_URL}\n1. ${LIST_URL}`
     );
   });
 

@@ -257,7 +257,7 @@ describe("POST /api/v1/chat — answering", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.reply).toBe(
-      "Piastri, 2025\n\nStat, Value:\n- Wins, 7\n\nSee his stats: https://example.test/drivers/PIA."
+      "Piastri, 2025\n\nStat, Value:\n- Wins, 7\n\nSee his stats:\nhttps://example.test/drivers/PIA"
     );
   });
 
