@@ -148,9 +148,11 @@ Nullable, `CHECK (grid_position IS NULL OR grid_position >= 0)`.
 `> 0` check would reject a legitimate pit-lane start. (2025 happens to contain no grid-0
 rows, but the constraint has to be right regardless.)
 
-This column was added for `positions_gained_lost_avg`. That statistic is now implemented,
-but it derives the starting grid from **QUALIFYING session events** rather than from this
-column, so nothing currently reads `grid_position` — see §9.
+This column was added for `positions_gained_lost_avg`, which is now implemented. The
+statistic uses the **QUALIFYING session's `LAP_COMPLETED` position** as the starting grid
+when the grand prix has such events, and otherwise falls back to this column. This
+pipeline writes a QUALIFYING session and `qualifying_results` rows but no qualifying
+events (§9), so for real ingested races this column is the live source of the grid.
 
 ### 4.4 Mid-season constructor changes resolve to the most recent team
 
@@ -352,11 +354,21 @@ production Zod schemas, so a test cannot assert against a shape the API never se
   `race_results.fastest_lap_*` exists as a fallback (§4.7).
 - **`grid_position` is a fallback, not a derivation.** `driverStatistics.ts` reads it for
   `positions_gained_lost_avg` only when no qualifying `LAP_COMPLETED` position is
-  derivable; `0` (a pit-lane start) is skipped. The same fallback-only treatment applies to
+  derivable; `0` (a pit-lane start) is skipped. Because ingestion writes no qualifying
+  events, it is the live grid source for ingested races. The same fallback-only treatment applies to
   the classified `position` (wins, podiums, average finish) and `fastest_lap_rank = 1`
   (`fastest_laps`) when a session has no laps. `average_race_pace_ms` still needs laps.
-- **Qualifying is not ingested.** Nothing in this pipeline writes a QUALIFYING session, so
-  the qualifying events that `positions_gained_lost_avg` would otherwise prefer come only from sample data.
+- **Qualifying is ingested as results, not as events.** The pipeline fetches the season's
+  qualifying classification (`fetchSeasonQualifyingResults`), creates a `QUALIFYING`
+  session per race that has one, and upserts a `qualifying_results` row per driver
+  (`position`, `q1_time_ms`, `q2_time_ms`, `q3_time_ms`; migration `007_qualifying_results.sql`).
+  It writes no events for that session, so the qualifying `LAP_COMPLETED` events that
+  `positions_gained_lost_avg` would otherwise prefer come only from sample data or
+  accepted submissions. `qualifying_results` is served by
+  `GET /races/{grand_prix_id}/qualifying` and does not feed any statistic.
 - **Sprints are opt-in.** Without `--include-sprints`, any points total derived from
   `race_results` undercounts a sprint season. `grand_prix.has_sprint` is still set
   correctly either way, from the calendar.
+
+---
+*This document was edited with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]*
