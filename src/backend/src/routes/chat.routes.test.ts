@@ -74,6 +74,7 @@ vi.mock("../models/events.model.js", async () => {
 });
 
 import { MAX_TOOL_ROUNDS, SYSTEM_PROMPT } from "../chat/assistant.js";
+import { humanizeDurations } from "../chat/tools.js";
 import { loadDriverStatistics } from "../controllers/drivers.controller.js";
 import { createApp } from "../app.js";
 import {
@@ -251,7 +252,7 @@ describe("POST /api/v1/chat — answering", () => {
     expect(secondMessages.at(-1)).toEqual({
       role: "tool",
       tool_call_id: "call_1",
-      content: JSON.stringify(await loadDriverStatistics("PIA", "2025")),
+      content: JSON.stringify(humanizeDurations(await loadDriverStatistics("PIA", "2025"))),
     });
   });
 

@@ -75,10 +75,13 @@ import * as eventsModel from "../models/events.model.js";
 import type { Event } from "../types/event.types.js";
 import {
   DEFAULT_SEASON,
-  MAX_EVENT_ROWS,
+  MAX_EVENT_EXAMPLES,
+  MAX_EVENTS_SUMMARISED,
   MAX_TOOL_OUTPUT_CHARS,
   TOOL_DEFINITIONS,
+  formatDuration,
   formatToolOutput,
+  humanizeDurations,
   isToolName,
   runTool,
 } from "./tools.js";
@@ -208,12 +211,14 @@ describe("search tools", () => {
 });
 
 describe("get_driver_stats", () => {
-  it("returns exactly what GET /drivers/:id/stats returns", async () => {
+  it("returns what GET /drivers/:id/stats returns, with durations in seconds", async () => {
     const result = await call("get_driver_stats", { driver_id: "PIA", season: "2025" });
 
     expect(result.body).toEqual(
-      JSON.parse(JSON.stringify(await loadDriverStatistics("PIA", "2025")))
+      JSON.parse(JSON.stringify(humanizeDurations(await loadDriverStatistics("PIA", "2025"))))
     );
+    expect(result.body).not.toHaveProperty("average_race_pace_ms");
+    expect(result.body.average_race_pace).toMatch(/^\d+\.\d s$/);
   });
 
   it("tells the model when a driver does not exist", async () => {
@@ -273,8 +278,15 @@ describe("get_race_summary", () => {
     expect(result.body.note).toBeUndefined();
     expect(result.body.statistics).toMatchObject({ grand_prix_id: "2025_R13" });
     expect(result.body.qualifying).toEqual([
-      expect.objectContaining({ position: 1, driver_id: "NOR" }),
+      expect.objectContaining({
+        position: 1,
+        driver_id: "NOR",
+        q1_time: "65.0 s",
+        q2_time: "64.6 s",
+        q3_time: "64.0 s",
+      }),
     ]);
+    expect(result.content).not.toMatch(/_ms"/);
     expect(mocks.findQualifying).toHaveBeenCalledWith("2025_R13");
   });
 
@@ -300,65 +312,99 @@ describe("get_race_summary", () => {
 });
 
 describe("get_race_events", () => {
-  it(`returns at most ${MAX_EVENT_ROWS} events of the requested type`, async () => {
-    const result = await call("get_race_events", {
-      grand_prix_id: "2025_R13",
-      type: "POSITION_CHANGE",
-    });
-    const events = result.body.events as Array<{ type: string }>;
-
-    expect(result.ok).toBe(true);
-    expect(events.length).toBeGreaterThan(0);
-    expect(events.length).toBeLessThanOrEqual(MAX_EVENT_ROWS);
-    expect(result.body.returned).toBe(events.length);
-    expect(events.every((event) => event.type === "POSITION_CHANGE")).toBe(true);
+  const pitStop = (n: number, lap: number, durationMs: number): Event => ({
+    event_id: `evt_${n}`,
+    session_id: "2025_R13_RACE",
+    driver_id: `D${String(n).padStart(2, "0")}`,
+    type: "PIT_STOP",
+    lap_number: lap,
+    timestamp: null,
+    payload: { duration_ms: durationMs },
   });
 
-  it(`asks the model layer for at most ${MAX_EVENT_ROWS} rows and says when more exist`, async () => {
-    const pitStop = (n: number): Event => ({
-      event_id: `evt_${n}`,
-      session_id: "2025_R13_RACE",
-      driver_id: "PIA",
-      type: "PIT_STOP",
-      lap_number: n,
-      timestamp: null,
-      payload: {} as Event["payload"],
+  it("summarises instead of listing: total, fastest stop, busiest laps, 8 examples", async () => {
+    // 40 stops; the fastest (19.95 s, shown as 20.0 s) is on lap 28; laps 16-20 are busiest.
+    const rows = Array.from({ length: 40 }, (_, n) => {
+      const lap = n < 20 ? 16 + (n % 5) : 21 + (n % 20);
+      return pitStop(n, lap, n === 27 ? 19_950 : 23_312 + n);
     });
-    vi.mocked(eventsModel.findByRace).mockResolvedValueOnce({
-      rows: Array.from({ length: MAX_EVENT_ROWS }, (_, n) => pitStop(n)),
-      total_items: 40,
-    });
+    vi.mocked(eventsModel.findByRace).mockResolvedValueOnce({ rows, total_items: 40 });
 
     const result = await call("get_race_events", {
       grand_prix_id: "2025_R13",
       type: "PIT_STOP",
     });
 
+    expect(result.ok).toBe(true);
     expect(eventsModel.findByRace).toHaveBeenLastCalledWith("2025_R13", {
       page: 1,
-      per_page: MAX_EVENT_ROWS,
+      per_page: MAX_EVENTS_SUMMARISED,
       type: "PIT_STOP",
       driver_id: undefined,
       session_type: "RACE",
     });
+
+    const examples = result.body.examples as Array<Record<string, unknown>>;
+    expect(MAX_EVENT_EXAMPLES).toBe(8);
+    expect(examples).toHaveLength(8);
+    expect(examples[0]).toEqual({ driver_id: "D00", lap: 16, duration: "23.3 s" });
+
     expect(result.body).toMatchObject({
-      total_items: 40,
-      returned: MAX_EVENT_ROWS,
-      note: `Only the first ${MAX_EVENT_ROWS} events are included.`,
+      total_events: 40,
+      fastest_pit_stop: { driver_id: "D27", lap: 28, duration: "20.0 s" },
+      busiest_laps: { from_lap: 16, to_lap: 20, count: 20 },
+      full_list_url:
+        "http://localhost:3001/api/v1/races/2025_R13/events?type=PIT_STOP&per_page=100",
+      note: "Showing 8 of 40 pit stops. The full list is at full_list_url, or ask about a specific driver.",
     });
+    expect(result.content).not.toMatch(/_ms"/);
   });
 
-  it("filters by driver", async () => {
+  it("returns every event, with no note, when there are 8 or fewer", async () => {
+    const result = await call("get_race_events", {
+      grand_prix_id: "2025_R13",
+      type: "POSITION_CHANGE",
+    });
+    const examples = result.body.examples as Array<Record<string, unknown>>;
+
+    expect(result.ok).toBe(true);
+    expect(result.body.total_events).toBe(examples.length);
+    expect(examples.length).toBeGreaterThan(0);
+    expect(result.body.note).toBeUndefined();
+    // Only pit stops have a "fastest".
+    expect(result.body.fastest_pit_stop).toBeUndefined();
+  });
+
+  it("says when the summary covers only part of a very long list", async () => {
+    vi.mocked(eventsModel.findByRace).mockResolvedValueOnce({
+      rows: Array.from({ length: 10 }, (_, n) => pitStop(n, n + 1, 22_000)),
+      total_items: 900,
+    });
+
+    const result = await call("get_race_events", {
+      grand_prix_id: "2025_R13",
+      type: "PIT_STOP",
+    });
+
+    expect(result.body.note).toMatch(/The summary covers the first 10 pit stops only\.$/);
+  });
+
+  it("filters by driver and links to that driver's full list", async () => {
     const result = await call("get_race_events", {
       grand_prix_id: "2025_R13",
       type: "PIT_STOP",
       driver_id: "PIA",
     });
-    const events = result.body.events as Array<{ driver_id?: string }>;
+    const examples = result.body.examples as Array<{ driver_id?: string; duration?: string }>;
 
     expect(result.ok).toBe(true);
-    expect(events.length).toBeGreaterThan(0);
-    expect(events.every((event) => event.driver_id === "PIA")).toBe(true);
+    expect(result.body.driver_id).toBe("PIA");
+    expect(examples.length).toBeGreaterThan(0);
+    expect(examples.every((event) => event.driver_id === "PIA")).toBe(true);
+    expect(examples.every((event) => /^\d+\.\d s$/.test(event.duration ?? ""))).toBe(true);
+    expect(result.body.full_list_url).toBe(
+      "http://localhost:3001/api/v1/races/2025_R13/events?type=PIT_STOP&per_page=100&driver_id=PIA"
+    );
   });
 
   it("tells the model when a race does not exist", async () => {
@@ -388,6 +434,42 @@ describe("get_export_link", () => {
     const result = await call("get_export_link", { dataset: "users", format: "csv" });
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("duration conversion", () => {
+  it("formats milliseconds as seconds with one decimal", () => {
+    expect(formatDuration(23_312)).toBe("23.3 s");
+    expect(formatDuration(23_350)).toBe("23.4 s");
+    expect(formatDuration(2_049)).toBe("2.0 s");
+    expect(formatDuration(83_456)).toBe("83.5 s");
+    expect(formatDuration(0)).toBe("0.0 s");
+  });
+
+  it("renames every *_ms number at any depth and keeps nulls", () => {
+    expect(
+      humanizeDurations({
+        lap_time_ms: 83_456,
+        gap_to_winner_ms: null,
+        position: 1,
+        fastest_lap: { driver_id: "NOR", lap_time_ms: 63_971 },
+        stops: [{ duration_ms: 23_312 }, { duration_ms: 2_400 }],
+      })
+    ).toEqual({
+      lap_time: "83.5 s",
+      gap_to_winner: null,
+      position: 1,
+      fastest_lap: { driver_id: "NOR", lap_time: "64.0 s" },
+      stops: [{ duration: "23.3 s" }, { duration: "2.4 s" }],
+    });
+  });
+
+  it("leaves non-numeric *_ms fields and other values alone", () => {
+    expect(humanizeDurations({ note_ms: "n/a", items: 3, label: "x" })).toEqual({
+      note_ms: "n/a",
+      items: 3,
+      label: "x",
+    });
   });
 });
 

@@ -18,6 +18,7 @@ import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as qualifyingResultsModel from "../models/qualifyingResults.model.js";
 import * as racesModel from "../models/races.model.js";
+import type { Event } from "../types/event.types.js";
 import { seasonParam } from "../utils/queryValidation.js";
 import type { ToolDefinition } from "./llmClient.js";
 
@@ -27,8 +28,17 @@ export const DEFAULT_SEASON = "2025";
 /** Tool output is cut to this many characters before it reaches the model. */
 export const MAX_TOOL_OUTPUT_CHARS = 12_000;
 
-/** get_race_events never returns more rows than this. */
-export const MAX_EVENT_ROWS = 25;
+/** get_race_events includes at most this many example rows. */
+export const MAX_EVENT_EXAMPLES = 8;
+
+/**
+ * get_race_events summarises up to this many events. A race has at most a
+ * few dozen pit stops or penalties; position changes can run to hundreds.
+ */
+export const MAX_EVENTS_SUMMARISED = 500;
+
+/** Width of the lap windows get_race_events reports its busiest period in. */
+export const LAP_WINDOW_SIZE = 5;
 
 const SEARCH_LIMIT = 10;
 
@@ -161,7 +171,7 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
   ),
   tool(
     "get_race_events",
-    `Pit stops, penalties or position changes in a race, optionally for one driver. At most ${MAX_EVENT_ROWS} rows.`,
+    `A summary of the pit stops, penalties or position changes in a race, optionally for one driver: the total, the fastest pit stop, the busiest laps, and at most ${MAX_EVENT_EXAMPLES} example rows.`,
     {
       grand_prix_id: gpIdProperty,
       type: { type: "string", enum: [...EVENT_TYPES] },
@@ -180,6 +190,147 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
     ["dataset", "format"]
   ),
 ];
+
+// -- Output shaping -------------------------------------------------------------
+
+/** 23_312 -> "23.3 s". Durations reach the model only in this form. */
+export function formatDuration(ms: number): string {
+  return `${(Math.round(ms / 100) / 10).toFixed(1)} s`;
+}
+
+/**
+ * Replaces every `<name>_ms` number in a tool result with a `<name>`
+ * display string ("23.3 s"), at any depth; a null stays null under the new
+ * name. Applied to every tool's output, so the model never sees raw
+ * milliseconds and cannot echo them back.
+ */
+export function humanizeDurations(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(humanizeDurations);
+  }
+
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [key, field] of Object.entries(value)) {
+    if (key.endsWith("_ms") && (typeof field === "number" || field === null)) {
+      result[key.slice(0, -3)] = field === null ? null : formatDuration(field);
+    } else {
+      result[key] = humanizeDurations(field);
+    }
+  }
+  return result;
+}
+
+interface EventSummaryOptions {
+  grand_prix_id: string;
+  type: (typeof EVENT_TYPES)[number];
+  driver_id: string | undefined;
+  apiBaseUrl: string;
+}
+
+const EVENT_NOUNS: Record<(typeof EVENT_TYPES)[number], string> = {
+  PIT_STOP: "pit stops",
+  PENALTY_ISSUED: "penalties",
+  POSITION_CHANGE: "position changes",
+};
+
+function payloadNumber(event: Event, key: string): number | undefined {
+  const value: unknown = (event.payload as Record<string, unknown>)[key];
+  return typeof value === "number" ? value : undefined;
+}
+
+/**
+ * get_race_events' answer: counts and highlights instead of a raw list, so
+ * the model has nothing long to copy into its reply. Durations stay in
+ * milliseconds here; humanizeDurations converts them on the way out.
+ */
+export function summariseEvents(
+  rows: readonly Event[],
+  totalItems: number,
+  options: EventSummaryOptions
+): Record<string, unknown> {
+  const noun = EVENT_NOUNS[options.type];
+  const ordered = [...rows].sort(
+    (a, b) => (a.lap_number ?? Infinity) - (b.lap_number ?? Infinity)
+  );
+
+  // Busiest window of LAP_WINDOW_SIZE laps (1-5, 6-10, ...); the earliest
+  // window wins a tie.
+  const perWindow = new Map<number, number>();
+  for (const event of ordered) {
+    if (event.lap_number === undefined) continue;
+    const window = Math.floor((event.lap_number - 1) / LAP_WINDOW_SIZE);
+    perWindow.set(window, (perWindow.get(window) ?? 0) + 1);
+  }
+  let busiest: { window: number; count: number } | undefined;
+  for (const [window, count] of perWindow) {
+    if (busiest === undefined || count > busiest.count) busiest = { window, count };
+  }
+
+  let fastest: Event | undefined;
+  if (options.type === "PIT_STOP") {
+    for (const event of ordered) {
+      const duration = payloadNumber(event, "duration_ms");
+      if (duration === undefined) continue;
+      const best = fastest && payloadNumber(fastest, "duration_ms");
+      if (best === undefined || duration < best) fastest = event;
+    }
+  }
+
+  const params = new URLSearchParams({ type: options.type, per_page: "100" });
+  if (options.driver_id) params.set("driver_id", options.driver_id);
+  const fullListUrl = `${options.apiBaseUrl}/races/${encodeURIComponent(
+    options.grand_prix_id
+  )}/events?${params.toString()}`;
+
+  const examples = ordered.slice(0, MAX_EVENT_EXAMPLES).map((event) => ({
+    driver_id: event.driver_id ?? null,
+    lap: event.lap_number ?? null,
+    ...event.payload,
+  }));
+
+  const notes: string[] = [];
+  if (totalItems > examples.length) {
+    notes.push(
+      `Showing ${examples.length} of ${totalItems} ${noun}. The full list is at full_list_url` +
+        (options.driver_id ? "." : ", or ask about a specific driver.")
+    );
+  }
+  if (totalItems > rows.length) {
+    notes.push(`The summary covers the first ${rows.length} ${noun} only.`);
+  }
+
+  return {
+    grand_prix_id: options.grand_prix_id,
+    type: options.type,
+    ...(options.driver_id ? { driver_id: options.driver_id } : {}),
+    total_events: totalItems,
+    ...(fastest
+      ? {
+          fastest_pit_stop: {
+            driver_id: fastest.driver_id ?? null,
+            lap: fastest.lap_number ?? null,
+            duration_ms: payloadNumber(fastest, "duration_ms") ?? null,
+          },
+        }
+      : {}),
+    ...(busiest
+      ? {
+          busiest_laps: {
+            from_lap: busiest.window * LAP_WINDOW_SIZE + 1,
+            to_lap: (busiest.window + 1) * LAP_WINDOW_SIZE,
+            count: busiest.count,
+          },
+        }
+      : {}),
+    examples,
+    full_list_url: fullListUrl,
+    ...(notes.length > 0 ? { note: notes.join(" ") } : {}),
+  };
+}
 
 // -- Implementations -------------------------------------------------------------
 
@@ -304,10 +455,10 @@ const implementations: {
     };
   },
 
-  async get_race_events({ grand_prix_id, type, driver_id }) {
+  async get_race_events({ grand_prix_id, type, driver_id }, context) {
     const page = await eventsModel.findByRace(grand_prix_id, {
       page: 1,
-      per_page: MAX_EVENT_ROWS,
+      per_page: MAX_EVENTS_SUMMARISED,
       type,
       driver_id,
       session_type: "RACE",
@@ -319,16 +470,12 @@ const implementations: {
       );
     }
 
-    return {
+    return summariseEvents(page.rows, page.total_items, {
       grand_prix_id,
       type,
-      total_items: page.total_items,
-      returned: page.rows.length,
-      ...(page.total_items > page.rows.length
-        ? { note: `Only the first ${MAX_EVENT_ROWS} events are included.` }
-        : {}),
-      events: page.rows,
-    };
+      driver_id,
+      apiBaseUrl: context.apiBaseUrl,
+    });
   },
 
   async get_export_link({ dataset, format, season }, context) {
@@ -423,7 +570,7 @@ export async function runTool(
       context: ToolContext
     ) => Promise<unknown>;
     const output = await implementation(parsed.data, context);
-    return { name, ok: true, content: formatToolOutput(output) };
+    return { name, ok: true, content: formatToolOutput(humanizeDurations(output)) };
   } catch (error) {
     if (error instanceof ToolInputError) {
       return { name, ok: false, content: toolError(error.message) };
