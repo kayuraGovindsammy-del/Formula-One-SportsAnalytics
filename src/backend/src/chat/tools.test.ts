@@ -70,7 +70,7 @@ vi.mock("../models/events.model.js", async () => {
 
 vi.mock("../models/names.model.js", async () => {
   const fixtures = await import("../test/sampleModelMocks.js");
-  return { findNameDirectory: fixtures.findNameDirectory };
+  return { findNameDirectory: vi.fn(fixtures.findNameDirectory) };
 });
 
 vi.mock("../models/qualifyingResults.model.js", () => ({
@@ -79,6 +79,8 @@ vi.mock("../models/qualifyingResults.model.js", () => ({
 
 import { loadDriverStatistics } from "../controllers/drivers.controller.js";
 import * as eventsModel from "../models/events.model.js";
+import * as namesModel from "../models/names.model.js";
+import { findNameDirectory } from "../test/sampleModelMocks.js";
 import type { Event } from "../types/event.types.js";
 import {
   DEFAULT_SEASON,
@@ -88,8 +90,10 @@ import {
   TOOL_DEFINITIONS,
   decimalsFor,
   formatDuration,
+  addNames,
   formatToolOutput,
   humanizeDurations,
+  mentionsIds,
   isToolName,
   runTool,
 } from "./tools.js";
@@ -204,7 +208,12 @@ describe("search tools", () => {
 
     expect(result.ok).toBe(true);
     expect(result.body.drivers).toEqual([
-      expect.objectContaining({ driver_id: "PIA", name: "Oscar Piastri" }),
+      expect.objectContaining({
+        driver_id: "PIA",
+        driver_name: "Oscar Piastri",
+        constructor_id: "MCL",
+        team_name: "McLaren",
+      }),
     ]);
   });
 
@@ -225,9 +234,15 @@ describe("get_driver_stats", () => {
   it("returns what GET /drivers/:id/stats returns, with durations in seconds", async () => {
     const result = await call("get_driver_stats", { driver_id: "PIA", season: "2025" });
 
+    const directory = await findNameDirectory();
     expect(result.body).toEqual(
-      JSON.parse(JSON.stringify(humanizeDurations(await loadDriverStatistics("PIA", "2025"))))
+      JSON.parse(
+        JSON.stringify(
+          humanizeDurations(addNames(await loadDriverStatistics("PIA", "2025"), directory))
+        )
+      )
     );
+    expect(result.body.driver_name).toBe("Oscar Piastri");
     expect(result.body).not.toHaveProperty("average_race_pace_ms");
     expect(result.body.average_race_pace).toMatch(/^\d+\.\d{3} s$/);
   });
@@ -312,7 +327,12 @@ describe("get_constructor_standings", () => {
     const standings = result.body.standings as Array<Record<string, unknown>>;
 
     expect(result.ok).toBe(true);
-    expect(standings[0]).toEqual({ position: 1, constructor_id: "MCL", points: 43 });
+    expect(standings[0]).toEqual({
+      position: 1,
+      constructor_id: "MCL",
+      team_name: "McLaren",
+      points: 43,
+    });
   });
 
   it("notes when a season has no results rather than inventing a table", async () => {
@@ -581,6 +601,100 @@ describe("get_export_link", () => {
     const result = await call("get_export_link", { dataset: "users", format: "csv" });
 
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("names beside ids", () => {
+  const directory = {
+    drivers: new Map([
+      ["ANT", "Andrea Kimi Antonelli"],
+      ["NOR", "Lando Norris"],
+    ]),
+    constructors: new Map([["MCL", "McLaren"]]),
+  };
+
+  it("adds driver and team names right after their ids, at any depth", () => {
+    const named = addNames(
+      {
+        classification: [{ position: 1, driver_id: "NOR", constructor_id: "MCL", laps: 44 }],
+        events: [{ driver_id: "ant", overtaken_driver_id: "NOR" }],
+      },
+      directory
+    );
+
+    expect(named).toEqual({
+      classification: [
+        {
+          position: 1,
+          driver_id: "NOR",
+          driver_name: "Lando Norris",
+          constructor_id: "MCL",
+          team_name: "McLaren",
+          laps: 44,
+        },
+      ],
+      events: [
+        {
+          driver_id: "ant",
+          driver_name: "Andrea Kimi Antonelli",
+          overtaken_driver_id: "NOR",
+          overtaken_driver_name: "Lando Norris",
+        },
+      ],
+    });
+    // The name follows its id in the serialised output.
+    expect(Object.keys((named as { classification: object[] }).classification[0] ?? {})).toEqual([
+      "position",
+      "driver_id",
+      "driver_name",
+      "constructor_id",
+      "team_name",
+      "laps",
+    ]);
+  });
+
+  it("keeps names that are already there and skips unknown ids", () => {
+    expect(
+      addNames(
+        [
+          { driver_id: "NOR", driver_name: "L. Norris" },
+          { constructor_id: "MCL", constructor_name: "McLaren F1 Team" },
+          { driver_id: "ZZZ", constructor_id: null },
+        ],
+        directory
+      )
+    ).toEqual([
+      { driver_id: "NOR", driver_name: "L. Norris" },
+      { constructor_id: "MCL", constructor_name: "McLaren F1 Team" },
+      { driver_id: "ZZZ", constructor_id: null },
+    ]);
+  });
+
+  it("detects whether a result mentions any id", () => {
+    expect(mentionsIds({ races: [{ grand_prix_id: "2025_R13" }] })).toBe(false);
+    expect(mentionsIds({ rows: [{ driver_id: "NOR" }] })).toBe(true);
+    expect(mentionsIds({ constructor_id: "MCL" })).toBe(true);
+  });
+
+  it("names every driver and team in a race summary", async () => {
+    const result = await call("get_race_summary", { grand_prix_id: "2025_R13" });
+    const statistics = result.body.statistics as {
+      classification: Array<Record<string, unknown>>;
+    };
+
+    expect(statistics.classification.length).toBeGreaterThan(0);
+    for (const row of statistics.classification) {
+      expect(row.driver_name).toEqual(expect.any(String));
+      expect(row.team_name).toEqual(expect.any(String));
+    }
+  });
+
+  it("does not look names up for a result without ids", async () => {
+    vi.mocked(namesModel.findNameDirectory).mockClear();
+
+    await call("search_races", { query: "Belgian" });
+
+    expect(namesModel.findNameDirectory).not.toHaveBeenCalled();
   });
 });
 

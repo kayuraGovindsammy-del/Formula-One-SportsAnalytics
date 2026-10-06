@@ -20,6 +20,8 @@ import { ApiError } from "../middleware/ApiError.js";
 import * as constructorsModel from "../models/constructors.model.js";
 import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
+import * as namesModel from "../models/names.model.js";
+import type { NameDirectory } from "../models/names.model.js";
 import * as qualifyingResultsModel from "../models/qualifyingResults.model.js";
 import * as racesModel from "../models/races.model.js";
 import { STANDINGS_SORTS } from "../services/driverStandings.js";
@@ -300,6 +302,55 @@ export function humanizeDurations(value: unknown): unknown {
   return result;
 }
 
+/** Id fields that get a name beside them, and the name field they get. */
+const NAMED_IDS: ReadonlyArray<{ id: string; name: string; kind: keyof NameDirectory }> = [
+  { id: "driver_id", name: "driver_name", kind: "drivers" },
+  { id: "overtaken_driver_id", name: "overtaken_driver_name", kind: "drivers" },
+  { id: "constructor_id", name: "team_name", kind: "constructors" },
+];
+
+/** Name fields that already name the id beside them, so none is added. */
+const EXISTING_NAMES: Readonly<Record<string, readonly string[]>> = {
+  driver_id: ["driver_name"],
+  overtaken_driver_id: ["overtaken_driver_name"],
+  constructor_id: ["team_name", "constructor_name"],
+};
+
+export function mentionsIds(value: unknown): boolean {
+  const text = JSON.stringify(value) ?? "";
+  return NAMED_IDS.some(({ id }) => text.includes(`"${id}":`));
+}
+
+/**
+ * Adds a full name beside every driver and constructor id in a tool result,
+ * at any depth, so the model can say "Andrea Kimi Antonelli" and "McLaren"
+ * instead of ANT and MCL. The name goes right after its id. An unknown id,
+ * or one that already has a name, is left as it is.
+ */
+export function addNames(value: unknown, directory: NameDirectory): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => addNames(item, directory));
+  }
+
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  const source = value as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const [key, field] of Object.entries(source)) {
+    result[key] = addNames(field, directory);
+
+    const named = NAMED_IDS.find(({ id }) => id === key);
+    if (!named || typeof field !== "string") continue;
+    if ((EXISTING_NAMES[key] ?? []).some((nameKey) => nameKey in source)) continue;
+
+    const name = directory[named.kind].get(field.toUpperCase());
+    if (name !== undefined) result[named.name] = name;
+  }
+  return result;
+}
+
 interface EventSummaryOptions {
   grand_prix_id: string;
   type: (typeof EVENT_TYPES)[number];
@@ -426,11 +477,11 @@ const implementations: {
       total_matches: total_items,
       drivers: rows.map((driver) => ({
         driver_id: driver.driver_id,
-        name: `${driver.given_name} ${driver.family_name}`,
+        driver_name: `${driver.given_name} ${driver.family_name}`,
         number: driver.permanent_number,
         nationality: driver.nationality,
         constructor_id: driver.constructor_id,
-        constructor_name: driver.constructor_name,
+        team_name: driver.constructor_name,
       })),
     };
   },
@@ -689,7 +740,10 @@ export async function runTool(
       context: ToolContext
     ) => Promise<unknown>;
     const output = await implementation(parsed.data, context);
-    return { name, ok: true, content: formatToolOutput(humanizeDurations(output)) };
+    const named = mentionsIds(output)
+      ? addNames(output, await namesModel.findNameDirectory())
+      : output;
+    return { name, ok: true, content: formatToolOutput(humanizeDurations(named)) };
   } catch (error) {
     if (error instanceof ToolInputError) {
       return { name, ok: false, content: toolError(error.message) };
