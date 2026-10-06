@@ -78,6 +78,7 @@ describe("DriverDetails", () => {
     expect(screen.getByText("8")).toBeInTheDocument();
     expect(screen.getByText("14")).toBeInTheDocument();
     expect(screen.getByText("20")).toBeInTheDocument();
+    expect(screen.getByText("Points").nextSibling).toHaveTextContent("400");
 
     expect(fetchDriver).toHaveBeenCalledWith("ver");
     expect(fetchDriverStatistics).toHaveBeenCalledWith("ver", "2025");
@@ -184,6 +185,65 @@ describe("DriverDetails", () => {
     expect(screen.getByText("DNF Rate").nextSibling).toHaveTextContent(
       "25.0%"
     );
+  });
+
+  test("renders season points in the Points card", async () => {
+    vi.mocked(fetchDriver).mockResolvedValue(driver);
+    vi.mocked(fetchDriverStatistics).mockResolvedValue({
+      ...baseStatistics,
+      points: 381,
+    });
+
+    renderDriverDetails("ver");
+
+    await screen.findByRole("heading", { name: "Max Verstappen" });
+
+    expect(screen.getByText("Points").nextSibling).toHaveTextContent("381");
+  });
+
+  test("shows Not available for null points", async () => {
+    vi.mocked(fetchDriver).mockResolvedValue(driver);
+    vi.mocked(fetchDriverStatistics).mockResolvedValue({
+      ...baseStatistics,
+      points: null,
+    });
+
+    renderDriverDetails("ver");
+
+    await screen.findByRole("heading", { name: "Max Verstappen" });
+
+    expect(screen.getByText("Points").nextSibling).toHaveTextContent(
+      "Not available"
+    );
+  });
+
+  test("renders zero points as 0, distinct from null", async () => {
+    vi.mocked(fetchDriver).mockResolvedValue(driver);
+    vi.mocked(fetchDriverStatistics).mockResolvedValue({
+      ...baseStatistics,
+      points: 0,
+    });
+
+    renderDriverDetails("ver");
+
+    await screen.findByRole("heading", { name: "Max Verstappen" });
+
+    expect(screen.getByText("Points").nextSibling).toHaveTextContent("0");
+    expect(screen.queryByText("Not available")).not.toBeInTheDocument();
+  });
+
+  test("renders fractional points without rounding", async () => {
+    vi.mocked(fetchDriver).mockResolvedValue(driver);
+    vi.mocked(fetchDriverStatistics).mockResolvedValue({
+      ...baseStatistics,
+      points: 12.5,
+    });
+
+    renderDriverDetails("ver");
+
+    await screen.findByRole("heading", { name: "Max Verstappen" });
+
+    expect(screen.getByText("Points").nextSibling).toHaveTextContent("12.5");
   });
 
   test("shows Driver not found without fetching when no id is provided", async () => {
