@@ -73,7 +73,7 @@ vi.mock("../models/events.model.js", async () => {
   };
 });
 
-import { MAX_TOOL_ROUNDS, SYSTEM_PROMPT } from "../chat/assistant.js";
+import { FALLBACK_REPLY, MAX_TOOL_ROUNDS, SYSTEM_PROMPT } from "../chat/assistant.js";
 import { humanizeDurations } from "../chat/tools.js";
 import { loadDriverStatistics } from "../controllers/drivers.controller.js";
 import { createApp } from "../app.js";
@@ -225,6 +225,32 @@ describe("POST /api/v1/chat — answering", () => {
       { role: "user", content: "Write me a poem about cats" },
     ]);
     expect((sent?.tools as unknown[]).length).toBe(7);
+  });
+
+  it("returns a markdown reply as plain text", async () => {
+    llm.responses = [
+      reply({
+        role: "assistant",
+        content:
+          "## Piastri, 2025\n\n| Stat | Value |\n|---|---|\n| **Wins** | 7 |\n\n\n\nSee [his stats](https://example.test/drivers/PIA).",
+      }),
+    ];
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.reply).toBe(
+      "Piastri, 2025\n\nStat, Value:\n- Wins, 7\n\nSee his stats: https://example.test/drivers/PIA."
+    );
+  });
+
+  it("falls back to a fixed reply when the model's reply is only markup", async () => {
+    llm.responses = [reply({ role: "assistant", content: "**  **\n\n" })];
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.reply).toBe(FALLBACK_REPLY);
   });
 
   it("runs a tool round and feeds the real stats back to the model", async () => {

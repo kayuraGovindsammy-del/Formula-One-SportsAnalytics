@@ -6,6 +6,7 @@
 // last round it is asked for a text answer with tools disabled.
 // ---------------------------------------------------------------------------
 
+import { formatReply } from "./formatReply.js";
 import type { ChatMessage, LlmClient } from "./llmClient.js";
 import {
   DEFAULT_SEASON,
@@ -67,8 +68,9 @@ export async function runAssistant(
 
       const calls = message.tool_calls ?? [];
       if (calls.length === 0 || !toolsAllowed) {
+        // The prompt asks for plain text; formatReply enforces it.
         return {
-          reply: message.content?.trim() || FALLBACK_REPLY,
+          reply: formatReply(message.content ?? "") || FALLBACK_REPLY,
           tools_used: toolsUsed,
         };
       }
