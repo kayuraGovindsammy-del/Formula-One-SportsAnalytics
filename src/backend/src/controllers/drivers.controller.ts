@@ -197,6 +197,47 @@ export function driverStatisticsFromSeason(
 }
 
 /**
+ * Races in the season where the driver's published result is a
+ * disqualification. The event log has no disqualification record, so the
+ * published race_results status is the only source; counting those rows per
+ * request is a published fact, like points (see CLAUDE.md). Disqualifications
+ * are not DNFs (dnf_count counts retirements), so they are reported
+ * separately. Not part of GET /drivers/:id/stats; the chat tools add it.
+ */
+export function disqualificationsFromSeason(
+  driverId: string,
+  data: SeasonStatisticsData
+): number {
+  return data.raceSessions.filter((session) =>
+    (data.classificationBySession.get(session.session_id) ?? []).some(
+      (row) =>
+        row.driver_id.toLowerCase() === driverId.toLowerCase() && row.status === "DSQ"
+    )
+  ).length;
+}
+
+/**
+ * A driver's season statistics plus their disqualifications, from one
+ * season load. Returns null when the driver does not exist.
+ */
+export async function loadDriverSeason(
+  driverId: string,
+  season: string
+): Promise<{ statistics: DriverStatistics; disqualifications: number } | null> {
+  const driver = await driversModel.findById(driverId);
+
+  if (!driver) {
+    return null;
+  }
+
+  const data = await loadSeasonStatisticsData(season);
+  return {
+    statistics: driverStatisticsFromSeason(driver.driver_id, data),
+    disqualifications: disqualificationsFromSeason(driver.driver_id, data),
+  };
+}
+
+/**
  * Loads everything a driver's season statistics need and derives them.
  * Returns null when the driver does not exist.
  *
@@ -208,14 +249,7 @@ export async function loadDriverStatistics(
   driverId: string,
   season: string
 ): Promise<DriverStatistics | null> {
-  const driver = await driversModel.findById(driverId);
-
-  if (!driver) {
-    return null;
-  }
-
-  const data = await loadSeasonStatisticsData(season);
-  return driverStatisticsFromSeason(driver.driver_id, data);
+  return (await loadDriverSeason(driverId, season))?.statistics ?? null;
 }
 
 export interface DriverStanding {
@@ -231,6 +265,7 @@ export interface DriverStanding {
   dnfs: number;
   average_finish_position: number | null;
   races_entered: number;
+  disqualifications: number;
 }
 
 /**
@@ -268,6 +303,7 @@ export async function loadDriverStandings(
   const entries = [...teamByDriver.entries()].map(([driverId, constructorId]) => ({
     constructor_id: constructorId,
     statistics: driverStatisticsFromSeason(driverId, data),
+    disqualifications: disqualificationsFromSeason(driverId, data),
   }));
 
   const standings = rankDrivers(entries, sortBy, limit).map(({ position, entry }) => {
@@ -288,6 +324,7 @@ export async function loadDriverStandings(
       dnfs: statistics.dnf_count,
       average_finish_position: statistics.average_finish_position,
       races_entered: statistics.races_entered,
+      disqualifications: entry.disqualifications,
     };
   });
 

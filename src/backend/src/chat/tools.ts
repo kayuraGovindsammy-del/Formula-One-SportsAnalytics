@@ -12,8 +12,8 @@
 import { z } from "zod";
 import { getConstructorStandings } from "../controllers/constructors.controller.js";
 import {
+  loadDriverSeason,
   loadDriverStandings,
-  loadDriverStatistics,
 } from "../controllers/drivers.controller.js";
 import { loadRaceStatistics } from "../controllers/races.controller.js";
 import { ApiError } from "../middleware/ApiError.js";
@@ -541,15 +541,16 @@ const implementations: {
   },
 
   async get_driver_stats({ driver_id, season }) {
-    const statistics = await loadDriverStatistics(driver_id, season);
+    const result = await loadDriverSeason(driver_id, season);
 
-    if (!statistics) {
+    if (!result) {
       throw new ToolInputError(
         `Driver '${driver_id}' was not found. Use search_drivers to find the driver_id.`
       );
     }
 
-    return statistics;
+    // GET /drivers/:id/stats plus disqualifications, which are not DNFs.
+    return { ...result.statistics, disqualifications: result.disqualifications };
   },
 
   async get_driver_standings({ season, sort_by, limit }) {

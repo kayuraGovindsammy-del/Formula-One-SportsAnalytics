@@ -239,7 +239,12 @@ describe("get_driver_stats", () => {
     expect(result.body).toEqual(
       JSON.parse(
         JSON.stringify(
-          humanizeDurations(addNames(await loadDriverStatistics("PIA", "2025"), directory))
+          humanizeDurations(
+            addNames(
+              { ...(await loadDriverStatistics("PIA", "2025")), disqualifications: 0 },
+              directory
+            )
+          )
         )
       )
     );
@@ -292,6 +297,7 @@ describe("get_driver_standings", () => {
         dnfs: own.body.dnf_count,
         average_finish_position: own.body.average_finish_position,
         races_entered: own.body.races_entered,
+        disqualifications: own.body.disqualifications,
       });
     }
   });

@@ -233,6 +233,13 @@ describe("system prompt", () => {
       "use get_driver_standings",
       "use get_team_drivers",
       "use get_stat_definitions",
+      "name both the points leader and the driver with the most wins",
+      'say "an average finish of 3.61", never "3.61st"',
+      '"23.1 s in the pit lane"',
+      "mention anyone who raced only part of the season",
+      "also mention their disqualifications",
+      "don't repeat it in the same sentence",
+      "say briefly that you only know this app's F1 data",
     ]) {
       expect(SYSTEM_PROMPT).toContain(rule);
     }
@@ -322,7 +329,10 @@ describe("POST /api/v1/chat — answering", () => {
       tool_call_id: "call_1",
       content: JSON.stringify(
         humanizeDurations(
-          addNames(await loadDriverStatistics("PIA", "2025"), await findNameDirectory())
+          addNames(
+            { ...(await loadDriverStatistics("PIA", "2025")), disqualifications: 0 },
+            await findNameDirectory()
+          )
         )
       ),
     });
