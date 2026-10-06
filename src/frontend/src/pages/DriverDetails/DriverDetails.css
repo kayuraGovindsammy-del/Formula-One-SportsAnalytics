@@ -173,6 +173,12 @@
   margin-bottom: 2rem;
 }
 
+/* Five cards: fit as many as the width allows instead of the shared fixed
+   4-column grid, scoped to this page so other .stats-grid uses are unchanged. */
+.driver-details-page .driver-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
 .driver-details-page .stat-card {
   position: relative;
 
