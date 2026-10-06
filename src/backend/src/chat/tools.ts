@@ -11,13 +11,17 @@
 
 import { z } from "zod";
 import { getConstructorStandings } from "../controllers/constructors.controller.js";
-import { loadDriverStatistics } from "../controllers/drivers.controller.js";
+import {
+  loadDriverStandings,
+  loadDriverStatistics,
+} from "../controllers/drivers.controller.js";
 import { loadRaceStatistics } from "../controllers/races.controller.js";
 import { ApiError } from "../middleware/ApiError.js";
 import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as qualifyingResultsModel from "../models/qualifyingResults.model.js";
 import * as racesModel from "../models/races.model.js";
+import { STANDINGS_SORTS } from "../services/driverStandings.js";
 import type { Event } from "../types/event.types.js";
 import { seasonParam } from "../utils/queryValidation.js";
 import type { ToolDefinition } from "./llmClient.js";
@@ -41,6 +45,9 @@ export const MAX_EVENTS_SUMMARISED = 500;
 export const LAP_WINDOW_SIZE = 5;
 
 const SEARCH_LIMIT = 10;
+
+/** get_driver_standings returns at most this many drivers. */
+export const MAX_STANDINGS_LIMIT = 25;
 
 export interface ToolContext {
   /** Absolute base of this API, e.g. https://host/api/v1, for export links. */
@@ -75,6 +82,12 @@ const argumentSchemas = {
   get_driver_stats: z.strictObject({
     driver_id: id("driver_id"),
     season,
+  }),
+  get_driver_standings: z.strictObject({
+    season,
+    sort_by: z.enum(STANDINGS_SORTS).default("points"),
+    // Models sometimes send numbers as strings.
+    limit: z.coerce.number().int().min(1).max(MAX_STANDINGS_LIMIT).default(10),
   }),
   get_constructor_standings: z.strictObject({
     season,
@@ -156,6 +169,25 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
       season: seasonProperty,
     },
     ["driver_id"]
+  ),
+  tool(
+    "get_driver_standings",
+    "Ranks every driver in a season by points, wins, podiums, fastest laps, DNFs or average finish. Use it for any 'who has the most/best/leads' question about drivers. Each row has the position, driver and team names, and all those stats.",
+    {
+      season: seasonProperty,
+      sort_by: {
+        type: "string",
+        enum: [...STANDINGS_SORTS],
+        description: 'What to rank by. Defaults to "points"; "average_finish" ranks lowest first.',
+      },
+      limit: {
+        type: "integer",
+        minimum: 1,
+        maximum: MAX_STANDINGS_LIMIT,
+        description: "How many drivers to return. Defaults to 10.",
+      },
+    },
+    []
   ),
   tool(
     "get_constructor_standings",
@@ -412,6 +444,14 @@ const implementations: {
     }
 
     return statistics;
+  },
+
+  async get_driver_standings({ season, sort_by, limit }) {
+    const standings = await loadDriverStandings(season, sort_by, limit);
+
+    return standings.total_drivers > 0
+      ? standings
+      : { ...standings, note: `No race results are stored for ${season}.` };
   },
 
   async get_constructor_standings({ season }) {

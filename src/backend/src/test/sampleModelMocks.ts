@@ -104,6 +104,22 @@ export async function getConstructorIdByDriver(): Promise<Record<string, string>
   );
 }
 
+/** Stands in for names.model.ts's findNameDirectory. */
+export async function findNameDirectory(): Promise<{
+  drivers: ReadonlyMap<string, string>;
+  constructors: ReadonlyMap<string, string>;
+}> {
+  return {
+    drivers: new Map(
+      rawDrivers.map((driver) => [
+        driver.driver_id.toUpperCase(),
+        `${driver.given_name} ${driver.family_name}`,
+      ])
+    ),
+    constructors: new Map(Object.entries(CONSTRUCTOR_NAMES)),
+  };
+}
+
 export async function findConstructorById(constructorId: string) {
   const name = CONSTRUCTOR_NAMES[constructorId.toUpperCase()];
   if (name === undefined) return null;

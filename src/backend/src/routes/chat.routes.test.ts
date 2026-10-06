@@ -74,7 +74,7 @@ vi.mock("../models/events.model.js", async () => {
 });
 
 import { FALLBACK_REPLY, MAX_TOOL_ROUNDS, SYSTEM_PROMPT } from "../chat/assistant.js";
-import { humanizeDurations } from "../chat/tools.js";
+import { humanizeDurations, TOOL_DEFINITIONS } from "../chat/tools.js";
 import { loadDriverStatistics } from "../controllers/drivers.controller.js";
 import { createApp } from "../app.js";
 import {
@@ -241,7 +241,7 @@ describe("POST /api/v1/chat — answering", () => {
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: "Write me a poem about cats" },
     ]);
-    expect((sent?.tools as unknown[]).length).toBe(7);
+    expect((sent?.tools as unknown[]).length).toBe(TOOL_DEFINITIONS.length);
   });
 
   it("returns a markdown reply as plain text", async () => {

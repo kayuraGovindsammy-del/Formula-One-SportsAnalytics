@@ -2,12 +2,14 @@ import { z } from "zod";
 import * as driversModel from "../models/drivers.model.js";
 import * as eventsModel from "../models/events.model.js";
 import * as lapsModel from "../models/laps.model.js";
+import * as namesModel from "../models/names.model.js";
 import * as raceResultsModel from "../models/raceResults.model.js";
 import * as sessionsModel from "../models/sessions.model.js";
 import {
   buildDriverStatistics,
   type DriverStatistics,
 } from "../services/driverStatistics.js";
+import { rankDrivers, type StandingsSort } from "../services/driverStandings.js";
 import { ApiError } from "../middleware/ApiError.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import {
@@ -23,6 +25,9 @@ import {
   perPageParam,
   seasonParam,
 } from "../utils/queryValidation.js";
+import type { RaceResultRow } from "../models/raceResults.model.js";
+import type { Event } from "../types/event.types.js";
+import type { Lap } from "../types/lap.types.js";
 import type { Session } from "../types/session.types.js";
 
 const listDriversQuery = z.object({
@@ -71,23 +76,25 @@ const driverStatsQuery = z.object({
 });
 
 /**
- * Loads everything a driver's season statistics need and derives them.
- * Returns null when the driver does not exist.
+ * Everything season statistics are derived from, for every driver at once:
+ * the season's RACE sessions with their laps, events (plus each race's
+ * QUALIFYING events, for the starting grid) and stored classifications.
  *
- * Exported so the chat assistant's tools (chat/tools.ts) read exactly the
- * same numbers as GET /drivers/:driver_id/stats. The query budget is fixed
- * regardless of calendar length (routes/driverStats.queryCount.test.ts).
+ * Loaded in a fixed number of queries whatever the length of the calendar or
+ * the number of drivers (routes/driverStats.queryCount.test.ts).
  */
-export async function loadDriverStatistics(
-  driverId: string,
+export interface SeasonStatisticsData {
+  season: string;
+  raceSessions: Session[];
+  qualifyingByGrandPrix: Map<string, Session>;
+  lapsBySession: Map<string, Lap[]>;
+  eventsBySession: Map<string, Event[]>;
+  classificationBySession: Map<string, RaceResultRow[]>;
+}
+
+export async function loadSeasonStatisticsData(
   season: string
-): Promise<DriverStatistics | null> {
-  const driver = await driversModel.findById(driverId);
-
-  if (!driver) {
-    return null;
-  }
-
+): Promise<SeasonStatisticsData> {
   const sessions = await sessionsModel.findBySeason(season);
 
   // Driver season statistics are race statistics.  QUALIFYING sessions are
@@ -120,28 +127,45 @@ export async function loadDriverStatistics(
       raceResultsModel.findClassificationsBySessions(raceSessionIds),
     ]);
 
-  const sessionInputs = raceSessions.map((session) => {
-    const qualifyingSession = qualifyingByGrandPrix.get(session.grand_prix_id);
+  return {
+    season,
+    raceSessions,
+    qualifyingByGrandPrix,
+    lapsBySession,
+    eventsBySession,
+    classificationBySession,
+  };
+}
+
+/**
+ * One driver's season statistics from already-loaded season data. Pure: no
+ * I/O, so a whole grid can be derived from one load (loadDriverStandings).
+ * `driverId` must be the canonical id.
+ */
+export function driverStatisticsFromSeason(
+  driverId: string,
+  data: SeasonStatisticsData
+): DriverStatistics {
+  const sessionInputs = data.raceSessions.map((session) => {
+    const qualifyingSession = data.qualifyingByGrandPrix.get(session.grand_prix_id);
 
     // This driver's ingested race_results.points for this session, when a
     // row exists for them — passed through as stored_points so
     // buildDriverStatistics can prefer it over the derived scale
     // (docs/ingestion/jolpica-ingestion.md §4.2). undefined, not looked up
     // at all, when no such row exists.
-    const storedResult = classificationBySession
+    const storedResult = data.classificationBySession
       .get(session.session_id)
-      ?.find(
-        (row) => row.driver_id.toLowerCase() === driver.driver_id.toLowerCase()
-      );
+      ?.find((row) => row.driver_id.toLowerCase() === driverId.toLowerCase());
 
     return {
       session_id: session.session_id,
-      laps: lapsBySession.get(session.session_id) ?? [],
-      events: eventsBySession.get(session.session_id) ?? [],
+      laps: data.lapsBySession.get(session.session_id) ?? [],
+      events: data.eventsBySession.get(session.session_id) ?? [],
       ...(qualifyingSession
         ? {
             qualifying_events:
-              eventsBySession.get(qualifyingSession.session_id) ?? [],
+              data.eventsBySession.get(qualifyingSession.session_id) ?? [],
           }
         : {}),
       ...(storedResult ? { stored_points: storedResult.points } : {}),
@@ -166,10 +190,108 @@ export async function loadDriverStatistics(
   // position / grid / fastest-lap rank only as fallbacks when a session has no
   // laps — see the doc comments on DriverSessionInput.
   return buildDriverStatistics({
-    driver_id: driver.driver_id,
-    season,
+    driver_id: driverId,
+    season: data.season,
     sessions: sessionInputs,
   });
+}
+
+/**
+ * Loads everything a driver's season statistics need and derives them.
+ * Returns null when the driver does not exist.
+ *
+ * Exported so the chat assistant's tools (chat/tools.ts) read exactly the
+ * same numbers as GET /drivers/:driver_id/stats. The query budget is fixed
+ * regardless of calendar length (routes/driverStats.queryCount.test.ts).
+ */
+export async function loadDriverStatistics(
+  driverId: string,
+  season: string
+): Promise<DriverStatistics | null> {
+  const driver = await driversModel.findById(driverId);
+
+  if (!driver) {
+    return null;
+  }
+
+  const data = await loadSeasonStatisticsData(season);
+  return driverStatisticsFromSeason(driver.driver_id, data);
+}
+
+export interface DriverStanding {
+  position: number;
+  driver_id: string;
+  driver_name: string;
+  constructor_id: string | null;
+  team_name: string | null;
+  points: number | null;
+  wins: number;
+  podiums: number;
+  fastest_laps: number;
+  dnfs: number;
+  average_finish_position: number | null;
+  races_entered: number;
+}
+
+/**
+ * Every driver who raced in the season, ranked by `sortBy`. Not exposed as a
+ * route; used by the chat assistant's get_driver_standings tool.
+ *
+ * Each driver's numbers come from driverStatisticsFromSeason over ONE season
+ * load, so they are exactly what GET /drivers/:id/stats reports, with a
+ * fixed number of queries however many drivers there are. A driver's team is
+ * the constructor on their latest race result of the season (race_results
+ * records the team per race; driver_constructor_links has no dates).
+ */
+export async function loadDriverStandings(
+  season: string,
+  sortBy: StandingsSort,
+  limit: number
+): Promise<{ season: string; sort_by: StandingsSort; total_drivers: number; standings: DriverStanding[] }> {
+  const [data, names] = await Promise.all([
+    loadSeasonStatisticsData(season),
+    namesModel.findNameDirectory(),
+  ]);
+
+  // Everyone with a result or a lap in the season, keyed case-insensitively;
+  // the team is overwritten race by race, so the latest one remains.
+  const teamByDriver = new Map<string, string | null>();
+  for (const session of data.raceSessions) {
+    for (const row of data.classificationBySession.get(session.session_id) ?? []) {
+      teamByDriver.set(row.driver_id, row.constructor_id);
+    }
+    for (const lap of data.lapsBySession.get(session.session_id) ?? []) {
+      if (!teamByDriver.has(lap.driver_id)) teamByDriver.set(lap.driver_id, null);
+    }
+  }
+
+  const entries = [...teamByDriver.entries()].map(([driverId, constructorId]) => ({
+    constructor_id: constructorId,
+    statistics: driverStatisticsFromSeason(driverId, data),
+  }));
+
+  const standings = rankDrivers(entries, sortBy, limit).map(({ position, entry }) => {
+    const { statistics } = entry;
+    return {
+      position,
+      driver_id: statistics.driver_id,
+      driver_name: names.drivers.get(statistics.driver_id.toUpperCase()) ?? statistics.driver_id,
+      constructor_id: entry.constructor_id,
+      team_name:
+        entry.constructor_id === null
+          ? null
+          : (names.constructors.get(entry.constructor_id.toUpperCase()) ?? entry.constructor_id),
+      points: statistics.points,
+      wins: statistics.wins,
+      podiums: statistics.podiums,
+      fastest_laps: statistics.fastest_laps,
+      dnfs: statistics.dnf_count,
+      average_finish_position: statistics.average_finish_position,
+      races_entered: statistics.races_entered,
+    };
+  });
+
+  return { season, sort_by: sortBy, total_drivers: entries.length, standings };
 }
 
 /** GET /api/v1/drivers/:driver_id/stats — docs/api-design.md §4.3 */

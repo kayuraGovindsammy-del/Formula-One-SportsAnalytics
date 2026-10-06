@@ -66,6 +66,11 @@ vi.mock("../models/events.model.js", async () => {
   };
 });
 
+vi.mock("../models/names.model.js", async () => {
+  const fixtures = await import("../test/sampleModelMocks.js");
+  return { findNameDirectory: fixtures.findNameDirectory };
+});
+
 vi.mock("../models/qualifyingResults.model.js", () => ({
   findByRace: mocks.findQualifying,
 }));
@@ -107,6 +112,7 @@ describe("tool definitions", () => {
       "search_drivers",
       "search_races",
       "get_driver_stats",
+      "get_driver_standings",
       "get_constructor_standings",
       "get_race_summary",
       "get_race_events",
@@ -229,6 +235,70 @@ describe("get_driver_stats", () => {
     expect(result.body.error).toBe(
       "Driver 'ZZZ' was not found. Use search_drivers to find the driver_id."
     );
+  });
+});
+
+describe("get_driver_standings", () => {
+  type Row = Record<string, unknown> & { driver_id: string };
+
+  it("ranks drivers by points by default, with names and teams", async () => {
+    const result = await call("get_driver_standings", {});
+    const standings = result.body.standings as Row[];
+
+    expect(result.ok).toBe(true);
+    expect(result.body).toMatchObject({ season: "2025", sort_by: "points" });
+    expect(standings.length).toBeGreaterThan(1);
+    expect(standings[0]).toMatchObject({
+      position: 1,
+      driver_id: "PIA",
+      driver_name: "Oscar Piastri",
+      constructor_id: "MCL",
+      team_name: "McLaren",
+    });
+    const points = standings.map((row) => row.points as number);
+    expect(points).toEqual([...points].sort((a, b) => b - a));
+  });
+
+  it("matches get_driver_stats for every driver it lists", async () => {
+    const { body } = await call("get_driver_standings", { limit: 25 });
+
+    for (const row of body.standings as Row[]) {
+      const own = await call("get_driver_stats", { driver_id: row.driver_id });
+      expect(row).toMatchObject({
+        points: own.body.points,
+        wins: own.body.wins,
+        podiums: own.body.podiums,
+        fastest_laps: own.body.fastest_laps,
+        dnfs: own.body.dnf_count,
+        average_finish_position: own.body.average_finish_position,
+        races_entered: own.body.races_entered,
+      });
+    }
+  });
+
+  it("sorts by another statistic and honours the limit", async () => {
+    const result = await call("get_driver_standings", { sort_by: "average_finish", limit: "3" });
+    const standings = result.body.standings as Row[];
+
+    expect(result.body.sort_by).toBe("average_finish");
+    expect(standings).toHaveLength(3);
+    expect(standings[0]?.average_finish_position).toBe(1);
+  });
+
+  it("rejects an unknown sort or an out-of-range limit", async () => {
+    expect((await call("get_driver_standings", { sort_by: "style" })).ok).toBe(false);
+    expect((await call("get_driver_standings", { limit: 0 })).ok).toBe(false);
+    expect((await call("get_driver_standings", { limit: 26 })).ok).toBe(false);
+  });
+
+  it("says when a season has no results", async () => {
+    const result = await call("get_driver_standings", { season: "1999" });
+
+    expect(result.body).toMatchObject({
+      total_drivers: 0,
+      standings: [],
+      note: "No race results are stored for 1999.",
+    });
   });
 });
 

@@ -173,7 +173,17 @@ function raceSessionLookupRows(values: readonly unknown[]): unknown[] {
 
 // Dispatch is by SQL shape. Order matters: the event-log UNION also mentions
 // `FROM laps`, and the season-sessions query also mentions `FROM sessions`.
+/** names.model.ts's directory query: every driver's full name. */
+function nameRows(): unknown[] {
+  return rawDrivers.map((driver) => ({
+    kind: "driver",
+    id: driver.driver_id,
+    name: `${driver.given_name} ${driver.family_name}`,
+  }));
+}
+
 function rowsFor(sql: string, values: readonly unknown[]): unknown[] {
+  if (sql.includes("AS kind")) return nameRows();
   if (sql.includes("FROM drivers d")) return driverRows(values);
   if (sql.includes("JOIN grand_prix gp")) return seasonSessionRows(values);
   if (sql.includes("WITH event_log AS")) return eventRows(values);

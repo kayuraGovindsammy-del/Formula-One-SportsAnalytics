@@ -29,6 +29,10 @@ import {
   resetQueryCalls,
 } from "../test/countingPool.js";
 import { createApp } from "../app.js";
+import {
+  loadDriverStandings,
+  loadDriverStatistics,
+} from "../controllers/drivers.controller.js";
 
 const app = createApp();
 
@@ -97,5 +101,46 @@ describe("GET /api/v1/drivers/:driver_id/stats — query volume", () => {
     expect(res.body.data.races_entered).toBe(0);
     // Only the driver lookup and the (empty) season sessions query.
     expect(queryCalls.length).toBeLessThanOrEqual(MAX_QUERIES);
+  });
+});
+
+describe("loadDriverStandings (chat get_driver_standings) — query volume and agreement", () => {
+  it("ranks the whole grid in a fixed number of queries, with no query per driver", async () => {
+    resetQueryCalls();
+
+    const result = await loadDriverStandings(fixtureSeason, "points", 25);
+
+    // The season sessions, laps, event log and race_results (batched over
+    // the whole season, as for one driver), plus one names query.
+    expect(queryCalls.length).toBeLessThanOrEqual(5);
+    expect(result.total_drivers).toBeGreaterThan(5);
+    expect(result.standings.length).toBe(result.total_drivers);
+  });
+
+  it("reports exactly what loadDriverStatistics reports, for every driver", async () => {
+    const { standings } = await loadDriverStandings(fixtureSeason, "points", 25);
+    expect(standings.some((row) => row.podiums > 1)).toBe(true);
+
+    for (const row of standings) {
+      const own = await loadDriverStatistics(row.driver_id, fixtureSeason);
+      expect(own).not.toBeNull();
+      expect({
+        points: row.points,
+        wins: row.wins,
+        podiums: row.podiums,
+        fastest_laps: row.fastest_laps,
+        dnfs: row.dnfs,
+        average_finish_position: row.average_finish_position,
+        races_entered: row.races_entered,
+      }).toEqual({
+        points: own?.points,
+        wins: own?.wins,
+        podiums: own?.podiums,
+        fastest_laps: own?.fastest_laps,
+        dnfs: own?.dnf_count,
+        average_finish_position: own?.average_finish_position,
+        races_entered: own?.races_entered,
+      });
+    }
   });
 });
