@@ -40,6 +40,21 @@ Fill in `.env` from the template. `src/backend/.env.example` documents every
 variable; the ones you cannot start without are `DATABASE_URL` (the Aiven
 connection string) and the CA certificate covered next.
 
+Paste the Aiven connection string into `DATABASE_URL` **without** its
+`?sslmode=require` suffix. `src/backend/src/config/database.ts` already makes
+the connection use TLS and verifies the server against Aiven's CA certificate.
+If the URL carries `sslmode`, the `pg` driver replaces that TLS setting with
+its own, the CA certificate is never used, and the first query fails with:
+
+```
+Error: self-signed certificate in certificate chain (SELF_SIGNED_CERT_IN_CHAIN)
+```
+
+Remove `sslmode` from the URL to fix it. Do not work around the error by
+turning off certificate verification (`rejectUnauthorized: false`,
+`sslmode=no-verify` or `NODE_TLS_REJECT_UNAUTHORIZED=0`): that would accept
+any server claiming to be the database.
+
 ### Database CA certificate
 
 The database is Aiven for PostgreSQL. Aiven enforces TLS and signs its
