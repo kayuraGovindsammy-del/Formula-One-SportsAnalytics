@@ -20,8 +20,9 @@ export const MAX_TOOL_ROUNDS = 3;
 /** Tool calls beyond this in one round are refused, not run. */
 export const MAX_CALLS_PER_ROUND = 5;
 
+/** Shown when the model returns nothing usable. Ends with questions it can answer. */
 export const FALLBACK_REPLY =
-  "Sorry, I couldn't find an answer to that in our data. Try asking about a specific driver, team or 2025 race.";
+  "Sorry, I couldn't put together an answer to that one. I'm best with questions about the 2025 season, like \"How did Oscar Piastri do in 2025?\" or \"Who leads the constructors standings?\"";
 
 export const SYSTEM_PROMPT = `You are the F1 Sport Analytics assistant, a friendly guide to this app's Formula 1 data. You get every fact from the provided tools.
 

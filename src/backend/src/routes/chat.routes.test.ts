@@ -279,6 +279,12 @@ describe("POST /api/v1/chat — answering", () => {
     );
   });
 
+  it("has a friendly fallback that suggests questions it can answer", () => {
+    expect(FALLBACK_REPLY).toMatch(/^Sorry/);
+    expect(FALLBACK_REPLY).toContain('"How did Oscar Piastri do in 2025?"');
+    expect(FALLBACK_REPLY).not.toMatch(/don't have that information/i);
+  });
+
   it("falls back to a fixed reply when the model's reply is only markup", async () => {
     llm.responses = [reply({ role: "assistant", content: "**  **\n\n" })];
 
