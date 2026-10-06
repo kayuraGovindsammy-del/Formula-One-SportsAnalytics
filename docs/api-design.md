@@ -10,7 +10,7 @@ This document is the contract for the backend API. It exists so that:
 
 It reflects the entities in [`data-model.md`](data-model.md), the event log in [`event-schema.md`](event-schema.md), the formulas in [`f1-statistics.md`](f1-statistics.md), the tables in `schema.sql`, and the actual read shapes the frontend already consumes via `f1Data.ts`.
 
-Read endpoints (§4–6) are **Sprint 1**. Write endpoints and auth (§7–8) are **Sprint 2** — designed now so nobody blocks on the contract later, not implemented yet.
+Read endpoints (§4–6) are **Sprint 1** and are implemented. The submission endpoints (§7) are implemented and mounted too. Of the identity and admin endpoints in §8, only `DELETE /users/me` is mounted; the rest are still design only. [`openapi.yaml`](api/openapi.yaml) lists exactly which routes the running server exposes and records each place it differs from this document.
 
 ---
 
@@ -128,35 +128,37 @@ Backs `DriverDetails.tsx`. Same shape as one list item.
 
 ### 4.3 `GET /api/v1/drivers/{driver_id}/stats?season=2025`
 
-Backs the "Wins / DNFs / Average Finish / Fastest Laps / Positions Gained / Consistency" stat placeholders in `DriverDetails.tsx` (currently hardcoded `"--"`). Per-season aggregation, computed per the formulas in [`f1-statistics.md`](f1-statistics.md) §3. Some fields are `null` — see §9 for why.
+Backs the "Wins / DNFs / Average Finish / Fastest Laps / Positions Gained / Consistency" stat cards in `DriverDetails.tsx`, which fetches this endpoint through `fetchDriverStatistics`. Per-season aggregation, computed per the formulas in [`f1-statistics.md`](f1-statistics.md) §3. Some fields are `null` — see §9 for why.
 
 ```json
 {
   "data": {
     "driver_id": "PIA",
     "season": "2025",
-    "races_entered": 1,
-    "wins": 1,
-    "podiums": 1,
-    "dnf_count": 0,
-    "dnf_rate": 0.0,
-    "fastest_laps": 0,
-    "average_finish_position": 1.0,
-    "average_race_pace_ms": 92481,
-    "points": null,
-    "positions_gained_lost_avg": null
+    "races_entered": 24,
+    "wins": 7,
+    "podiums": 16,
+    "dnf_count": 1,
+    "dnf_rate": 0.0417,
+    "fastest_laps": 6,
+    "average_finish_position": 2.77,
+    "average_race_pace_ms": 107417,
+    "points": 381,
+    "positions_gained_lost_avg": -0.14
   },
   "meta": {}
 }
 ```
 
-`points` and `positions_gained_lost_avg` are `null` with the reason not embedded in the payload — see §9 for what's blocking them and why the fields still exist on the contract now.
+These numbers are a 2025 season snapshot of the live API's response for PIA, not fixed values: they change if the underlying data is re-ingested. A negative `positions_gained_lost_avg` means the driver lost places on average from grid to finish (positive means gained).
 
-**Ingested races.** These fields are derived from lap data, but Jolpica-ingested races have none. For a driver with no laps in a session, `wins`, `podiums` and `average_finish_position` fall back to that session's classified `race_results.position` (NULL for an unclassified driver, which counts as no finish). `positions_gained_lost_avg` falls back to `race_results.grid_position` when there is no qualifying data (`0`, a pit-lane start, is skipped), and `fastest_laps` credits the stored `fastest_lap_rank = 1` only for a session where no driver has laps. Laps always take precedence when present. `average_race_pace_ms` needs lap times and stays `null` for such races. Details: [`f1-statistics.md`](f1-statistics.md) "Fallback to ingested `race_results`".
+`points` is the sum over the season's race sessions of the stored `race_results.points` where a row exists for the driver, falling back to the base P1–P10 scale for a session with no stored row; it is `null` (not `0`) only when neither source produced anything. `positions_gained_lost_avg` is `null` when no race has both a grid position and a finishing position. See §9 for what is still not covered (fastest-lap and sprint points in the derived fallback).
+
+**Ingested races.** These fields are derived from lap data, but Jolpica-ingested races have none. For a driver with no laps in a session, `wins`, `podiums` and `average_finish_position` fall back to that session's classified `race_results.position` (NULL for an unclassified driver, which counts as no finish). For `positions_gained_lost_avg` the starting grid is the qualifying session's `LAP_COMPLETED` position when the grand prix has qualifying events, and otherwise the stored `race_results.grid_position` (`0`, a pit-lane start, is skipped). The ingestion writes a QUALIFYING session and `qualifying_results` rows but no qualifying events, so for real ingested races the stored grid is the live source; `qualifying_results` is exposed separately by §4.10 and is not an input here. `fastest_laps` credits the stored `fastest_lap_rank = 1` only for a session where no driver has laps. Laps always take precedence when present. `average_race_pace_ms` needs lap times and stays `null` for such races. Details: [`f1-statistics.md`](f1-statistics.md) "Fallback to ingested `race_results`".
 
 ### 4.4 `GET /api/v1/races` — race list
 
-Backs `Races.tsx`. `has_results` tells the frontend whether a statistics/results endpoint call for this race will return real data or an empty derivation — this replaces the frontend's current hardcoded `race.round === belgianGpStatistics.round` check in `RaceDetails.tsx`.
+Backs `Races.tsx`. `has_results` is `true` when the race's `RACE` session has at least one `race_results` row (a session with no stored result rows, or only a QUALIFYING session, gives `false`). It tells the frontend whether the race has published results to show — this replaces the frontend's current hardcoded `race.round === belgianGpStatistics.round` check in `RaceDetails.tsx`.
 
 ```json
 {
@@ -306,11 +308,11 @@ The one endpoint that does real derivation-engine work: replays the `RACE` sessi
 }
 ```
 
-If `has_results` was `false` on the race resource (§4.4), this returns 404 `NOT_FOUND` rather than an empty-but-200 body — matches the explicit "not available" state `RaceDetails.tsx` already renders today.
+This returns 404 `NOT_FOUND` when the race is unknown, or when it exists but has no `RACE` session. It does not depend on `has_results` (§4.4): a race whose `RACE` session exists returns 200 even if `has_results` is `false`.
 
 ### 4.9 `GET /api/v1/constructors/{constructor_id}/stats?season=2025`
 
-Constructor counterpart to §4.3. Per-season aggregation, computed per [`f1-statistics.md`](f1-statistics.md) §3: the constructor's total is the sum of both registered drivers' season points, derived by composing `services/driverStatistics.ts` rather than re-deriving positions a second time.
+Constructor counterpart to §4.3. Per-season aggregation, computed per [`f1-statistics.md`](f1-statistics.md) §3: the constructor's total is the sum of the season's stored `race_results.points` over the `RACE` result rows whose own `constructor_id` is that constructor (`services/constructorStatistics.ts`, rows read by `models/constructors.model.ts` `findSeasonPointRows`). It does not compose `driverStatistics.ts` and does not consult `driver_constructor_links`.
 
 ```json
 {
@@ -323,9 +325,40 @@ Constructor counterpart to §4.3. Per-season aggregation, computed per [`f1-stat
 }
 ```
 
-404 `NOT_FOUND` if `constructor_id` doesn't exist. Each driver's own points prefers that driver's ingested `race_results.points` per session over the derived scale, same rule as `points` in §4.3. `points` here is `null` only when neither registered driver has any points to contribute for the season — one driver contributing 0 does not force the total to `null`.
+404 `NOT_FOUND` if `constructor_id` doesn't exist. `points` is `null` when the constructor has no result rows for the season (no data) and `0` when rows exist but total nothing (a scoreless season). Attribution is per race: a driver who changed teams mid-season has each race's points credited to the team recorded on that result row, so no season-level double counting occurs.
 
-**Known gap:** `driver_constructor_links` records one constructor per driver per `season_id`, with no date range. A driver who changed teams mid-season is linked to both, so each team's total counts that driver's *entire* season rather than only the races driven for it. Fixing this needs race-level team attribution, which doesn't exist yet.
+### 4.10 `GET /api/v1/races/{grand_prix_id}/qualifying` — qualifying classification
+
+The published qualifying classification for a race, read from the `qualifying_results` table (written by the Jolpica ingestion) and joined to `drivers` and `constructors` for names. These are stored facts, not derived statistics, and they are not an input to any statistic (see §4.3 for where the starting grid comes from).
+
+```json
+{
+  "data": {
+    "grand_prix_id": "2025_R13",
+    "session_id": "2025_R13_QUALIFYING",
+    "classification": [
+      {
+        "position": 1,
+        "driver_id": "NOR",
+        "given_name": "Lando",
+        "family_name": "Norris",
+        "constructor_id": "MCL",
+        "constructor_name": "McLaren",
+        "q1_time_ms": 64962,
+        "q2_time_ms": 64634,
+        "q3_time_ms": 63971
+      }
+    ]
+  },
+  "meta": {}
+}
+```
+
+The example shows a single row for brevity; a real response lists every driver in the classification. Its values are illustrative (taken from the OpenAPI example and the route test fixture), not a live-API snapshot.
+
+Ordered by `(position, driver_id)`. `q1_time_ms`, `q2_time_ms` and `q3_time_ms` are `null` when the driver set no time in that part, including when they did not reach it. A race that exists but has no QUALIFYING session returns 200 with `session_id: null` and an empty `classification`; a session with no stored rows returns its `session_id` and an empty `classification`. Only an unknown `grand_prix_id` is a 404 `NOT_FOUND`.
+
+The endpoint is public (no `Authorization` header needed), takes no query parameters and is not paginated: it returns the whole classification in one response, so `meta` is always `{}`. The `grand_prix_id` lookup is case-insensitive, and the `grand_prix_id` in the response echoes the path parameter exactly as sent, not normalised. Only the `QUALIFYING` session is read; a `SPRINT_QUALIFYING` session, if one exists, is not included.
 
 ---
 
@@ -362,9 +395,9 @@ Unknown query params are ignored, not rejected — keeps this forward-compatible
 
 ---
 
-## 7. Write endpoints — submission workflow (Sprint 2)
+## 7. Write endpoints — submission workflow
 
-> **Sprint 2.** These replace the direct Firestore writes in `SubmitData.tsx`, `SubmissionReview.tsx`, and `SubmitterRequests.tsx`. Designed now so the contract is settled; not implemented in Sprint 1.
+> These replace the direct Firestore writes in `SubmitData.tsx`, `SubmissionReview.tsx`, and `SubmitterRequests.tsx`. The submission routes are implemented and mounted; where the running behaviour differs from the contract below, [`openapi.yaml`](api/openapi.yaml) records it.
 
 All require auth (§8). The event envelope inside a submission is exactly the shape in [`event-schema.md`](event-schema.md) §3 — the backend does not define a second, competing event shape.
 
@@ -432,9 +465,9 @@ A `SUBMITTER` sees only their own submissions; an `ADMIN` sees all. Filters: `st
 
 ---
 
-## 8. Auth (Sprint 2)
+## 8. Auth
 
-> **Sprint 2.** Firebase Auth stays for identity — only Firestore-as-database goes away. This is what replaces the direct `getAuth`/`onAuthStateChanged`/Firestore-user-doc pattern in `AuthContext.tsx`.
+> Only `DELETE /users/me` of the endpoints below is mounted; the others are still design only (see the header of [`openapi.yaml`](api/openapi.yaml)). Firebase Auth stays for identity — only Firestore-as-database goes away. This is what replaces the direct `getAuth`/`onAuthStateChanged`/Firestore-user-doc pattern in `AuthContext.tsx`.
 
 **Contract:**
 
@@ -473,9 +506,12 @@ Everything below is computed from `database/schema.sql` + the event log per [`f1
 
 **Blocked — flagging explicitly:**
 
-- **Points (`driver.stats.points`, constructor points).** `race_results.points` exists as a column in `schema.sql`, but there is no points-scoring table or rule defined anywhere in the docs or schema (the standard F1 scale — 25/18/15/12/10/8/6/4/2/1 plus fastest-lap and sprint bonus rules — isn't specified). The derivation engine has nothing to compute points *from* yet. This needs a design decision before `/drivers/{id}/stats.points` can return real values — currently modeled as `null` in the contract above rather than omitted, so the frontend can code against the field's eventual presence now.
-- **Positions gained/lost, qualifying-vs-race performance.** Per `f1-statistics.md` §2–3, this needs the starting grid position from the session's `QUALIFYING` classification. The event schema and `sessions` table already support a `QUALIFYING` session type, but no sample data for a qualifying session exists yet (`data/sample/events.json` only covers one `RACE` session). Mechanism exists; data doesn't.
+- **Points: fastest-lap and sprint rules in the derived fallback.** `points` (driver and constructor) is returned today: the stored `race_results.points` is used where a row exists, and `services/pointsTable.ts` supplies the base P1–P10 scale only for a session with no stored row. That derived scale has no fastest-lap bonus and no sprint scale (the sprint scale is still unspecified), so only sessions without a stored row are affected. `points` is `null` only when neither source has anything for the season.
+- **Positions gained/lost, qualifying-vs-race performance.** Per `f1-statistics.md` §2–3 this needs a starting grid. It is implemented as `positions_gained_lost_avg` (§4.3): the qualifying session's `LAP_COMPLETED` position wins when such events exist, otherwise the stored `race_results.grid_position`. Real ingested races have no qualifying events (the ingestion writes `qualifying_results` rows and a QUALIFYING session, but no events), so the stored grid is the live source for them. The published qualifying classification is served by §4.10 and does not feed the statistic.
 - **Safety car / red flag periods.** Flagged in `f1-statistics.md` §4 as a known gap: `LAP_COMPLETED.payload` has no `is_under_safety_car` field, so race-pace and consistency calculations currently have no way to exclude safety-car-distorted laps. Until that field is added to the event schema and populated, `average_race_pace_ms` and consistency figures for any session with a safety car period will be skewed by those laps.
 - **Sprint points scale.** `grand_prix.has_sprint` marks a sprint weekend, but no separate sprint points scale is documented — sprint session points need their own rule, distinct from the main race.
 
-None of these block Sprint 1 read endpoints (§4) for sessions without safety car periods or points requirements — they block specific fields (`points`, `positions_gained_lost_avg`) on the stats endpoint, which are explicitly nullable above rather than a reason to delay the rest of the contract.
+None of these block Sprint 1 read endpoints (§4) for sessions without safety car periods or points requirements — they limit specific cases (fastest-lap and sprint points in the derived fallback, race pace and consistency for sessions without a lap log), and the affected fields are explicitly nullable above rather than a reason to delay the rest of the contract.
+
+---
+*This document was edited with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]*

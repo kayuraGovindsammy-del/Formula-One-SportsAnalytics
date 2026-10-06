@@ -12,11 +12,17 @@ Season 1─* GrandPrix 1─* Session 1─* Lap
                 │              ├─* PitStop
                 │              ├─* PositionChange
                 │              ├─* Penalty
-                │              └─* Retirement
+                │              ├─* Retirement
+                │              ├─* RaceResult *─1 Driver
+                │              ├─* QualifyingResult *─1 Driver
+                │              └─* Submission 0..1─1 AcceptedEvent
                 │
 Driver *─* Constructor   (linked per-season, since drivers can change teams)
-Session 1─1 RaceResult *─1 Driver
+User 1─* Submission      (submitter; reviewed_by also points at a User)
+AccountDeletion          (standalone, keyed by Firebase UID)
 ```
+
+`RaceResult` and `QualifyingResult` have one row per driver per session (a session holds many, not one). `Submission`, `AcceptedEvent`, `User` and `AccountDeletion` are the submission-workflow and account tables; they carry no race data themselves.
 
 **Key design decision:** `Session` (not `Race`) is the atomic unit of the model. A Grand Prix weekend has several sessions — practice, qualifying, sprint, race — and laps, pit stops, and position changes all happen *within* a session, not within the weekend as a whole.
 
@@ -141,17 +147,90 @@ One completed lap by one driver in one session. See `event-schema.md` for the fu
 | `reason` | string | e.g. `"Engine failure"`, `"Collision"` |
 
 ### RaceResult
-The final classification for a session — this is a **derived** entity, computed from the events above, not entered manually (see `event-schema.md` §3).
+The final classification for a session (`race_results` table, one row per driver per session).
+
+For races loaded by the Jolpica ingestion this is **stored published data**: the row is written straight from the source, including `points`, `grid_position` and the fastest-lap fields, and no lap log exists behind it. It is a **derived** entity only where it is computed from the events above (see `event-schema.md` §3). The statistics code prefers derived values and uses these stored columns as a fallback (see `f1-statistics.md`, "Fallback to ingested `race_results`"), except for `points`, where the stored value is preferred.
 
 | Field | Type | Notes |
 |---|---|---|
-| `session_id` | string | FK → Session |
-| `driver_id` | string | |
-| `constructor_id` | string | |
-| `position` | integer | |
-| `points` | number | |
-| `laps_completed` | integer | |
+| `session_id` | string | FK → Session. Primary key with `driver_id` |
+| `driver_id` | string | FK → Driver |
+| `constructor_id` | string | FK → Constructor. The team the driver scored for in this race (constructor points are summed by this column) |
+| `position` | integer \| null | Classified finishing position, > 0. NULL for an unclassified driver |
+| `grid_position` | integer \| null | Starting grid slot, >= 0. `0` is a pit-lane start. NULL when unknown |
+| `points` | number | Published points for this race, default 0 |
+| `laps_completed` | integer | Default 0 |
+| `pit_stops` | integer | Default 0, >= 0 |
+| `gap_to_winner_ms` | integer \| null | Milliseconds behind the winner, >= 0 |
+| `fastest_lap_rank` | integer \| null | Rank of the driver's fastest lap in the session, > 0 (1 = quickest) |
+| `fastest_lap_number` | integer \| null | Lap on which it was set, > 0 |
+| `fastest_lap_time_ms` | integer \| null | Its lap time in milliseconds, > 0 |
 | `status` | enum | `FINISHED`, `DNF`, `DSQ` |
+
+### QualifyingResult
+The published qualifying classification for a `QUALIFYING` session (`qualifying_results` table, one row per driver per session). Like ingested `RaceResult` rows this is stored Jolpica data; the ingestion writes these rows but no events for the session. It is served by `GET /races/{grand_prix_id}/qualifying` and does not feed any statistic.
+
+| Field | Type | Notes |
+|---|---|---|
+| `session_id` | string | FK → Session. Primary key with `driver_id` |
+| `driver_id` | string | FK → Driver |
+| `constructor_id` | string | FK → Constructor |
+| `position` | integer | Qualifying classification, > 0 |
+| `q1_time_ms` | integer \| null | Best Q1 lap in milliseconds, > 0 |
+| `q2_time_ms` | integer \| null | Best Q2 lap in milliseconds, > 0 |
+| `q3_time_ms` | integer \| null | Best Q3 lap in milliseconds, > 0 |
+
+### User
+An application account (`users` table). Identity comes from Firebase Auth; this row holds the role and submitter state the backend authorizes against.
+
+| Field | Type | Notes |
+|---|---|---|
+| `user_id` | integer | Primary key, generated |
+| `auth_uid` | string | Firebase Auth UID, unique |
+| `email` | string | Unique |
+| `display_name` | string \| null | |
+| `role` | enum | `USER` (default), `SUBMITTER`, `ADMIN` |
+| `submitter_status` | enum | `NONE` (default), `PENDING`, `APPROVED`, `REJECTED` |
+| `created_at` | timestamp | |
+| `updated_at` | timestamp | |
+
+### Submission
+A user-submitted event awaiting or past review (`submissions` table). The event payload follows `event-schema.md` §3.
+
+| Field | Type | Notes |
+|---|---|---|
+| `submission_id` | integer | Primary key, generated |
+| `submitter_user_id` | integer | FK → User |
+| `session_id` | string | FK → Session |
+| `status` | enum | `PENDING` (default), `ACCEPTED`, `REJECTED` |
+| `event_data` | JSON | The submitted event, as submitted |
+| `source_filename` | string \| null | |
+| `validation_message` | string \| null | Single reviewer message; a rejection reason is stored here |
+| `submitted_at` | timestamp | |
+| `reviewed_at` | timestamp \| null | |
+| `reviewed_by` | integer \| null | FK → User (the reviewing admin) |
+
+### AcceptedEvent
+The record of an accepted submission (`accepted_events` table). At most one per submission.
+
+| Field | Type | Notes |
+|---|---|---|
+| `event_id` | string | Primary key |
+| `submission_id` | integer | FK → Submission, unique |
+| `session_id` | string | FK → Session |
+| `event_data` | JSON | Must be a JSON object |
+| `accepted_at` | timestamp | |
+
+### AccountDeletion
+An account-deletion request (`account_deletions` table). The row is kept after the deletion as a tombstone, so a deleted Firebase UID cannot recreate its profile, and `attempts` / `last_attempt_at` track retries of a deletion that has not yet completed. It is keyed by the Firebase UID with no foreign key to `users`, so it survives removal of the user row.
+
+| Field | Type | Notes |
+|---|---|---|
+| `auth_uid` | string | Primary key |
+| `requested_at` | timestamp | |
+| `completed_at` | timestamp \| null | Set when the deletion has finished |
+| `attempts` | integer | Default 0, >= 0 |
+| `last_attempt_at` | timestamp \| null | |
 
 ## Sample data
 
@@ -165,4 +244,4 @@ See `docs/event-schema.md` for the event log format these are derived from, and 
 
 
 ---
-*This document was generated with the assistance of: Claude-Web[Claude Sonnet 5]*
+*This document was edited with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]*
