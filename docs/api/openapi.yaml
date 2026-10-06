@@ -144,7 +144,8 @@ paths:
         (`chat/tools.ts`): search_drivers, search_constructors,
         search_races, get_driver_stats,
         get_driver_standings, get_constructor_standings, get_team_drivers,
-        get_race_summary, get_race_events and get_export_link. The model never supplies
+        get_race_summary, get_race_events, get_stat_definitions and
+        get_export_link. The model never supplies
         statistics itself.
 
         Up to 3 tool rounds run, then the model must answer in text. Only
@@ -1457,7 +1458,7 @@ components:
                get_driver_stats,
                get_driver_standings, get_constructor_standings,
                get_team_drivers, get_race_summary, get_race_events,
-               get_export_link]
+               get_stat_definitions, get_export_link]
 
     # -- Drivers -------------------------------------------------------------
     # types/driver.types.ts

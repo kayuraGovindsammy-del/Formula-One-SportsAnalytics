@@ -124,6 +124,7 @@ describe("tool definitions", () => {
       "get_team_drivers",
       "get_race_summary",
       "get_race_events",
+      "get_stat_definitions",
       "get_export_link",
     ]);
     expect(names.every(isToolName)).toBe(true);
@@ -582,6 +583,60 @@ describe("get_race_events", () => {
 
     expect(result.ok).toBe(false);
     expect(result.body.error).toMatch(/^Race '2025_R99' was not found/);
+  });
+});
+
+describe("get_stat_definitions", () => {
+  type Definitions = Record<string, { name: string; fields: string[]; definition: string }>;
+
+  it("returns every definition when no stat is named", async () => {
+    const result = await call("get_stat_definitions", {});
+    const definitions = result.body.definitions as Definitions;
+
+    expect(result.ok).toBe(true);
+    expect(Object.keys(definitions)).toEqual(
+      expect.arrayContaining([
+        "positions_gained",
+        "average_finish",
+        "dnf",
+        "disqualification",
+        "fastest_lap",
+        "points",
+        "pit_stop_time",
+        "wins",
+        "podiums",
+      ])
+    );
+  });
+
+  it("explains positions gained the way the code calculates it", async () => {
+    const result = await call("get_stat_definitions", { stat: "positions_gained" });
+    const definitions = result.body.definitions as Definitions;
+
+    expect(Object.keys(definitions)).toEqual(["positions_gained"]);
+    expect(definitions.positions_gained?.fields).toEqual(["positions_gained_lost_avg"]);
+    expect(definitions.positions_gained?.definition).toMatch(
+      /starting grid position minus the finishing position/
+    );
+    expect(definitions.positions_gained?.definition).toMatch(/positive number means places gained/);
+  });
+
+  it("states the caveats users ask about", async () => {
+    const { body } = await call("get_stat_definitions", {});
+    const definitions = body.definitions as Definitions;
+
+    expect(definitions.pit_stop_time?.definition).toMatch(/pit lane/);
+    expect(definitions.pit_stop_time?.definition).toMatch(/not the time the car was stationary/);
+    expect(definitions.dnf?.definition).toMatch(/Disqualifications .* are not DNFs/);
+    expect(definitions.points?.definition).toMatch(/Sprint races are not in our data/);
+    expect(definitions.average_finish?.definition).toMatch(/Lower is better/);
+  });
+
+  it("rejects a statistic it does not define", async () => {
+    const result = await call("get_stat_definitions", { stat: "aura" });
+
+    expect(result.ok).toBe(false);
+    expect(result.body.error).toMatch(/^Invalid arguments for get_stat_definitions: stat/);
   });
 });
 

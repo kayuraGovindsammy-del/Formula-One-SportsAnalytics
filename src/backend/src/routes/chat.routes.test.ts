@@ -232,6 +232,7 @@ describe("system prompt", () => {
       "in 1 to 4 sentences",
       "use get_driver_standings",
       "use get_team_drivers",
+      "use get_stat_definitions",
     ]) {
       expect(SYSTEM_PROMPT).toContain(rule);
     }

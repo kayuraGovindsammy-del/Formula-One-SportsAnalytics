@@ -28,6 +28,7 @@ import { STANDINGS_SORTS } from "../services/driverStandings.js";
 import type { Event } from "../types/event.types.js";
 import { seasonParam } from "../utils/queryValidation.js";
 import type { ToolDefinition } from "./llmClient.js";
+import { STAT_DEFINITIONS, STAT_KEYS } from "./statDefinitions.js";
 
 /** The only season the app currently has data for. */
 export const DEFAULT_SEASON = "2025";
@@ -109,6 +110,9 @@ const argumentSchemas = {
     grand_prix_id: id("grand_prix_id"),
     type: z.enum(EVENT_TYPES),
     driver_id: id("driver_id").optional(),
+  }),
+  get_stat_definitions: z.strictObject({
+    stat: z.enum(STAT_KEYS).optional(),
   }),
   get_export_link: z.strictObject({
     dataset: z.enum(DATASETS),
@@ -238,6 +242,18 @@ export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
       driver_id: { type: "string", description: "Optional driver id, e.g. NOR." },
     },
     ["grand_prix_id", "type"]
+  ),
+  tool(
+    "get_stat_definitions",
+    "How this app defines and calculates its statistics, in plain words: positions gained, average finish, DNF, disqualification, fastest lap, points, pit stop time, wins, podiums and race pace. Use it for any 'what does X mean' or 'how is X calculated' question.",
+    {
+      stat: {
+        type: "string",
+        enum: [...STAT_KEYS],
+        description: "One statistic to define. Omit it to get all of them.",
+      },
+    },
+    []
   ),
   tool(
     "get_export_link",
@@ -646,6 +662,12 @@ const implementations: {
       driver_id,
       apiBaseUrl: context.apiBaseUrl,
     });
+  },
+
+  async get_stat_definitions({ stat }) {
+    return stat === undefined
+      ? { definitions: STAT_DEFINITIONS }
+      : { definitions: { [stat]: STAT_DEFINITIONS[stat] } };
   },
 
   async get_export_link({ dataset, format, season }, context) {
