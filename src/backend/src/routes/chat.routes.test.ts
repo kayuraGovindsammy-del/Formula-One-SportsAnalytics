@@ -242,6 +242,8 @@ describe("system prompt", () => {
       "also mention their disqualifications",
       "don't repeat it in the same sentence",
       "say briefly that you only know this app's F1 data",
+      "Only state a driver's or team's rank in a statistic",
+      "Never infer one ranking from another",
     ]) {
       expect(SYSTEM_PROMPT).toContain(rule);
     }

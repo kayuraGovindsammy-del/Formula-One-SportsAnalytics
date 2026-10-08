@@ -282,6 +282,11 @@ describe("get_driver_standings", () => {
     });
     const points = standings.map((row) => row.points as number);
     expect(points).toEqual([...points].sort((a, b) => b - a));
+    // Sorted by points, position and points_position agree.
+    expect(standings.every((row) => row.points_position === row.position)).toBe(true);
+    expect(result.body.summary).toMatchObject({
+      points_leader: { driver_id: "PIA", driver_name: "Oscar Piastri", team_name: "McLaren" },
+    });
   });
 
   it("matches get_driver_stats for every driver it lists", async () => {

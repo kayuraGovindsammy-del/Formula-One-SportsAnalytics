@@ -46,8 +46,8 @@
 
 ## Baseline
 `npm test` in src/backend reports:
-  Test Files  44 passed | 1 skipped (45)
-       Tests  636 passed | 9 skipped (645)
+  Test Files  45 passed | 1 skipped (46)
+       Tests  639 passed | 9 skipped (648)
 Any change that reduces the passing count is a regression, not a
 flaky test.
 

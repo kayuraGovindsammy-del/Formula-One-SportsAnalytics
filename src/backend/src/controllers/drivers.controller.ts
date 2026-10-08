@@ -266,6 +266,29 @@ export interface DriverStanding {
   average_finish_position: number | null;
   races_entered: number;
   disqualifications: number;
+  /**
+   * The driver's rank by points, whatever the table is sorted by, so a
+   * points ranking is never inferred from a wins (or other) ranking. Null
+   * when the driver has no points data.
+   */
+  points_position: number | null;
+}
+
+export interface StandingsLeader {
+  driver_id: string;
+  driver_name: string;
+  team_name: string | null;
+  points: number | null;
+  wins: number;
+}
+
+export interface DriverStandingsResult {
+  season: string;
+  sort_by: StandingsSort;
+  total_drivers: number;
+  /** Who leads on points and on wins, over the whole field, not just the rows shown. */
+  summary: { points_leader: StandingsLeader | null; wins_leader: StandingsLeader | null };
+  standings: DriverStanding[];
 }
 
 /**
@@ -282,7 +305,7 @@ export async function loadDriverStandings(
   season: string,
   sortBy: StandingsSort,
   limit: number
-): Promise<{ season: string; sort_by: StandingsSort; total_drivers: number; standings: DriverStanding[] }> {
+): Promise<DriverStandingsResult> {
   const [data, names] = await Promise.all([
     loadSeasonStatisticsData(season),
     namesModel.findNameDirectory(),
@@ -306,18 +329,46 @@ export async function loadDriverStandings(
     disqualifications: disqualificationsFromSeason(driverId, data),
   }));
 
+  const driverName = (driverId: string) =>
+    names.drivers.get(driverId.toUpperCase()) ?? driverId;
+  const teamName = (constructorId: string | null) =>
+    constructorId === null
+      ? null
+      : (names.constructors.get(constructorId.toUpperCase()) ?? constructorId);
+
+  // The points ranking of the whole field, computed once and reported on every
+  // row, so the model never has to guess it from another ranking.
+  const pointsRanking = rankDrivers(entries, "points", entries.length);
+  const pointsPosition = new Map(
+    pointsRanking.map(({ position, entry }) => [
+      entry.statistics.driver_id,
+      entry.statistics.points === null ? null : position,
+    ])
+  );
+
+  const leader = (sort: StandingsSort): StandingsLeader | null => {
+    const top = (sort === "points" ? pointsRanking : rankDrivers(entries, sort, 1))[0];
+    if (!top) return null;
+    const { statistics } = top.entry;
+    return {
+      driver_id: statistics.driver_id,
+      driver_name: driverName(statistics.driver_id),
+      team_name: teamName(top.entry.constructor_id),
+      points: statistics.points,
+      wins: statistics.wins,
+    };
+  };
+
   const standings = rankDrivers(entries, sortBy, limit).map(({ position, entry }) => {
     const { statistics } = entry;
     return {
       position,
       driver_id: statistics.driver_id,
-      driver_name: names.drivers.get(statistics.driver_id.toUpperCase()) ?? statistics.driver_id,
+      driver_name: driverName(statistics.driver_id),
       constructor_id: entry.constructor_id,
-      team_name:
-        entry.constructor_id === null
-          ? null
-          : (names.constructors.get(entry.constructor_id.toUpperCase()) ?? entry.constructor_id),
+      team_name: teamName(entry.constructor_id),
       points: statistics.points,
+      points_position: pointsPosition.get(statistics.driver_id) ?? null,
       wins: statistics.wins,
       podiums: statistics.podiums,
       fastest_laps: statistics.fastest_laps,
@@ -328,7 +379,16 @@ export async function loadDriverStandings(
     };
   });
 
-  return { season, sort_by: sortBy, total_drivers: entries.length, standings };
+  return {
+    season,
+    sort_by: sortBy,
+    total_drivers: entries.length,
+    summary: {
+      points_leader: leader("points"),
+      wins_leader: leader("wins"),
+    },
+    standings,
+  };
 }
 
 /** GET /api/v1/drivers/:driver_id/stats — docs/api-design.md §4.3 */
