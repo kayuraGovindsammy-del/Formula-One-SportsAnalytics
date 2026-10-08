@@ -6,7 +6,7 @@
 // last round it is asked for a text answer with tools disabled.
 // ---------------------------------------------------------------------------
 
-import { formatReply } from "./formatReply.js";
+import { extractUrls, formatReply, removeUnknownUrls } from "./formatReply.js";
 import type { ChatMessage, LlmClient, LlmProvider } from "./llmClient.js";
 import {
   DEFAULT_SEASON,
@@ -89,6 +89,8 @@ export async function runAssistant(
       ...turns.map((turn) => ({ role: turn.role, content: turn.content })),
     ];
     const toolsUsed: string[] = [];
+    // Every URL a tool returned in this request: the only links the reply may contain.
+    const toolUrls = new Set<string>();
 
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
       const toolsAllowed = round < MAX_TOOL_ROUNDS;
@@ -100,9 +102,11 @@ export async function runAssistant(
 
       const calls = message.tool_calls ?? [];
       if (calls.length === 0 || !toolsAllowed) {
-        // The prompt asks for plain text; formatReply enforces it.
+        // The prompt asks for plain text; formatReply enforces it, and
+        // removeUnknownUrls drops any link the tools did not return.
         return {
-          reply: formatReply(message.content ?? "") || FALLBACK_REPLY,
+          reply:
+            removeUnknownUrls(formatReply(message.content ?? ""), toolUrls) || FALLBACK_REPLY,
           tools_used: toolsUsed,
           provider: provider.name,
           tool_rounds: round,
@@ -121,6 +125,7 @@ export async function runAssistant(
                   if (result.ok && !toolsUsed.includes(result.name)) {
                     toolsUsed.push(result.name);
                   }
+                  for (const url of extractUrls(result.content)) toolUrls.add(url);
                   return result.content;
                 }
               )

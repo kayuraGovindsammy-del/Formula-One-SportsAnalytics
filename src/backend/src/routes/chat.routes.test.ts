@@ -289,7 +289,8 @@ describe("POST /api/v1/chat — answering", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.reply).toBe(
-      "Piastri, 2025\n\nStat, Value:\n- Wins, 7\n\nSee his stats:\nhttps://example.test/drivers/PIA"
+      // The link was not returned by any tool, so it and its lead-in go.
+      "Piastri, 2025\n\nStat, Value:\n- Wins, 7"
     );
   });
 
@@ -394,6 +395,67 @@ describe("POST /api/v1/chat — answering", () => {
       "auto",
       "none",
     ]);
+  });
+});
+
+describe("POST /api/v1/chat — links", () => {
+  const exportCall = reply({
+    role: "assistant",
+    content: null,
+    tool_calls: [
+      toolCall("call_1", "get_export_link", { dataset: "results", format: "csv" }),
+    ],
+  });
+
+  it("keeps a URL that a tool returned in this request", async () => {
+    llm.responses = [exportCall];
+    llm.responses.push(() => {
+      // Echo the real URL from the tool message the model was just sent.
+      const toolMessage = (llm.requests.at(-1)?.body.messages as Array<{ role: string; content: string }>)
+        .find((message) => message.role === "tool");
+      const url = (JSON.parse(toolMessage?.content ?? "{}") as { url: string }).url;
+      return reply({ role: "assistant", content: `Here are the 2025 results as CSV: ${url}` })();
+    });
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.reply).toMatch(
+      /^Here are the 2025 results as CSV:\nhttp:\/\/127\.0\.0\.1:\d+\/api\/v1\/export\/results\?format=csv&season=2025$/
+    );
+  });
+
+  it("removes an invented URL and the label that introduced it", async () => {
+    llm.responses = [
+      reply({
+        role: "assistant",
+        content:
+          "Verstappen won the most races.\n\nDownload: https://example.com/driver_standings_2025.csv",
+      }),
+    ];
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    expect(res.body.data.reply).toBe("Verstappen won the most races.");
+  });
+
+  it("keeps the real URL and drops the invented one when both appear", async () => {
+    llm.responses = [exportCall];
+    llm.responses.push(() => {
+      const toolMessage = (llm.requests.at(-1)?.body.messages as Array<{ role: string; content: string }>)
+        .find((message) => message.role === "tool");
+      const url = (JSON.parse(toolMessage?.content ?? "{}") as { url: string }).url;
+      return reply({
+        role: "assistant",
+        content: `CSV: ${url}\nAlso see https://example.com/standings.csv for more.`,
+      })();
+    });
+
+    const res = await request(app).post("/api/v1/chat").send(question);
+
+    const reply_ = res.body.data.reply as string;
+    expect(reply_).toMatch(/^CSV:\nhttp:\/\/127\.0\.0\.1:\d+\/api\/v1\/export\/results\?format=csv&season=2025\nFor more\.$/);
+    expect(reply_).not.toContain("example.com");
   });
 });
 

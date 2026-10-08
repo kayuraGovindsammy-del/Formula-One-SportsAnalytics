@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatReply, trimUrl } from "./formatReply.js";
+import { extractUrls, formatReply, removeUnknownUrls, trimUrl } from "./formatReply.js";
 
 const LIST_URL =
   "https://example.test/api/v1/races/2025_R13/events?type=PIT_STOP&per_page=100";
@@ -161,5 +161,55 @@ describe("formatReply", () => {
 
   it("trims trailing spaces and surrounding blank lines", () => {
     expect(formatReply("\n\nAnswer.   \n\n")).toBe("Answer.");
+  });
+});
+
+describe("removeUnknownUrls", () => {
+  const REAL = "http://localhost:3001/api/v1/export/results?format=csv&season=2025";
+  const FAKE = "https://example.com/driver_standings_2025.csv";
+  const allowed = new Set([REAL]);
+  // As the assistant uses it: formatReply first, then the guard.
+  const guard = (text: string) => removeUnknownUrls(formatReply(text), allowed);
+
+  it("removes a made-up URL and the label line it leaves empty", () => {
+    expect(guard(`Verstappen has the most wins.\n\nDownload: ${FAKE}`)).toBe(
+      "Verstappen has the most wins."
+    );
+  });
+
+  it("removes a made-up URL from the middle of a sentence and keeps the rest", () => {
+    expect(guard(`The table is at ${FAKE}, or ask me about a driver.`)).toBe(
+      "Or ask me about a driver."
+    );
+  });
+
+  it("keeps a URL that a tool returned", () => {
+    expect(guard(`Here is the CSV: ${REAL}.`)).toBe(`Here is the CSV:\n${REAL}`);
+  });
+
+  it("leaves a reply with no URLs unchanged", () => {
+    const plain = "Lando Norris has 394 points from Grand Prix races (sprints not included).";
+    expect(guard(plain)).toBe(plain);
+    expect(removeUnknownUrls(plain, new Set())).toBe(plain);
+  });
+
+  it("keeps the real URL and drops the made-up one when a reply has both", () => {
+    expect(guard(`Results CSV: ${REAL}\nStandings: ${FAKE}`)).toBe(`Results CSV:\n${REAL}`);
+  });
+
+  it("keeps a label when at least one of the URLs it introduces is real", () => {
+    expect(removeUnknownUrls(`Links:\n- ${FAKE}\n- ${REAL}`, allowed)).toBe(`Links:\n- ${REAL}`);
+  });
+
+  it("removes every URL when the tools returned none", () => {
+    expect(removeUnknownUrls(`Full list:\n${REAL}\n\nAnything else?`, new Set())).toBe(
+      "Anything else?"
+    );
+  });
+
+  it("extracts the URLs a tool result contains, without trailing punctuation", () => {
+    expect(
+      extractUrls(JSON.stringify({ url: REAL, note: `see ${FAKE}.` }))
+    ).toEqual([REAL, FAKE]);
   });
 });
