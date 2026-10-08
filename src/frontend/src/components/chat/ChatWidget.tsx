@@ -20,13 +20,6 @@ const COUNTER_THRESHOLD = 800;
 const BUBBLE_DELAY_MS = 1500;
 const BUBBLE_DURATION_MS = 6000;
 
-/**
- * Module-level, not component state: every route renders its own Layout, so
- * the widget remounts on navigation, but the bubble should appear once per
- * page load. A full reload resets it.
- */
-let bubbleShownThisPageLoad = false;
-
 interface Message extends ChatTurn {
   id: number;
 }
@@ -60,14 +53,12 @@ function ChatWidget() {
     wasOpen.current = open;
   }, [open]);
 
-  // Show the speech bubble once per page load, then hide it again.
+  // Show the speech bubble once, then hide it again. App renders the widget
+  // once, outside the routes, so one mount is one page load.
   useEffect(() => {
-    if (bubbleShownThisPageLoad) return;
-
     let hideTimer: ReturnType<typeof setTimeout> | undefined;
     const showTimer = setTimeout(() => {
       if (openRef.current) return;
-      bubbleShownThisPageLoad = true;
       setBubbleVisible(true);
       hideTimer = setTimeout(() => setBubbleVisible(false), BUBBLE_DURATION_MS);
     }, BUBBLE_DELAY_MS);

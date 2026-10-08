@@ -21,6 +21,7 @@ import AdminRoute from "./auth/AdminRoute";
 import SubmitterRoute from "./auth/SubmitterRoute";
 
 import Layout from "./components/layout/Layout";
+import ChatWidget from "./components/chat/ChatWidget";
 import Constructors from "./pages/Constructors/Constructors";
 import Statistics from "./pages/Statistics/Statistics";
 
@@ -28,6 +29,7 @@ function App() {
   const { user } = useAuth();
 
   return (
+    <>
     <Routes>
       {/* PUBLIC */}
       <Route
@@ -182,6 +184,10 @@ function App() {
 
     </Routes>
 
+    {/* Outside the routes so it never remounts: the conversation survives
+        navigation, and it shows on every page, including /login. */}
+    <ChatWidget />
+    </>
   );
 }
 

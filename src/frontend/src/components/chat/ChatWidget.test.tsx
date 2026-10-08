@@ -309,13 +309,6 @@ describe("ChatWidget", () => {
 });
 
 describe("ChatWidget speech bubble", () => {
-  // The bubble is shown once per page load (a module-level flag), so each
-  // test imports a fresh copy of the module.
-  async function freshWidget() {
-    vi.resetModules();
-    return (await import("./ChatWidget")).default;
-  }
-
   const bubble = () => document.querySelector(".chat-widget__bubble");
 
   beforeEach(() => {
@@ -326,9 +319,8 @@ describe("ChatWidget speech bubble", () => {
     vi.useRealTimers();
   });
 
-  test("appears after 1.5 s, is aria-hidden, and hides when the chat opens", async () => {
-    const Widget = await freshWidget();
-    render(<Widget />);
+  test("appears after 1.5 s, is aria-hidden, and hides when the chat opens", () => {
+    render(<ChatWidget />);
 
     act(() => vi.advanceTimersByTime(1499));
     expect(bubble()).toBeNull();
@@ -348,9 +340,8 @@ describe("ChatWidget speech bubble", () => {
     expect(bubble()).toBeNull();
   });
 
-  test("hides by itself about 6 s after it appears", async () => {
-    const Widget = await freshWidget();
-    render(<Widget />);
+  test("hides by itself about 6 s after it appears", () => {
+    render(<ChatWidget />);
 
     act(() => vi.advanceTimersByTime(1500));
     expect(bubble()).not.toBeNull();
@@ -362,9 +353,8 @@ describe("ChatWidget speech bubble", () => {
     expect(bubble()).toBeNull();
   });
 
-  test("never shows if the chat is opened before it appears", async () => {
-    const Widget = await freshWidget();
-    render(<Widget />);
+  test("never shows if the chat is opened before it appears", () => {
+    render(<ChatWidget />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
     act(() => vi.advanceTimersByTime(10_000));
@@ -372,16 +362,16 @@ describe("ChatWidget speech bubble", () => {
     expect(bubble()).toBeNull();
   });
 
-  test("shows only once per page load, even if the widget remounts", async () => {
-    const Widget = await freshWidget();
-    const first = render(<Widget />);
+  test("shows only once: after hiding it does not come back", () => {
+    render(<ChatWidget />);
+
     act(() => vi.advanceTimersByTime(1500));
     expect(bubble()).not.toBeNull();
-    first.unmount();
 
-    // A route change remounts the widget; the same module (page load) remains.
-    render(<Widget />);
-    act(() => vi.advanceTimersByTime(10_000));
+    act(() => vi.advanceTimersByTime(6000));
+    expect(bubble()).toBeNull();
+
+    act(() => vi.advanceTimersByTime(60_000));
     expect(bubble()).toBeNull();
   });
 });
