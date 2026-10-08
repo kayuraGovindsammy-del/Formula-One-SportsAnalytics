@@ -21,11 +21,12 @@
   color: var(--chat-text);
 }
 
+/* The round x that closes the chat, where the launcher was. */
 .chat-widget__toggle {
   display: grid;
   place-items: center;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   margin-left: auto;
   border: none;
   border-radius: 50%;
@@ -61,29 +62,104 @@
   outline-color: white;
 }
 
-/* Closed: the bot icon fills the round button, inside a thin red ring. */
-.chat-widget__toggle--bot {
-  overflow: hidden;
+/* Closed: the robot itself is the launcher. No background or border; it
+   bobs gently with a soft red glow, and lifts a little on hover or focus. */
+.chat-widget__launcher {
+  display: block;
+  width: 76px;
+  height: 76px;
+  margin-left: auto;
   padding: 0;
-  background: var(--chat-bg);
-  box-shadow:
-    0 0 0 2px var(--chat-accent),
-    0 6px 20px var(--chat-shadow);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease;
 }
 
-.chat-widget__toggle--bot:hover {
-  box-shadow:
-    0 0 0 2px var(--chat-accent),
-    0 0 18px rgba(225, 6, 0, 0.55),
-    0 6px 20px var(--chat-shadow);
+.chat-widget__launcher:hover,
+.chat-widget__launcher:focus-visible {
+  transform: translateY(-4px) scale(1.06);
 }
 
-.chat-widget__bot {
+.chat-widget__launcher:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+.chat-widget__robot {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
+  filter: drop-shadow(0 8px 10px rgba(225, 6, 0, 0.45));
+  animation: chat-widget-bob 3s ease-in-out infinite;
+}
+
+@keyframes chat-widget-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Open: the robot perches on the panel's top-left corner, still bobbing. */
+.chat-widget__panel-wrap {
+  position: relative;
+}
+
+.chat-widget__robot--perched {
+  position: absolute;
+  top: -30px;
+  left: -28px;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+}
+
+/* "Ask me about F1!": decorative, never blocks clicks. */
+.chat-widget__bubble {
+  position: absolute;
+  right: 86px;
+  bottom: 44px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--chat-accent);
+  border-radius: 10px;
+  background: var(--chat-surface);
+  color: var(--chat-text);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px var(--chat-shadow);
+  pointer-events: none;
+  animation: chat-widget-bubble-in 0.25s ease-out;
+}
+
+/* A small tail pointing at the robot. */
+.chat-widget__bubble::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid var(--chat-accent);
+  border-right: 1px solid var(--chat-accent);
+  background: var(--chat-surface);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+@keyframes chat-widget-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .chat-widget__panel {
@@ -131,7 +207,6 @@
   flex-shrink: 0;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
 }
 
 .chat-widget__title {
@@ -208,7 +283,6 @@
   width: 24px;
   height: 24px;
   margin-top: 0.15rem;
-  border-radius: 50%;
 }
 
 .chat-widget__message a {
@@ -376,15 +450,43 @@
     bottom: 0.75rem;
   }
 
+  /* Leave room above the panel for the robot, which sits clear of the input. */
   .chat-widget__panel {
     position: fixed;
-    top: 0.5rem;
+    top: 4rem;
     right: 0.5rem;
-    bottom: 5rem;
+    bottom: 4.25rem;
     left: 0.5rem;
     width: auto;
     height: auto;
     margin: 0;
+  }
+
+  .chat-widget__robot--perched {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.75rem;
+    width: 52px;
+    height: 52px;
+  }
+
+  .chat-widget__launcher {
+    width: 60px;
+    height: 60px;
+  }
+
+  .chat-widget__bubble {
+    right: 68px;
+    bottom: 34px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Too narrow for the bubble beside the robot: leave it out. */
+@media (max-width: 340px) {
+  .chat-widget__bubble {
+    display: none;
   }
 }
 
@@ -400,10 +502,17 @@
     transform: none;
   }
 
-  /* The hover glow appears without easing in. */
-  .chat-widget__toggle--bot,
-  .chat-widget__toggle--bot:hover {
+  /* No bob, no lift, and the bubble just appears and disappears. */
+  .chat-widget__robot,
+  .chat-widget__launcher,
+  .chat-widget__bubble {
+    animation: none;
     transition: none;
+  }
+
+  .chat-widget__launcher:hover,
+  .chat-widget__launcher:focus-visible {
+    transform: none;
   }
 
   .chat-widget__typing span {

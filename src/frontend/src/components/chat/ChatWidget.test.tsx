@@ -225,40 +225,59 @@ describe("ChatWidget", () => {
     expect(sent.some((message) => message.content === "Question 1")).toBe(false);
   });
 
-  test("the closed button shows the bot icon; the open button shows the close icon", async () => {
+  test("the closed launcher is the robot itself, with the same label and no circle", () => {
+    render(<ChatWidget />);
+
+    const launcher = screen.getByRole("button", { name: "Open F1 Assistant" });
+    expect(launcher.tagName).toBe("BUTTON");
+    expect(launcher).toHaveAttribute("aria-expanded", "false");
+    expect(launcher).toHaveClass("chat-widget__launcher");
+    // The old red circle came from these classes.
+    expect(launcher).not.toHaveClass("chat-widget__toggle");
+    expect(launcher).not.toHaveClass("chat-widget__toggle--bot");
+
+    const robot = launcher.querySelector("img");
+    expect(robot?.getAttribute("src")).toMatch(/f1-assistant-robot-192.*\.webp/);
+    expect(robot).toHaveAttribute("alt", "");
+    expect(robot).toHaveAttribute("width", "76");
+    expect(robot).toHaveAttribute("height", "76");
+    expect(launcher.querySelector("svg")).toBeNull();
+  });
+
+  test("the open state shows a close button with the right label and keeps the robot", async () => {
     const user = userEvent.setup();
     render(<ChatWidget />);
 
-    const closed = screen.getByRole("button", { name: "Open F1 Assistant" });
-    const icon = closed.querySelector("img");
-    expect(icon).not.toBeNull();
-    expect(icon?.getAttribute("src")).toMatch(/f1-assistant-bot-256.*\.webp/);
-    expect(icon).toHaveAttribute("alt", "");
-    expect(icon).toHaveAttribute("width", "56");
-    expect(icon).toHaveAttribute("height", "56");
-    expect(closed.querySelector("svg")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
 
-    await user.click(closed);
+    const close = screen.getByRole("button", { name: "Close F1 Assistant" });
+    expect(close).toHaveAttribute("aria-expanded", "true");
+    expect(close.querySelector("svg")).not.toBeNull();
+    expect(close.querySelector("img")).toBeNull();
 
-    const open = screen.getByRole("button", { name: "Close F1 Assistant" });
-    expect(open.querySelector("img")).toBeNull();
-    expect(open.querySelector("svg")).not.toBeNull();
-    // The image is decorative: the buttons' names are still their aria-labels.
+    // The robot perches on the panel, decorative only.
+    const perched = document.querySelector(".chat-widget__robot--perched");
+    expect(perched?.getAttribute("src")).toMatch(/f1-assistant-robot-192.*\.webp/);
+    expect(perched).toHaveAttribute("aria-hidden", "true");
     expect(screen.queryByRole("img")).toBeNull();
+
+    // Closing works as before and hands focus back to the launcher.
+    await user.click(close);
+    expect(screen.getByRole("button", { name: "Open F1 Assistant" })).toHaveFocus();
   });
 
-  test("the panel header shows the bot icon beside the title", async () => {
+  test("the panel header shows the small robot beside the title", async () => {
     await openWidget();
 
     const title = screen.getByRole("heading", { name: "F1 Assistant" });
     const icon = title.closest(".chat-widget__brand")?.querySelector("img");
-    expect(icon?.getAttribute("src")).toMatch(/f1-assistant-bot-96.*\.png/);
+    expect(icon?.getAttribute("src")).toMatch(/f1-assistant-robot-96.*\.png/);
     expect(icon).toHaveAttribute("alt", "");
     expect(icon).toHaveAttribute("width", "28");
     expect(icon).toHaveAttribute("height", "28");
   });
 
-  test("assistant replies have a bot avatar and user messages do not", async () => {
+  test("assistant replies have the small robot avatar and user messages do not", async () => {
     fetchMock.mockResolvedValueOnce(reply("Lando Norris has 394 points."));
     const { user, input } = await openWidget();
 
@@ -266,7 +285,7 @@ describe("ChatWidget", () => {
     const answer = await screen.findByText("Lando Norris has 394 points.");
 
     const avatar = answer.closest(".chat-widget__row")?.querySelector("img");
-    expect(avatar?.getAttribute("src")).toMatch(/f1-assistant-bot-96.*\.png/);
+    expect(avatar?.getAttribute("src")).toMatch(/f1-assistant-robot-96.*\.png/);
     expect(avatar).toHaveAttribute("alt", "");
     expect(avatar).toHaveAttribute("width", "24");
     expect(avatar).toHaveAttribute("height", "24");
@@ -286,5 +305,83 @@ describe("ChatWidget", () => {
     fireEvent.change(input, { target: { value: "x".repeat(950) } });
     expect(screen.getByText("950/1000")).toBeInTheDocument();
     expect(input).toHaveAttribute("maxLength", "1000");
+  });
+});
+
+describe("ChatWidget speech bubble", () => {
+  // The bubble is shown once per page load (a module-level flag), so each
+  // test imports a fresh copy of the module.
+  async function freshWidget() {
+    vi.resetModules();
+    return (await import("./ChatWidget")).default;
+  }
+
+  const bubble = () => document.querySelector(".chat-widget__bubble");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test("appears after 1.5 s, is aria-hidden, and hides when the chat opens", async () => {
+    const Widget = await freshWidget();
+    render(<Widget />);
+
+    act(() => vi.advanceTimersByTime(1499));
+    expect(bubble()).toBeNull();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(bubble()).toHaveTextContent("Ask me about F1!");
+    // Decorative: hidden from assistive technology, and not interactive.
+    expect(bubble()).toHaveAttribute("aria-hidden", "true");
+    expect(screen.queryByRole("button", { name: /Ask me about F1/ })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    expect(bubble()).toBeNull();
+
+    // Closing again does not bring it back.
+    fireEvent.click(screen.getByRole("button", { name: "Close F1 Assistant" }));
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(bubble()).toBeNull();
+  });
+
+  test("hides by itself about 6 s after it appears", async () => {
+    const Widget = await freshWidget();
+    render(<Widget />);
+
+    act(() => vi.advanceTimersByTime(1500));
+    expect(bubble()).not.toBeNull();
+
+    act(() => vi.advanceTimersByTime(5999));
+    expect(bubble()).not.toBeNull();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(bubble()).toBeNull();
+  });
+
+  test("never shows if the chat is opened before it appears", async () => {
+    const Widget = await freshWidget();
+    render(<Widget />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    act(() => vi.advanceTimersByTime(10_000));
+
+    expect(bubble()).toBeNull();
+  });
+
+  test("shows only once per page load, even if the widget remounts", async () => {
+    const Widget = await freshWidget();
+    const first = render(<Widget />);
+    act(() => vi.advanceTimersByTime(1500));
+    expect(bubble()).not.toBeNull();
+    first.unmount();
+
+    // A route change remounts the widget; the same module (page load) remains.
+    render(<Widget />);
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(bubble()).toBeNull();
   });
 });
