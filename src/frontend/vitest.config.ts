@@ -6,6 +6,7 @@ export default defineConfig({
 
   test: {
     environment: "jsdom",
+    testTimeout: 20000, // Allow slower shared Gitea runners to complete UI tests.
     globals: true,
     setupFiles: "./src/test/setup.ts",
     css: true,
