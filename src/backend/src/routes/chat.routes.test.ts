@@ -244,6 +244,8 @@ describe("system prompt", () => {
       "say briefly that you only know this app's F1 data",
       "Only state a driver's or team's rank in a statistic",
       "Never infer one ranking from another",
+      "Points cover Grand Prix races only; sprint race points are not in our data",
+      "Never present our totals as the official championship totals",
     ]) {
       expect(SYSTEM_PROMPT).toContain(rule);
     }

@@ -49,7 +49,7 @@ export const STAT_DEFINITIONS = {
     name: "Points",
     fields: ["points"],
     definition:
-      "A driver's points are the published Grand Prix points for each race, added up over the season; a race with no published result uses the standard 25-18-15-12-10-8-6-4-2-1 scale. Team points add up the points each car scored for that team in each race. Sprint races are not in our data, so totals can be lower than the official championship.",
+      "Points cover Grand Prix races only: sprint race points are not included, so our totals are lower than the official championship standings for anyone who scored in sprints. A driver's points are the published Grand Prix points for each race, added up over the season; a race with no published result uses the standard 25-18-15-12-10-8-6-4-2-1 scale. Team points add up the Grand Prix points each car scored for that team in each race.",
   },
   pit_stop_time: {
     name: "Pit stop time",

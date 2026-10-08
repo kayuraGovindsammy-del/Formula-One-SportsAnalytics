@@ -639,7 +639,8 @@ describe("get_stat_definitions", () => {
     expect(definitions.pit_stop_time?.definition).toMatch(/pit lane/);
     expect(definitions.pit_stop_time?.definition).toMatch(/not the time the car was stationary/);
     expect(definitions.dnf?.definition).toMatch(/Disqualifications .* are not DNFs/);
-    expect(definitions.points?.definition).toMatch(/Sprint races are not in our data/);
+    expect(definitions.points?.definition).toMatch(/^Points cover Grand Prix races only/);
+    expect(definitions.points?.definition).toMatch(/sprint race points are not included/);
     expect(definitions.average_finish?.definition).toMatch(/Lower is better/);
   });
 
