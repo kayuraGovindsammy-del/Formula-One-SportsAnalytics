@@ -3,6 +3,8 @@ import type { FormEvent, KeyboardEvent } from "react";
 
 import { ChatError, MAX_MESSAGE_LENGTH, sendChat, type ChatTurn } from "../../api/chat";
 import { linkify } from "./linkify";
+import botIcon from "../../assets/chat/f1-assistant-bot-256.webp";
+import botAvatar from "../../assets/chat/f1-assistant-bot-96.png";
 import "./ChatWidget.css";
 
 const STARTER_QUESTIONS = [
@@ -117,13 +119,22 @@ function ChatWidget() {
           onKeyDown={handlePanelKeyDown}
         >
           <div className="chat-widget__header">
-            <div>
-              <h2 id={titleId} className="chat-widget__title">
-                F1 Assistant
-              </h2>
-              <p id={noteId} className="chat-widget__note">
-                Answers use our 2025 data
-              </p>
+            <div className="chat-widget__brand">
+              <img
+                className="chat-widget__header-icon"
+                src={botAvatar}
+                alt=""
+                width={28}
+                height={28}
+              />
+              <div>
+                <h2 id={titleId} className="chat-widget__title">
+                  F1 Assistant
+                </h2>
+                <p id={noteId} className="chat-widget__note">
+                  Answers use our 2025 data
+                </p>
+              </div>
             </div>
             <button
               type="button"
@@ -158,17 +169,28 @@ function ChatWidget() {
               </div>
             )}
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`chat-widget__message chat-widget__message--${message.role}`}
-              >
-                <span className="chat-widget__sr-only">
-                  {message.role === "user" ? "You:" : "Assistant:"}
-                </span>
-                {message.role === "assistant" ? linkify(message.content) : message.content}
-              </div>
-            ))}
+            {messages.map((message) =>
+              message.role === "assistant" ? (
+                <div key={message.id} className="chat-widget__row chat-widget__row--assistant">
+                  <img
+                    className="chat-widget__avatar"
+                    src={botAvatar}
+                    alt=""
+                    width={24}
+                    height={24}
+                  />
+                  <div className="chat-widget__message chat-widget__message--assistant">
+                    <span className="chat-widget__sr-only">Assistant:</span>
+                    {linkify(message.content)}
+                  </div>
+                </div>
+              ) : (
+                <div key={message.id} className="chat-widget__message chat-widget__message--user">
+                  <span className="chat-widget__sr-only">You:</span>
+                  {message.content}
+                </div>
+              )
+            )}
 
             {pending && (
               <div className="chat-widget__typing" role="status" aria-label="Assistant is typing">
@@ -217,19 +239,20 @@ function ChatWidget() {
       <button
         ref={toggleRef}
         type="button"
-        className="chat-widget__toggle"
+        className={`chat-widget__toggle${open ? "" : " chat-widget__toggle--bot"}`}
         aria-label={open ? "Close F1 Assistant" : "Open F1 Assistant"}
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         onClick={() => setOpen((value) => !value)}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          {open ? (
+        {open ? (
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path d="M6 6l12 12M18 6L6 18" />
-          ) : (
-            <path d="M4 5h16v11H9l-5 4z" />
-          )}
-        </svg>
+          </svg>
+        ) : (
+          // The button is labelled, so the image is decorative.
+          <img className="chat-widget__bot" src={botIcon} alt="" width={56} height={56} />
+        )}
       </button>
     </div>
   );

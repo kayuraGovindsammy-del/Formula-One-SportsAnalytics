@@ -61,6 +61,31 @@
   outline-color: white;
 }
 
+/* Closed: the bot icon fills the round button, inside a thin red ring. */
+.chat-widget__toggle--bot {
+  overflow: hidden;
+  padding: 0;
+  background: var(--chat-bg);
+  box-shadow:
+    0 0 0 2px var(--chat-accent),
+    0 6px 20px var(--chat-shadow);
+}
+
+.chat-widget__toggle--bot:hover {
+  box-shadow:
+    0 0 0 2px var(--chat-accent),
+    0 0 18px rgba(225, 6, 0, 0.55),
+    0 6px 20px var(--chat-shadow);
+}
+
+.chat-widget__bot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .chat-widget__panel {
   display: flex;
   flex-direction: column;
@@ -94,6 +119,19 @@
   padding: 0.85rem 1rem;
   border-bottom: 3px solid var(--chat-accent);
   background: var(--chat-surface);
+}
+
+.chat-widget__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.chat-widget__header-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
 }
 
 .chat-widget__title {
@@ -149,6 +187,28 @@
   align-self: flex-start;
   border: 1px solid var(--chat-border);
   background: var(--chat-surface);
+}
+
+/* An assistant reply: the bot avatar, top-aligned, beside the bubble. */
+.chat-widget__row--assistant {
+  display: flex;
+  align-items: flex-start;
+  align-self: flex-start;
+  gap: 0.5rem;
+  max-width: 92%;
+}
+
+.chat-widget__row--assistant .chat-widget__message {
+  min-width: 0;
+  max-width: none;
+}
+
+.chat-widget__avatar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: 0.15rem;
+  border-radius: 50%;
 }
 
 .chat-widget__message a {
@@ -302,6 +362,13 @@
   white-space: nowrap;
 }
 
+/* Very narrow screens: give the reply text the avatar's width. */
+@media (max-width: 399px) {
+  .chat-widget__avatar {
+    display: none;
+  }
+}
+
 /* Small screens: the panel fills nearly the whole viewport. */
 @media (max-width: 480px) {
   .chat-widget {
@@ -331,6 +398,12 @@
 
   .chat-widget__toggle:hover {
     transform: none;
+  }
+
+  /* The hover glow appears without easing in. */
+  .chat-widget__toggle--bot,
+  .chat-widget__toggle--bot:hover {
+    transition: none;
   }
 
   .chat-widget__typing span {

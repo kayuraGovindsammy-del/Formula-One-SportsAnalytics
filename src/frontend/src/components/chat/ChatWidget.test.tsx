@@ -225,6 +225,58 @@ describe("ChatWidget", () => {
     expect(sent.some((message) => message.content === "Question 1")).toBe(false);
   });
 
+  test("the closed button shows the bot icon; the open button shows the close icon", async () => {
+    const user = userEvent.setup();
+    render(<ChatWidget />);
+
+    const closed = screen.getByRole("button", { name: "Open F1 Assistant" });
+    const icon = closed.querySelector("img");
+    expect(icon).not.toBeNull();
+    expect(icon?.getAttribute("src")).toMatch(/f1-assistant-bot-256.*\.webp/);
+    expect(icon).toHaveAttribute("alt", "");
+    expect(icon).toHaveAttribute("width", "56");
+    expect(icon).toHaveAttribute("height", "56");
+    expect(closed.querySelector("svg")).toBeNull();
+
+    await user.click(closed);
+
+    const open = screen.getByRole("button", { name: "Close F1 Assistant" });
+    expect(open.querySelector("img")).toBeNull();
+    expect(open.querySelector("svg")).not.toBeNull();
+    // The image is decorative: the buttons' names are still their aria-labels.
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  test("the panel header shows the bot icon beside the title", async () => {
+    await openWidget();
+
+    const title = screen.getByRole("heading", { name: "F1 Assistant" });
+    const icon = title.closest(".chat-widget__brand")?.querySelector("img");
+    expect(icon?.getAttribute("src")).toMatch(/f1-assistant-bot-96.*\.png/);
+    expect(icon).toHaveAttribute("alt", "");
+    expect(icon).toHaveAttribute("width", "28");
+    expect(icon).toHaveAttribute("height", "28");
+  });
+
+  test("assistant replies have a bot avatar and user messages do not", async () => {
+    fetchMock.mockResolvedValueOnce(reply("Lando Norris has 394 points."));
+    const { user, input } = await openWidget();
+
+    await user.type(input, "Norris points?{Enter}");
+    const answer = await screen.findByText("Lando Norris has 394 points.");
+
+    const avatar = answer.closest(".chat-widget__row")?.querySelector("img");
+    expect(avatar?.getAttribute("src")).toMatch(/f1-assistant-bot-96.*\.png/);
+    expect(avatar).toHaveAttribute("alt", "");
+    expect(avatar).toHaveAttribute("width", "24");
+    expect(avatar).toHaveAttribute("height", "24");
+
+    const question = within(screen.getByRole("log")).getByText("Norris points?");
+    expect(question.closest(".chat-widget__row")).toBeNull();
+    expect(question.querySelector("img")).toBeNull();
+    expect(screen.getByRole("log").querySelectorAll("img")).toHaveLength(1);
+  });
+
   test("shows a character counter near the 1000-character limit", async () => {
     const { input } = await openWidget();
 
