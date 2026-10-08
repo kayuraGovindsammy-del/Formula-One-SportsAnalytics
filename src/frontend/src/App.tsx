@@ -26,7 +26,7 @@ import Constructors from "./pages/Constructors/Constructors";
 import Statistics from "./pages/Statistics/Statistics";
 
 function App() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   return (
     <>
@@ -185,8 +185,12 @@ function App() {
     </Routes>
 
     {/* Outside the routes so it never remounts: the conversation survives
-        navigation, and it shows on every page, including /login. */}
-    <ChatWidget />
+        navigation, and it shows on every page, including /login.
+        Keyed on the signed-in user, so signing out or switching user
+        starts a fresh conversation. Token refreshes and profile updates
+        keep the same uid, so they keep it. Rendered only once auth has
+        settled, so a page reload does not mount it twice. */}
+    {!loading && <ChatWidget key={user?.uid ?? "anon"} />}
     </>
   );
 }

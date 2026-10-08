@@ -29,10 +29,11 @@ vi.mock("./pages/Statistics/Statistics", () => stub("Statistics"));
 
 const fetchMock = vi.fn();
 
-function signedIn(signed: boolean, role = "USER") {
+function signedIn(signed: boolean, role = "USER", uid = "u1", loading = false) {
   vi.mocked(useAuth).mockReturnValue({
-    user: signed ? { uid: "u1" } : null,
-    loading: false,
+    // A new object every call, as Firebase hands out on a token refresh.
+    user: signed ? { uid } : null,
+    loading,
     role,
     submitterStatus: "none",
   } as unknown as ReturnType<typeof useAuth>);
@@ -102,6 +103,93 @@ describe("App: the chat widget", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Login page" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open F1 Assistant" })).toBeInTheDocument();
+  });
+
+});
+
+describe("App: the chat conversation and the signed-in user", () => {
+  // A new element each time: re-rendering the same element object would
+  // let React skip App, and it would never read the changed auth state.
+  const app = () => (
+    <MemoryRouter initialEntries={["/"]}>
+      <App />
+    </MemoryRouter>
+  );
+
+  async function chat(user: ReturnType<typeof userEvent.setup>) {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { reply: "Lando Norris has 394 points.", tools_used: [] }, meta: {} }),
+    });
+    await user.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Ask the F1 Assistant a question" }),
+      "Norris points?{Enter}"
+    );
+    expect(await screen.findByText("Lando Norris has 394 points.")).toBeInTheDocument();
+  }
+
+  async function expectFreshConversation(user: ReturnType<typeof userEvent.setup>) {
+    // A fresh widget starts closed; open it and find an empty conversation.
+    await user.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    const log = screen.getByRole("log");
+    expect(within(log).queryByText("Norris points?")).toBeNull();
+    expect(within(log).queryByText("Lando Norris has 394 points.")).toBeNull();
+    expect(within(log).getByText("Try asking:")).toBeInTheDocument();
+  }
+
+  test("signing out clears the conversation", async () => {
+    signedIn(true);
+    const user = userEvent.setup();
+    const { rerender } = render(app());
+    await chat(user);
+
+    signedIn(false);
+    rerender(app());
+
+    // Signed out, the protected page sends the user to /login, where the
+    // widget is still shown, with nothing from the previous user.
+    expect(await screen.findByRole("heading", { name: "Login page" })).toBeInTheDocument();
+    await expectFreshConversation(user);
+  });
+
+  test("a different user signing in starts a fresh conversation", async () => {
+    signedIn(true, "USER", "u1");
+    const user = userEvent.setup();
+    const { rerender } = render(app());
+    await chat(user);
+
+    signedIn(true, "USER", "u2");
+    rerender(app());
+
+    await expectFreshConversation(user);
+  });
+
+  test("a token refresh or profile update for the same user keeps the conversation", async () => {
+    signedIn(true, "USER", "u1");
+    const user = userEvent.setup();
+    const { rerender } = render(app());
+    await chat(user);
+
+    // Same uid, new user object and a role change: not a different user.
+    signedIn(true, "SUBMITTER", "u1");
+    rerender(app());
+
+    expect(screen.getByRole("dialog", { name: "F1 Assistant" })).toBeInTheDocument();
+    expect(within(screen.getByRole("log")).getByText("Lando Norris has 394 points.")).toBeInTheDocument();
+  });
+
+  test("waits for auth to settle before showing the widget", () => {
+    signedIn(false, "USER", "u1", true);
+    const { rerender } = render(app());
+
+    expect(screen.queryByRole("button", { name: "Open F1 Assistant" })).toBeNull();
+
+    signedIn(true);
+    rerender(app());
+
     expect(screen.getByRole("button", { name: "Open F1 Assistant" })).toBeInTheDocument();
   });
 });
