@@ -14,7 +14,13 @@ import { getConstructorStandings } from "../controllers/constructors.controller.
 import {
   loadDriverSeason,
   loadDriverStandings,
+  loadSeasonStatisticsData,
+  type DriverStanding,
+  type SeasonStatisticsData,
+  type StandingsLeader,
 } from "../controllers/drivers.controller.js";
+import type { ConstructorStandings } from "../services/constructorStatistics.js";
+import { createTtlCache } from "../utils/ttlCache.js";
 import { loadRaceStatistics } from "../controllers/races.controller.js";
 import { ApiError } from "../middleware/ApiError.js";
 import * as constructorsModel from "../models/constructors.model.js";
@@ -56,6 +62,30 @@ export const MAX_STANDINGS_LIMIT = 25;
 export interface ToolContext {
   /** Absolute base of this API, e.g. https://host/api/v1, for export links. */
   apiBaseUrl: string;
+}
+
+// -- Caches --------------------------------------------------------------------
+
+/**
+ * Season data changes only when a season is re-ingested, so the chat tools
+ * keep it for 10 minutes, per season, instead of re-running the season's
+ * queries on every question. The public API endpoints are not cached.
+ */
+export const SEASON_CACHE_TTL_MS = 10 * 60 * 1000;
+
+const seasonDataCache = createTtlCache<SeasonStatisticsData>(SEASON_CACHE_TTL_MS);
+const constructorStandingsCache = createTtlCache<ConstructorStandings>(SEASON_CACHE_TTL_MS);
+const namesCache = createTtlCache<NameDirectory>(SEASON_CACHE_TTL_MS);
+
+const cachedSeasonData = (season: string) =>
+  seasonDataCache.get(season, () => loadSeasonStatisticsData(season));
+const cachedNames = () => namesCache.get("all", () => namesModel.findNameDirectory());
+
+/** Empties the chat tools' caches. For tests. */
+export function clearChatCaches(): void {
+  seasonDataCache.clear();
+  constructorStandingsCache.clear();
+  namesCache.clear();
 }
 
 // -- Argument schemas ----------------------------------------------------------
@@ -126,17 +156,11 @@ type ToolArgs<Name extends ToolName> = z.output<(typeof argumentSchemas)[Name]>;
 
 // -- Definitions sent to the model ----------------------------------------------
 
-const seasonProperty = {
-  type: "string",
-  pattern: "^\\d{4}$",
-  description: `Four-digit season. Defaults to "${DEFAULT_SEASON}".`,
-};
-
-const gpIdProperty = {
-  type: "string",
-  description:
-    "Grand prix id such as 2025_R13 (season, then R and the two-digit round). Find it with search_races.",
-};
+// Kept short on purpose: these definitions are sent with every LLM call, and
+// Groq's free tier allows 8,000 tokens a minute.
+const seasonProperty = { type: "string", description: `YYYY, default ${DEFAULT_SEASON}` };
+const gpIdProperty = { type: "string", description: "e.g. 2025_R13, from search_races" };
+const driverIdProperty = { type: "string", description: "id (NOR) or name (Norris)" };
 
 function tool(
   name: ToolName,
@@ -149,115 +173,76 @@ function tool(
     function: {
       name,
       description,
-      parameters: {
-        type: "object",
-        properties,
-        required,
-        additionalProperties: false,
-      },
+      parameters: { type: "object", properties, required },
     },
   };
 }
 
 export const TOOL_DEFINITIONS: readonly ToolDefinition[] = [
-  tool(
-    "search_drivers",
-    "Find drivers by name. Returns driver ids, names, numbers and current teams.",
-    { query: { type: "string", description: "Part of a driver's name." } },
-    ["query"]
-  ),
+  tool("search_drivers", "Find drivers by name.", { query: { type: "string" } }, ["query"]),
   tool(
     "search_constructors",
-    "Find teams (constructors) by name or id, e.g. \"Red Bull\", \"red bull racing\" or \"RBR\". Returns constructor ids and team names.",
-    { query: { type: "string", description: "Part of a team's name, or its id." } },
+    "Find teams by name or id (Red Bull, RBR).",
+    { query: { type: "string" } },
     ["query"]
   ),
   tool(
     "search_races",
-    "Find races in a season by race name, circuit or country, or list the whole season when query is omitted. Returns grand_prix_id, round, date and whether results exist.",
-    {
-      query: { type: "string", description: "Part of a race, circuit or country name." },
-      season: seasonProperty,
-    },
+    "Find races by name, circuit or country; no query lists the season.",
+    { query: { type: "string" }, season: seasonProperty },
     []
   ),
   tool(
     "get_driver_stats",
-    "A driver's season statistics: races entered, wins, podiums, DNFs, fastest laps, average finish, points and positions gained.",
-    {
-      driver_id: { type: "string", description: "Driver id, e.g. NOR. Find it with search_drivers." },
-      season: seasonProperty,
-    },
+    "One driver's season stats.",
+    { driver_id: driverIdProperty, season: seasonProperty },
     ["driver_id"]
   ),
   tool(
     "get_driver_standings",
-    "Ranks every driver in a season by points, wins, podiums, fastest laps, DNFs or average finish. Use it for any 'who has the most/best/leads' question about drivers. Each row has the position, driver and team names, and all those stats.",
+    "All drivers ranked by sort_by, plus the points and wins leaders.",
     {
       season: seasonProperty,
-      sort_by: {
-        type: "string",
-        enum: [...STANDINGS_SORTS],
-        description: 'What to rank by. Defaults to "points"; "average_finish" ranks lowest first.',
-      },
-      limit: {
-        type: "integer",
-        minimum: 1,
-        maximum: MAX_STANDINGS_LIMIT,
-        description: "How many drivers to return. Defaults to 10.",
-      },
+      sort_by: { type: "string", enum: [...STANDINGS_SORTS] },
+      limit: { type: "integer", description: "default 10" },
     },
     []
   ),
-  tool(
-    "get_constructor_standings",
-    "Every constructor's points for a season, highest first.",
-    { season: seasonProperty },
-    []
-  ),
+  tool("get_constructor_standings", "Team points table.", { season: seasonProperty }, []),
   tool(
     "get_team_drivers",
-    "The drivers who raced for a team in a season, with how many races each drove for it. Use it for 'who drives for X' and for a driver's teammate.",
+    "Drivers who raced for a team, with race counts.",
     {
-      constructor_id: {
-        type: "string",
-        description: "Team id, e.g. RBR. Find it with search_constructors.",
-      },
+      constructor_id: { type: "string", description: "id (RBR) or name (Red Bull)" },
       season: seasonProperty,
     },
     ["constructor_id"]
   ),
   tool(
     "get_race_summary",
-    "One race: its details, the classification (results), race statistics and the qualifying classification.",
+    "A race's result, statistics and qualifying.",
     { grand_prix_id: gpIdProperty },
     ["grand_prix_id"]
   ),
   tool(
     "get_race_events",
-    `A summary of the pit stops, penalties or position changes in a race, optionally for one driver: the total, the fastest pit stop, the busiest laps, and at most ${MAX_EVENT_EXAMPLES} example rows.`,
+    "Summary of a race's pit stops, penalties or position changes.",
     {
       grand_prix_id: gpIdProperty,
       type: { type: "string", enum: [...EVENT_TYPES] },
-      driver_id: { type: "string", description: "Optional driver id, e.g. NOR." },
+      driver_id: driverIdProperty,
     },
     ["grand_prix_id", "type"]
   ),
   tool(
     "get_stat_definitions",
-    "How this app defines and calculates its statistics, in plain words: positions gained, average finish, DNF, disqualification, fastest lap, points, pit stop time, wins, podiums and race pace. Use it for any 'what does X mean' or 'how is X calculated' question.",
-    {
-      stat: {
-        type: "string",
-        enum: [...STAT_KEYS],
-        description: "One statistic to define. Omit it to get all of them.",
-      },
-    },
+    "How our statistics are defined.",
+    { stat: { type: "string", enum: [...STAT_KEYS] } },
     []
   ),
   tool(
     "get_export_link",
-    "A download link for a dataset as CSV or JSON.",
+    "Download link for a dataset.",
     {
       dataset: { type: "string", enum: [...DATASETS] },
       format: { type: "string", enum: ["csv", "json"] },
@@ -475,6 +460,88 @@ export function summariseEvents(
   };
 }
 
+/**
+ * An id as given, or the id of the one driver whose name matches it, so
+ * "Piastri" works without a search_drivers round first. Several matches
+ * come back to the model as a choice; no match falls through to "not found".
+ */
+async function resolveDriverId(value: string): Promise<string> {
+  if (await driversModel.findById(value)) return value;
+
+  const { rows } = await driversModel.findAll({ page: 1, per_page: 5, search: value });
+  const [only, ...others] = rows;
+  if (only && others.length === 0) return only.driver_id;
+  if (only) {
+    throw new ToolInputError(
+      `Several drivers match '${value}': ${rows
+        .map((driver) => `${driver.given_name} ${driver.family_name} (${driver.driver_id})`)
+        .join(", ")}. Use one driver_id.`
+    );
+  }
+  return value;
+}
+
+/** The same for teams: "Red Bull" works without a search_constructors round. */
+async function resolveConstructorId(value: string): Promise<string> {
+  if (await constructorsModel.findById(value)) return value;
+
+  const matches = await constructorsModel.search(value, 5);
+  const [first, ...others] = matches;
+  // search ranks an exact id or exact name first; otherwise it must be the only match.
+  const exact =
+    first &&
+    (first.constructor_id.toLowerCase() === value.toLowerCase() ||
+      first.name.toLowerCase() === value.toLowerCase());
+  if (first && (exact || others.length === 0)) return first.constructor_id;
+  if (first) {
+    throw new ToolInputError(
+      `Several teams match '${value}': ${matches
+        .map((team) => `${team.name} (${team.constructor_id})`)
+        .join(", ")}. Use one constructor_id.`
+    );
+  }
+  return value;
+}
+
+/**
+ * A standings row cut to what the model needs: rank, names, points, wins and
+ * podiums, plus the statistic it was sorted by. Every field in the full row
+ * would cost tokens on every call.
+ */
+function compactStanding(row: DriverStanding, sortBy: (typeof STANDINGS_SORTS)[number]) {
+  const extra =
+    sortBy === "fastest_laps"
+      ? { fastest_laps: row.fastest_laps }
+      : sortBy === "dnfs"
+        ? { dnfs: row.dnfs, disqualifications: row.disqualifications }
+        : sortBy === "average_finish"
+          ? { average_finish_position: row.average_finish_position }
+          : {};
+
+  return {
+    position: row.position,
+    driver_id: row.driver_id,
+    driver_name: row.driver_name,
+    team_name: row.team_name,
+    points: row.points,
+    points_position: row.points_position,
+    wins: row.wins,
+    podiums: row.podiums,
+    ...extra,
+  };
+}
+
+function compactLeader(leader: StandingsLeader | null) {
+  return leader === null
+    ? null
+    : {
+        driver_name: leader.driver_name,
+        team_name: leader.team_name,
+        points: leader.points,
+        wins: leader.wins,
+      };
+}
+
 // -- Implementations -------------------------------------------------------------
 
 class ToolInputError extends Error {}
@@ -541,7 +608,11 @@ const implementations: {
   },
 
   async get_driver_stats({ driver_id, season }) {
-    const result = await loadDriverSeason(driver_id, season);
+    const result = await loadDriverSeason(
+      await resolveDriverId(driver_id),
+      season,
+      cachedSeasonData
+    );
 
     if (!result) {
       throw new ToolInputError(
@@ -554,15 +625,31 @@ const implementations: {
   },
 
   async get_driver_standings({ season, sort_by, limit }) {
-    const standings = await loadDriverStandings(season, sort_by, limit);
+    const standings = await loadDriverStandings(season, sort_by, limit, {
+      loadSeasonData: cachedSeasonData,
+      loadNames: cachedNames,
+    });
+
+    const result = {
+      season,
+      sort_by,
+      total_drivers: standings.total_drivers,
+      summary: {
+        points_leader: compactLeader(standings.summary.points_leader),
+        wins_leader: compactLeader(standings.summary.wins_leader),
+      },
+      standings: standings.standings.map((row) => compactStanding(row, sort_by)),
+    };
 
     return standings.total_drivers > 0
-      ? standings
-      : { ...standings, note: `No race results are stored for ${season}.` };
+      ? result
+      : { ...result, note: `No race results are stored for ${season}.` };
   },
 
   async get_constructor_standings({ season }) {
-    const standings = await getConstructorStandings(season);
+    const standings = await constructorStandingsCache.get(season, () =>
+      getConstructorStandings(season)
+    );
 
     return standings.standings.length > 0
       ? standings
@@ -570,7 +657,9 @@ const implementations: {
   },
 
   async get_team_drivers({ constructor_id, season }) {
-    const constructor = await constructorsModel.findById(constructor_id);
+    const constructor = await constructorsModel.findById(
+      await resolveConstructorId(constructor_id)
+    );
 
     if (!constructor) {
       throw new ToolInputError(
@@ -763,9 +852,7 @@ export async function runTool(
       context: ToolContext
     ) => Promise<unknown>;
     const output = await implementation(parsed.data, context);
-    const named = mentionsIds(output)
-      ? addNames(output, await namesModel.findNameDirectory())
-      : output;
+    const named = mentionsIds(output) ? addNames(output, await cachedNames()) : output;
     return { name, ok: true, content: formatToolOutput(humanizeDurations(named)) };
   } catch (error) {
     if (error instanceof ToolInputError) {

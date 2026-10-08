@@ -222,7 +222,8 @@ export function disqualificationsFromSeason(
  */
 export async function loadDriverSeason(
   driverId: string,
-  season: string
+  season: string,
+  loadSeasonData: (season: string) => Promise<SeasonStatisticsData> = loadSeasonStatisticsData
 ): Promise<{ statistics: DriverStatistics; disqualifications: number } | null> {
   const driver = await driversModel.findById(driverId);
 
@@ -230,7 +231,7 @@ export async function loadDriverSeason(
     return null;
   }
 
-  const data = await loadSeasonStatisticsData(season);
+  const data = await loadSeasonData(season);
   return {
     statistics: driverStatisticsFromSeason(driver.driver_id, data),
     disqualifications: disqualificationsFromSeason(driver.driver_id, data),
@@ -304,11 +305,16 @@ export interface DriverStandingsResult {
 export async function loadDriverStandings(
   season: string,
   sortBy: StandingsSort,
-  limit: number
+  limit: number,
+  // Injectable so the chat tools can pass cached loaders (chat/tools.ts).
+  deps: {
+    loadSeasonData?: (season: string) => Promise<SeasonStatisticsData>;
+    loadNames?: () => Promise<namesModel.NameDirectory>;
+  } = {}
 ): Promise<DriverStandingsResult> {
   const [data, names] = await Promise.all([
-    loadSeasonStatisticsData(season),
-    namesModel.findNameDirectory(),
+    (deps.loadSeasonData ?? loadSeasonStatisticsData)(season),
+    (deps.loadNames ?? namesModel.findNameDirectory)(),
   ]);
 
   // Everyone with a result or a lap in the season, keyed case-insensitively;

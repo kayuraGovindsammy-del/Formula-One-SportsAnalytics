@@ -92,6 +92,9 @@ function cleanLine(line: string): string {
       .replace(/(?<![\w_])__(?=\S)(.+?)(?<=\S)__(?![\w_])/g, "$1")
       // *italic*
       .replace(/(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])/g, "$1")
+      // An average is not a place: "2.77th" -> "2.77". Whole-number
+      // ordinals ("3rd") are real places and stay.
+      .replace(/\b(\d+\.\d+)(?:st|nd|rd|th)\b/g, "$1")
       // Empty pairs left behind, e.g. "** **"
       .replace(/\*\*\s*\*\*|(?<![\w_])__\s*__(?![\w_])/g, "")
       .replace(/\s+$/, "")

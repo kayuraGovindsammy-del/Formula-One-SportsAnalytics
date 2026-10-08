@@ -25,6 +25,14 @@ describe("formatReply", () => {
     );
   });
 
+  it("drops an ordinal suffix from a decimal average, but keeps real places", () => {
+    expect(formatReply("His average finish was 2.77th, and he was 3rd at Spa.")).toBe(
+      "His average finish was 2.77, and he was 3rd at Spa."
+    );
+    expect(formatReply("an average of 3.61st place")).toBe("an average of 3.61 place");
+    expect(formatReply("He finished 1st and 22nd.")).toBe("He finished 1st and 22nd.");
+  });
+
   it("removes empty bold pairs", () => {
     expect(formatReply("Result: ** ** done")).toBe("Result:  done");
     expect(formatReply("**  **")).toBe("");

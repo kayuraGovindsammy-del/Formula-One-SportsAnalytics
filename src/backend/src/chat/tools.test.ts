@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { QualifyingData } from "../models/qualifyingResults.model.js";
 
 const mocks = vi.hoisted(() => ({
@@ -37,7 +37,7 @@ vi.mock("../models/sessions.model.js", async () => {
   const fixtures = await import("../test/sampleModelMocks.js");
   return {
     findByRace: fixtures.findSessionsByRace,
-    findBySeason: fixtures.findSessionsBySeason,
+    findBySeason: vi.fn(fixtures.findSessionsBySeason),
     findOneByRaceAndType: fixtures.findOneSessionByRaceAndType,
   };
 });
@@ -80,6 +80,7 @@ vi.mock("../models/qualifyingResults.model.js", () => ({
 import { loadDriverStatistics } from "../controllers/drivers.controller.js";
 import * as eventsModel from "../models/events.model.js";
 import * as namesModel from "../models/names.model.js";
+import * as sessionsModel from "../models/sessions.model.js";
 import { findNameDirectory } from "../test/sampleModelMocks.js";
 import type { Event } from "../types/event.types.js";
 import {
@@ -91,6 +92,8 @@ import {
   decimalsFor,
   formatDuration,
   addNames,
+  SEASON_CACHE_TTL_MS,
+  clearChatCaches,
   formatToolOutput,
   humanizeDurations,
   mentionsIds,
@@ -106,6 +109,7 @@ async function call(name: string, args: unknown) {
 }
 
 beforeEach(() => {
+  clearChatCaches();
   mocks.findQualifying.mockReset();
   mocks.findQualifying.mockResolvedValue({ session_id: null, classification: [] });
 });
@@ -273,23 +277,34 @@ describe("get_driver_standings", () => {
     expect(result.ok).toBe(true);
     expect(result.body).toMatchObject({ season: "2025", sort_by: "points" });
     expect(standings.length).toBeGreaterThan(1);
-    expect(standings[0]).toMatchObject({
+    expect(standings[0]).toEqual({
       position: 1,
       driver_id: "PIA",
       driver_name: "Oscar Piastri",
-      constructor_id: "MCL",
       team_name: "McLaren",
+      points: expect.any(Number),
+      points_position: 1,
+      wins: expect.any(Number),
+      podiums: expect.any(Number),
     });
     const points = standings.map((row) => row.points as number);
     expect(points).toEqual([...points].sort((a, b) => b - a));
     // Sorted by points, position and points_position agree.
     expect(standings.every((row) => row.points_position === row.position)).toBe(true);
-    expect(result.body.summary).toMatchObject({
-      points_leader: { driver_id: "PIA", driver_name: "Oscar Piastri", team_name: "McLaren" },
+    expect(result.body.summary).toEqual({
+      points_leader: {
+        driver_name: "Oscar Piastri",
+        team_name: "McLaren",
+        points: expect.any(Number),
+        wins: expect.any(Number),
+      },
+      wins_leader: expect.objectContaining({ driver_name: "Oscar Piastri" }),
     });
   });
 
   it("matches get_driver_stats for every driver it lists", async () => {
+    // Every field of the full row is checked against loadDriverStatistics in
+    // routes/driverStats.queryCount.test.ts; the tool shows a subset of it.
     const { body } = await call("get_driver_standings", { limit: 25 });
 
     for (const row of body.standings as Row[]) {
@@ -298,13 +313,22 @@ describe("get_driver_standings", () => {
         points: own.body.points,
         wins: own.body.wins,
         podiums: own.body.podiums,
-        fastest_laps: own.body.fastest_laps,
-        dnfs: own.body.dnf_count,
-        average_finish_position: own.body.average_finish_position,
-        races_entered: own.body.races_entered,
-        disqualifications: own.body.disqualifications,
       });
     }
+  });
+
+  it("adds only the statistic it was sorted by to the key fields", async () => {
+    const fields = async (sort_by: string) =>
+      Object.keys(
+        ((await call("get_driver_standings", { sort_by, limit: 1 })).body.standings as Row[])[0] ?? {}
+      );
+    const key = ["position", "driver_id", "driver_name", "team_name", "points", "points_position", "wins", "podiums"];
+
+    expect(await fields("points")).toEqual(key);
+    expect(await fields("wins")).toEqual(key);
+    expect(await fields("fastest_laps")).toEqual([...key, "fastest_laps"]);
+    expect(await fields("dnfs")).toEqual([...key, "dnfs", "disqualifications"]);
+    expect(await fields("average_finish")).toEqual([...key, "average_finish_position"]);
   });
 
   it("sorts by another statistic and honours the limit", async () => {
@@ -330,6 +354,48 @@ describe("get_driver_standings", () => {
       standings: [],
       note: "No race results are stored for 1999.",
     });
+  });
+});
+
+describe("names instead of ids", () => {
+  it("get_driver_stats accepts a driver's name", async () => {
+    const byName = await call("get_driver_stats", { driver_id: "Piastri" });
+    const byId = await call("get_driver_stats", { driver_id: "PIA" });
+
+    expect(byName.ok).toBe(true);
+    expect(byName.body).toEqual(byId.body);
+  });
+
+  it("asks the model to choose when a name matches several drivers", async () => {
+    // "an" is in several fixture drivers' names.
+    const result = await call("get_driver_stats", { driver_id: "an" });
+
+    expect(result.ok).toBe(false);
+    expect(result.body.error).toMatch(/^Several drivers match 'an': .+\(\w{3}\).+Use one driver_id\.$/);
+  });
+
+  it("get_team_drivers accepts a team's name", async () => {
+    const result = await call("get_team_drivers", { constructor_id: "Red Bull" });
+
+    expect(result.ok).toBe(true);
+    expect(result.body).toMatchObject({ constructor_id: "RBR", team_name: "Red Bull Racing" });
+  });
+
+  it("prefers an exact team id over a looser name match", async () => {
+    const result = await call("get_team_drivers", { constructor_id: "racing" });
+
+    expect(result.ok).toBe(false);
+    expect(result.body.error).toMatch(/^Several teams match 'racing'/);
+    expect((await call("get_team_drivers", { constructor_id: "RB" })).body.constructor_id).toBe("RB");
+  });
+
+  it("still reports an unknown name as not found", async () => {
+    expect((await call("get_driver_stats", { driver_id: "Senna" })).body.error).toMatch(
+      /^Driver 'Senna' was not found/
+    );
+    expect((await call("get_team_drivers", { constructor_id: "Brawn" })).body.error).toMatch(
+      /^Team 'Brawn' was not found/
+    );
   });
 });
 
@@ -847,5 +913,59 @@ describe("formatToolOutput", () => {
 
     expect(text.length).toBeLessThan(MAX_TOOL_OUTPUT_CHARS + 100);
     expect(text).toMatch(/\[truncated: output exceeded \d+ characters\]$/);
+  });
+});
+
+describe("season data cache", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("serves repeated standings and driver stats from one season load", async () => {
+    vi.mocked(sessionsModel.findBySeason).mockClear();
+
+    await call("get_driver_standings", {});
+    await call("get_driver_standings", { sort_by: "wins" });
+    await call("get_driver_stats", { driver_id: "PIA" });
+
+    expect(sessionsModel.findBySeason).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a separate entry per season", async () => {
+    vi.mocked(sessionsModel.findBySeason).mockClear();
+
+    await call("get_driver_standings", { season: "2025" });
+    await call("get_driver_standings", { season: "1999" });
+
+    expect(vi.mocked(sessionsModel.findBySeason).mock.calls.map((c) => c[0])).toEqual([
+      "2025",
+      "1999",
+    ]);
+  });
+
+  it("loads the season again after 10 minutes", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-09T12:00:00Z"));
+    vi.mocked(sessionsModel.findBySeason).mockClear();
+
+    await call("get_driver_standings", {});
+    vi.setSystemTime(Date.now() + SEASON_CACHE_TTL_MS - 1);
+    await call("get_driver_standings", {});
+    expect(sessionsModel.findBySeason).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(Date.now() + 1);
+    await call("get_driver_standings", {});
+    expect(sessionsModel.findBySeason).toHaveBeenCalledTimes(2);
+    expect(SEASON_CACHE_TTL_MS).toBe(10 * 60 * 1000);
+  });
+
+  it("caches the constructor standings and the name lookup too", async () => {
+    vi.mocked(namesModel.findNameDirectory).mockClear();
+
+    const first = await call("get_constructor_standings", {});
+    const second = await call("get_constructor_standings", {});
+
+    expect(second.body).toEqual(first.body);
+    expect(namesModel.findNameDirectory).toHaveBeenCalledTimes(1);
   });
 });
