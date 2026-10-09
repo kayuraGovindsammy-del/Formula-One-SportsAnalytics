@@ -6,13 +6,10 @@ import { getCircuitImage } from "../../data/circuitImages";
 import {
   fetchRace,
   fetchRaceStatistics,
-  fetchRaceQualifying,
   fetchRaceEvents,
   millisecondsToGap,
-  millisecondsToLapTime,
   type RaceDetail,
   type RaceStatistics,
-  type QualifyingData,
   type RaceEvent,
 } from "../../data/f1Data";
 
@@ -23,7 +20,7 @@ function RaceDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [events, setEvents] = useState<RaceEvent[]>([]);
-  const [qualifying, setQualifying] = useState<QualifyingData | null>(null);
+ 
 
   useEffect(() => {
     const loadRace = async () => {
@@ -43,12 +40,6 @@ function RaceDetails() {
         const raceEvents = await fetchRaceEvents(id);
         setEvents(raceEvents);
 
-        try {
-          setQualifying(await fetchRaceQualifying(id));
-        } catch (qualifyingError) {
-          console.warn("Failed to load qualifying data:", qualifyingError);
-          setQualifying(null);
-        }
 
         if (raceData.hasResults) {
           setStatistics(await fetchRaceStatistics(id));
@@ -171,49 +162,6 @@ return (
       )}
     </section>
 
-    <section id="qualifying" className="race-chart-section">
-      <div className="race-results-heading">
-        <div>
-          <p className="race-results-label">Session Results</p>
-          <h2>Qualifying</h2>
-        </div>
-        {qualifying && qualifying.classification.length > 0 && (
-          <span className="race-results-count">
-            {qualifying.classification.length} Drivers
-          </span>
-        )}
-      </div>
-
-      {qualifying && qualifying.classification.length > 0 ? (
-        <article className="race-detail-card">
-          <div className="race-results-table">
-            <div className="race-results-row race-results-header">
-              <span>Pos</span>
-              <span>Driver</span>
-              <span>Constructor</span>
-              <span>Q1</span>
-              <span>Q2</span>
-              <span>Q3</span>
-            </div>
-
-            {qualifying.classification.map((result) => (
-              <div key={result.driverId} className="race-results-row">
-                <strong>P{result.position}</strong>
-                <strong>{result.driverName}</strong>
-                <span>{result.constructorName}</span>
-                <span>{result.q1TimeMs === null ? "—" : millisecondsToLapTime(result.q1TimeMs)}</span>
-                <span>{result.q2TimeMs === null ? "—" : millisecondsToLapTime(result.q2TimeMs)}</span>
-                <span>{result.q3TimeMs === null ? "—" : millisecondsToLapTime(result.q3TimeMs)}</span>
-              </div>
-            ))}
-          </div>
-        </article>
-      ) : (
-        <article className="race-detail-card">
-          <p>Qualifying data is not available for this race yet.</p>
-        </article>
-      )}
-    </section>
 
     {statistics ? (
       <>

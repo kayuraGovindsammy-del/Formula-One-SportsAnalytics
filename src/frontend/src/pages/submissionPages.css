@@ -1,0 +1,553 @@
+/* =========================================================
+   SHARED SUBMISSION / ADMIN PAGES
+   ========================================================= */
+
+.submission-page {
+  width: min(1100px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 42px 0 70px;
+  color: #f4f4f4;
+}
+
+/* ---------- PAGE HEADER ---------- */
+
+.submission-page > h1 {
+  margin: 0 0 8px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.submission-page > p {
+  max-width: 760px;
+  margin: 0 0 24px;
+  color: #9d9d9d;
+  line-height: 1.7;
+}
+
+.submission-page a {
+  color: #ff3b3b;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.submission-page a:hover {
+  color: #ff6464;
+}
+
+/* =========================================================
+   FORM SECTIONS / CARDS
+   ========================================================= */
+
+.submission-page form > div,
+.submission-page article,
+.submission-page .submission-card,
+.submission-page .request-card {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.035),
+      rgba(255, 255, 255, 0.01)
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border-radius: 16px !important;
+
+  box-shadow:
+    0 14px 35px rgba(0, 0, 0, 0.16);
+
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.submission-page article:hover,
+.submission-page .request-card:hover {
+  border-color: rgba(255, 59, 59, 0.32) !important;
+
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.22);
+}
+
+/* ---------- SECTION HEADINGS ---------- */
+
+.submission-page h2 {
+  margin: 0 0 20px;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.submission-page h3 {
+  margin: 0 0 5px;
+  font-size: 1.1rem;
+}
+
+/* =========================================================
+   INPUTS
+   ========================================================= */
+
+.submission-page label {
+  display: block;
+  margin-bottom: 7px;
+  color: #d6d6d6;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.submission-page input:not([type="checkbox"]),
+.submission-page select,
+.submission-page textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
+
+  padding: 12px 14px !important;
+
+  background: #111 !important;
+  color: #f4f4f4 !important;
+
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 9px !important;
+
+  font: inherit;
+
+  outline: none;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.submission-page input:not([type="checkbox"]):hover,
+.submission-page select:hover,
+.submission-page textarea:hover {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+.submission-page input:not([type="checkbox"]):focus,
+.submission-page select:focus,
+.submission-page textarea:focus {
+  border-color: #ff3b3b !important;
+
+  box-shadow:
+    0 0 0 3px rgba(255, 59, 59, 0.12);
+
+  background: #141414 !important;
+}
+
+.submission-page input::placeholder,
+.submission-page textarea::placeholder {
+  color: #666;
+}
+
+.submission-page textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.submission-page small {
+  display: block;
+  margin-top: 7px;
+  color: #777;
+  font-size: 0.78rem;
+}
+
+/* =========================================================
+   CHECKBOXES
+   ========================================================= */
+
+.submission-page input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+
+  margin-right: 7px;
+
+  accent-color: #ff3b3b;
+
+  cursor: pointer;
+}
+
+.submission-page label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+
+  width: fit-content;
+
+  cursor: pointer;
+}
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
+
+.submission-page button {
+  min-height: 42px;
+
+  padding: 10px 18px !important;
+
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 9px;
+
+  background: #202020;
+  color: #f5f5f5;
+
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.submission-page button:hover:not(:disabled) {
+  transform: translateY(-1px);
+
+  background: #2b2b2b;
+
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.submission-page button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Primary submit button */
+
+.submit-data-page button[type="submit"],
+.submission-review-page button:first-of-type,
+.submitter-requests-page button:first-of-type {
+  background: #e10600;
+  border-color: #e10600;
+  color: white;
+}
+
+.submit-data-page button[type="submit"]:hover:not(:disabled),
+.submission-review-page button:first-of-type:hover:not(:disabled),
+.submitter-requests-page button:first-of-type:hover:not(:disabled) {
+  background: #ff1e16;
+  border-color: #ff1e16;
+}
+
+/* =========================================================
+   TOP TOOLBARS
+   ========================================================= */
+
+.submission-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+
+  gap: 12px;
+
+  margin: 26px 0;
+  padding: 16px 18px;
+
+  background: rgba(255, 255, 255, 0.025);
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.submission-toolbar label {
+  margin: 0;
+}
+
+.submission-toolbar select {
+  min-width: 150px;
+  margin-top: 7px;
+}
+
+/* =========================================================
+   STATUS BADGES
+   ========================================================= */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+
+  width: fit-content;
+
+  padding: 5px 10px;
+
+  border-radius: 999px;
+
+  font-size: 0.74rem;
+  font-weight: 900;
+
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.status-pending {
+  background: rgba(245, 158, 11, 0.13);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.status-accepted,
+.status-approved {
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.status-rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ff7373;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* =========================================================
+   ALERTS
+   ========================================================= */
+
+.submission-alert {
+  margin: 20px 0;
+
+  padding: 13px 15px;
+
+  border-radius: 10px;
+
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.submission-alert-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #ff8989;
+}
+
+.submission-alert-success {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  color: #86efac;
+}
+
+/* =========================================================
+   SUBMISSION / REVIEW CARDS
+   ========================================================= */
+
+.submission-list {
+  display: grid;
+  gap: 16px;
+
+  margin-top: 24px;
+}
+
+.submission-page article {
+  padding: 22px !important;
+  margin-bottom: 0 !important;
+}
+
+.submission-page article p {
+  margin: 8px 0;
+  color: #adadad;
+
+  overflow-wrap: anywhere;
+}
+
+.submission-page article strong {
+  color: #f0f0f0;
+}
+
+.submission-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  margin-bottom: 14px;
+}
+
+/* =========================================================
+   DETAILS / JSON PAYLOAD
+   ========================================================= */
+
+.submission-page details {
+  margin-top: 18px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+
+  padding-top: 14px;
+}
+
+.submission-page summary {
+  color: #d8d8d8;
+
+  font-size: 0.88rem;
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.submission-page summary:hover {
+  color: white;
+}
+
+.submission-page pre {
+  margin-top: 14px;
+
+  padding: 16px;
+
+  background: #0b0b0b;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+
+  color: #bcbcbc;
+
+  font-size: 0.78rem;
+  line-height: 1.6;
+
+  overflow-x: auto;
+}
+
+/* =========================================================
+   EVENT ID
+   ========================================================= */
+
+.event-id-box {
+  margin: 22px 0 12px;
+
+  padding: 14px 16px;
+
+  background: rgba(225, 6, 0, 0.06);
+
+  border-left: 3px solid #e10600;
+  border-radius: 8px;
+
+  color: #aaa;
+
+  overflow-wrap: anywhere;
+}
+
+.event-id-box strong {
+  color: #fff;
+}
+
+/* =========================================================
+   REQUEST USER
+   ========================================================= */
+
+.request-user {
+  display: flex;
+  align-items: center;
+
+  gap: 16px;
+}
+
+.request-avatar {
+  width: 58px !important;
+  height: 58px !important;
+
+  flex-shrink: 0;
+
+  object-fit: cover;
+
+  border-radius: 50% !important;
+
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.request-user p {
+  margin: 3px 0;
+  color: #999;
+}
+
+/* =========================================================
+   ACTION ROW
+   ========================================================= */
+
+.submission-actions {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 10px;
+
+  margin-top: 14px;
+}
+
+.submission-actions .danger-button {
+  background: rgba(239, 68, 68, 0.08);
+
+  color: #ff7373;
+
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.submission-actions .danger-button:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.16);
+
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.submission-empty {
+  margin-top: 26px;
+
+  padding: 32px 20px;
+
+  text-align: center;
+
+  background: rgba(255, 255, 255, 0.02);
+
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+
+  color: #888;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .submission-page {
+    width: min(100% - 24px, 1100px);
+
+    padding-top: 28px;
+  }
+
+  .submission-page > h1 {
+    font-size: 2rem;
+  }
+
+  .submission-toolbar {
+    align-items: stretch;
+  }
+
+  .submission-toolbar label,
+  .submission-toolbar select,
+  .submission-toolbar button {
+    width: 100%;
+  }
+
+  .submission-card-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .request-user {
+    align-items: flex-start;
+  }
+
+  .submission-actions {
+    flex-direction: column;
+  }
+
+  .submission-actions button {
+    width: 100%;
+  }
+}

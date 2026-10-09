@@ -8,6 +8,7 @@ import {
 import { db } from "../../auth/firebase";
 import { useAuth } from "../../auth/useAuth";
 import { reviewSubmitterRequest, type ReviewDecision } from "../../auth/submitterAccess";
+import "../submissionPages.css";
 
 interface SubmitterRequest {
   uid: string;
@@ -80,33 +81,62 @@ function SubmitterRequests() {
   };
 
   if (loading) {
-    return <div style={{ padding: "40px" }}><h1>Submitter Requests</h1><p>Loading requests...</p></div>;
+    return <div className="submission-page submitter-requests-page"><h1>Submitter Requests</h1><p>Loading requests...</p></div>;
   }
 
   return (
-    <div style={{ maxWidth: "900px", margin: "40px auto", padding: "30px" }}>
+    <div className="submission-page submitter-requests-page">
       <h1>Submitter Requests</h1>
       <p>Review users who have requested permission to submit Formula 1 event data.</p>
-      {error && <p role="alert" style={{ color: "#ff7373" }}>{error}</p>}
-      {message && <p role="status" style={{ color: "#86efac" }}>{message}</p>}
+      {error && (
+  <p
+    role="alert"
+    className="submission-alert submission-alert-error"
+  >
+    {error}
+  </p>
+)}
+
+{message && (
+  <p
+    role="status"
+    className="submission-alert submission-alert-success"
+  >
+    {message}
+  </p>
+)}
       {requests.length === 0 ? (
-        <p style={{ marginTop: "30px" }}>No pending submitter requests.</p>
+        <div className="submission-empty">
+  No pending submitter requests.
+</div>
       ) : (
         <div style={{ marginTop: "30px" }}>
           {requests.map(request => (
-            <div key={request.uid} style={{
-              border: "1px solid #444", borderRadius: "10px",
-              padding: "20px", marginBottom: "20px",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                {request.photoURL && <img src={request.photoURL} alt=""
-                  style={{ width: "60px", height: "60px", borderRadius: "50%" }} />}
-                <div>
-                  <h3>{request.name}</h3>
-                  <p>{request.email}</p>
-                  <p><strong>Status:</strong> {request.submitterStatus}</p>
-                </div>
-              </div>
+            <div
+  key={request.uid}
+  className="request-card"
+  style={{
+    padding: "20px",
+    marginBottom: "20px",
+  }}
+>
+              <div className="request-user">
+  {request.photoURL && (
+    <img
+      src={request.photoURL}
+      alt=""
+      className="request-avatar"
+    />
+  )}
+
+  <div>
+    <h3>{request.name}</h3>
+    <p>{request.email}</p>
+    <p>
+      <strong>Status:</strong> {request.submitterStatus}
+    </p>
+  </div>
+</div>
               <label style={{ display: "block", marginTop: "16px" }}>
                 Rejection reason
                 <textarea
@@ -121,15 +151,28 @@ function SubmitterRequests() {
                   style={{ display: "block", width: "100%", boxSizing: "border-box", marginTop: "6px", padding: "10px" }}
                 />
               </label>
-              <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+              <div className="submission-actions">
                 <button onClick={() => handleReview(request.uid, "approved")}
                   disabled={processingId !== null}>
                   {processingId === request.uid ? "Processing..." : "Approve"}
                 </button>
-                <button onClick={() => handleReview(request.uid, "rejected")}
-                  disabled={processingId !== null || !(reasons[request.uid] ?? "").trim()}>
-                  Reject
-                </button>
+                <button
+  className="danger-button"
+  onClick={() =>
+    handleReview(
+      request.uid,
+      "rejected"
+    )
+  }
+  disabled={
+    processingId !== null ||
+    !(
+      reasons[request.uid] ?? ""
+    ).trim()
+  }
+>
+  Reject
+</button>
               </div>
             </div>
           ))}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { submissionRequest, type SubmissionRecord } from "../../api/submissions";
+import "../submissionPages.css";
 
 export default function SubmissionReview() {
   const { user } = useAuth();
@@ -81,10 +82,10 @@ export default function SubmissionReview() {
   };
 
   return (
-    <div style={{ maxWidth: 1000, margin: "40px auto", padding: 24 }}>
+    <div className="submission-page submission-review-page">
       <h1>Submission Review</h1>
       <p>Review F1 event data before it is published to Neon. Acceptance is permanent and may require a correction workflow to change later.</p>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+      <div className="submission-toolbar">
         <label>Show{" "}
           <select value={status} onChange={event => { setLoading(true); setStatus(event.target.value); }}>
             <option value="pending">Pending</option>
@@ -95,21 +96,43 @@ export default function SubmissionReview() {
         </label>
         <button onClick={() => void load()} disabled={loading}>Refresh</button>
       </div>
-      {error && <p role="alert" style={{ color: "#ff7373" }}>{error}</p>}
-      {message && <p role="status" style={{ color: "#86efac" }}>{message}</p>}
+      {error && (
+  <p
+    role="alert"
+    className="submission-alert submission-alert-error"
+  >
+    {error}
+  </p>
+)}
+
+{message && (
+  <p
+    role="status"
+    className="submission-alert submission-alert-success"
+  >
+    {message}
+  </p>
+)}
       {loading && <p>Loading submissions...</p>}
       {!loading && !error && records.length === 0 && <p>No submissions found.</p>}
       {!loading && records.map(record => (
         <article key={record.submission_id} style={{
           border: "1px solid #444", borderRadius: 10, padding: 20, marginBottom: 20
         }}>
-          <h2>{record.event.type}</h2>
+          <div className="submission-card-heading">
+  <h2>{record.event.type}</h2>
+
+  <span
+    className={`status-badge status-${record.status}`}
+  >
+    {record.status}
+  </span>
+</div>
           <p><strong>Submission ID:</strong> {record.submission_id}</p>
           <p><strong>Event ID:</strong> {record.event.event_id}</p>
           <p><strong>Session:</strong> {record.event.session_id}</p>
           <p><strong>Submitted by:</strong> {record.submitted_by_email ?? record.submitted_by ?? "Unknown"}</p>
           <p><strong>Submitted:</strong> {new Date(record.submitted_at).toLocaleString()}</p>
-          <p><strong>Status:</strong> {record.status}</p>
           {record.reviewed_at && <p><strong>Reviewed:</strong> {new Date(record.reviewed_at).toLocaleString()}
             {record.reviewed_by_email ? ` by ${record.reviewed_by_email}` : ""}</p>}
           {record.validation_errors.map((reason, index) => <p key={index}><strong>Review reason:</strong> {reason}</p>)}
@@ -131,11 +154,11 @@ export default function SubmissionReview() {
                   style={{ display: "block", width: "100%", boxSizing: "border-box", marginTop: 8, padding: 10 }}
                 />
               </label>
-              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+              <div className="submission-actions">
                 <button onClick={() => void review(record, "accepted")} disabled={processingId !== null}>
                   {processingId === record.submission_id ? "Processing..." : "Accept"}
                 </button>
-                <button onClick={() => void review(record, "rejected")}
+                <button className="danger-button"  onClick={() => void review(record, "rejected")}
                   disabled={processingId !== null || !(reasons[record.submission_id] ?? "").trim()}>
                   Reject
                 </button>
