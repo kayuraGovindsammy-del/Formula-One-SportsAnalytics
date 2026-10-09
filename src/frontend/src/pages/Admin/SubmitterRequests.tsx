@@ -8,7 +8,7 @@ import {
 import { db } from "../../auth/firebase";
 import { useAuth } from "../../auth/useAuth";
 import { reviewSubmitterRequest, type ReviewDecision } from "../../auth/submitterAccess";
-import "../SubmissionPages.css";
+import "../submissionPages.css";
 
 interface SubmitterRequest {
   uid: string;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { submissionRequest, type SubmissionRecord } from "../../api/submissions";
-import "../SubmissionPages.css";
+import "../submissionPages.css";
 
 export default function SubmissionReview() {
   const { user } = useAuth();

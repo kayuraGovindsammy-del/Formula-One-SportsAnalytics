@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
 import { submissionRequest, type SubmissionRecord } from "../../api/submissions";
-import "../SubmissionPages.css";
+import "../submissionPages.css";
 
 type EventType =
   | "SESSION_START"
