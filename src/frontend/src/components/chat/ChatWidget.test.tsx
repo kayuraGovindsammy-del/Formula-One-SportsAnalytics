@@ -375,3 +375,98 @@ describe("ChatWidget speech bubble", () => {
     expect(bubble()).toBeNull();
   });
 });
+
+describe("ChatWidget slow replies", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function deferredReply() {
+    let resolve: (value: FetchResult) => void = () => {};
+    fetchMock.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    return (text: string) => resolve(reply(text));
+  }
+
+  function send(text: string) {
+    const input = screen.getByRole("textbox", { name: "Ask the F1 Assistant a question" });
+    fireEvent.change(input, { target: { value: text } });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+  }
+
+  test('says "Still working on it…" after 5 s, as a status screen readers announce', async () => {
+    const answer = deferredReply();
+    render(<ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    send("Who won the most races?");
+
+    expect(screen.getByRole("status", { name: "Assistant is typing" })).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(4999));
+    expect(screen.queryByText("Still working on it…")).toBeNull();
+
+    act(() => vi.advanceTimersByTime(1));
+    const status = screen.getByRole("status", { name: "Still working on it…" });
+    expect(status).toHaveTextContent("Still working on it…");
+
+    await act(async () => answer("Max Verstappen, with 8 wins."));
+    expect(screen.getByText("Max Verstappen, with 8 wins.")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  test("resets for the next message", async () => {
+    const first = deferredReply();
+    render(<ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    send("First question");
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByRole("status", { name: "Still working on it…" })).toBeInTheDocument();
+    await act(async () => first("First answer."));
+
+    const second = deferredReply();
+    send("Second question");
+
+    expect(screen.getByRole("status", { name: "Assistant is typing" })).toBeInTheDocument();
+    expect(screen.queryByText("Still working on it…")).toBeNull();
+    act(() => vi.advanceTimersByTime(4999));
+    expect(screen.queryByText("Still working on it…")).toBeNull();
+
+    await act(async () => second("Second answer."));
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  test("a quick reply never shows the note", async () => {
+    const answer = deferredReply();
+    render(<ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    send("Quick one");
+
+    act(() => vi.advanceTimersByTime(1200));
+    await act(async () => answer("Done."));
+    act(() => vi.advanceTimersByTime(10_000));
+
+    expect(screen.queryByText("Still working on it…")).toBeNull();
+  });
+
+  test("an error after a slow wait clears the note too", async () => {
+    let fail: (value: FetchResult) => void = () => {};
+    fetchMock.mockReturnValueOnce(new Promise((r) => (fail = r)));
+    render(<ChatWidget />);
+    fireEvent.click(screen.getByRole("button", { name: "Open F1 Assistant" }));
+    send("Anything");
+
+    act(() => vi.advanceTimersByTime(5000));
+    await act(async () => fail(failure(503, "SERVICE_UNAVAILABLE", "x")));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("The assistant is unavailable right now.");
+    expect(screen.queryByText("Still working on it…")).toBeNull();
+
+    const retry = deferredReply();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(screen.getByRole("status", { name: "Assistant is typing" })).toBeInTheDocument();
+    await act(async () => retry("Back."));
+  });
+});
+

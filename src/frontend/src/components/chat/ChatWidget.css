@@ -328,7 +328,7 @@
   background: var(--chat-surface);
 }
 
-.chat-widget__typing span {
+.chat-widget__typing .chat-widget__dot {
   width: 0.45rem;
   height: 0.45rem;
   border-radius: 50%;
@@ -336,12 +336,23 @@
   animation: chat-widget-typing 1s infinite ease-in-out;
 }
 
-.chat-widget__typing span:nth-child(2) {
+.chat-widget__typing .chat-widget__dot:nth-child(2) {
   animation-delay: 0.15s;
 }
 
-.chat-widget__typing span:nth-child(3) {
+.chat-widget__typing .chat-widget__dot:nth-child(3) {
   animation-delay: 0.3s;
+}
+
+/* A slow reply: the dots plus a short note beside them. */
+.chat-widget__typing--slow {
+  align-items: center;
+}
+
+.chat-widget__typing-text {
+  margin-left: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--chat-muted);
 }
 
 @keyframes chat-widget-typing {
@@ -493,7 +504,7 @@
 @media (prefers-reduced-motion: reduce) {
   .chat-widget__toggle,
   .chat-widget__panel,
-  .chat-widget__typing span {
+  .chat-widget__typing .chat-widget__dot {
     animation: none;
     transition: none;
   }
@@ -515,7 +526,7 @@
     transform: none;
   }
 
-  .chat-widget__typing span {
+  .chat-widget__typing .chat-widget__dot {
     opacity: 0.7;
   }
 }

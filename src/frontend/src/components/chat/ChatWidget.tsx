@@ -16,6 +16,9 @@ const STARTER_QUESTIONS = [
 /** The character counter appears once the message is this long. */
 const COUNTER_THRESHOLD = 800;
 
+/** After this long without a reply, the typing indicator says so. */
+const SLOW_REPLY_MS = 5000;
+
 /** The "Ask me about F1!" bubble appears this long after load, for this long. */
 const BUBBLE_DELAY_MS = 1500;
 const BUBBLE_DURATION_MS = 6000;
@@ -31,6 +34,7 @@ function ChatWidget() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bubbleVisible, setBubbleVisible] = useState(false);
+  const [slowReply, setSlowReply] = useState(false);
 
   const nextId = useRef(0);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -80,6 +84,13 @@ function ChatWidget() {
     setOpen(true);
   }
 
+  // A reply that takes a while gets a "Still working on it…" note.
+  useEffect(() => {
+    if (!pending) return;
+    const timer = setTimeout(() => setSlowReply(true), SLOW_REPLY_MS);
+    return () => clearTimeout(timer);
+  }, [pending]);
+
   // Keep the newest message in view.
   useEffect(() => {
     const list = listRef.current;
@@ -87,6 +98,7 @@ function ChatWidget() {
   }, [messages, pending, error]);
 
   async function ask(turns: Message[]) {
+    setSlowReply(false);
     setPending(true);
     setError(null);
 
@@ -236,10 +248,17 @@ function ChatWidget() {
               )}
 
               {pending && (
-                <div className="chat-widget__typing" role="status" aria-label="Assistant is typing">
-                  <span />
-                  <span />
-                  <span />
+                <div
+                  className={`chat-widget__typing${slowReply ? " chat-widget__typing--slow" : ""}`}
+                  role="status"
+                  aria-label={slowReply ? "Still working on it…" : "Assistant is typing"}
+                >
+                  <span className="chat-widget__dot" />
+                  <span className="chat-widget__dot" />
+                  <span className="chat-widget__dot" />
+                  {slowReply && (
+                    <span className="chat-widget__typing-text">Still working on it…</span>
+                  )}
                 </div>
               )}
 
