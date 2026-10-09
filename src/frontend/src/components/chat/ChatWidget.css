@@ -1,0 +1,532 @@
+/* F1 Assistant chat widget. Everything is scoped under .chat-widget; the
+   colours repeat the site palette from index.css (which defines no custom
+   properties to reuse). */
+
+.chat-widget {
+  --chat-bg: #111111;
+  --chat-surface: #1c1c1c;
+  --chat-surface-alt: #181818;
+  --chat-border: rgba(255, 255, 255, 0.08);
+  --chat-text: #f5f5f5;
+  --chat-muted: #aaa;
+  --chat-accent: #e10600;
+  --chat-accent-soft: rgba(225, 6, 0, 0.12);
+  --chat-shadow: rgba(0, 0, 0, 0.35);
+
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1000;
+  font-family: Arial, Helvetica, sans-serif;
+  color: var(--chat-text);
+}
+
+/* The round x that closes the chat, where the launcher was. */
+.chat-widget__toggle {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-left: auto;
+  border: none;
+  border-radius: 50%;
+  background: var(--chat-accent);
+  color: white;
+  box-shadow: 0 6px 20px var(--chat-shadow);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chat-widget__toggle:hover {
+  transform: translateY(-2px);
+}
+
+.chat-widget__toggle svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-widget button:focus-visible,
+.chat-widget textarea:focus-visible,
+.chat-widget a:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: 2px;
+}
+
+.chat-widget__toggle:focus-visible {
+  outline-color: white;
+}
+
+/* Closed: the robot itself is the launcher. No background or border; it
+   bobs gently with a soft red glow, and lifts a little on hover or focus. */
+.chat-widget__launcher {
+  display: block;
+  width: 76px;
+  height: 76px;
+  margin-left: auto;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.chat-widget__launcher:hover,
+.chat-widget__launcher:focus-visible {
+  transform: translateY(-4px) scale(1.06);
+}
+
+.chat-widget__launcher:focus-visible {
+  outline: 2px solid var(--chat-accent);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+.chat-widget__robot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 10px rgba(225, 6, 0, 0.45));
+  animation: chat-widget-bob 3s ease-in-out infinite;
+}
+
+@keyframes chat-widget-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+/* Open: the robot perches on the panel's top-left corner, still bobbing. */
+.chat-widget__panel-wrap {
+  position: relative;
+}
+
+.chat-widget__robot--perched {
+  position: absolute;
+  top: -30px;
+  left: -28px;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;
+}
+
+/* "Ask me about F1!": decorative, never blocks clicks. */
+.chat-widget__bubble {
+  position: absolute;
+  right: 86px;
+  bottom: 44px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--chat-accent);
+  border-radius: 10px;
+  background: var(--chat-surface);
+  color: var(--chat-text);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px var(--chat-shadow);
+  pointer-events: none;
+  animation: chat-widget-bubble-in 0.25s ease-out;
+}
+
+/* A small tail pointing at the robot. */
+.chat-widget__bubble::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -6px;
+  width: 10px;
+  height: 10px;
+  border-top: 1px solid var(--chat-accent);
+  border-right: 1px solid var(--chat-accent);
+  background: var(--chat-surface);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+@keyframes chat-widget-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.chat-widget__panel {
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  height: min(560px, calc(100vh - 7rem));
+  margin-bottom: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--chat-border);
+  border-radius: 12px;
+  background: var(--chat-bg);
+  box-shadow: 0 12px 40px var(--chat-shadow);
+  animation: chat-widget-open 0.18s ease-out;
+}
+
+@keyframes chat-widget-open {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chat-widget__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 3px solid var(--chat-accent);
+  background: var(--chat-surface);
+}
+
+.chat-widget__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.chat-widget__header-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.chat-widget__title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.chat-widget__note {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--chat-muted);
+}
+
+.chat-widget__close {
+  border: none;
+  background: transparent;
+  color: var(--chat-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chat-widget__close:hover {
+  color: var(--chat-text);
+}
+
+.chat-widget__messages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.chat-widget__message {
+  max-width: 85%;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-widget__message--user {
+  align-self: flex-end;
+  background: var(--chat-accent);
+  color: white;
+}
+
+.chat-widget__message--assistant {
+  align-self: flex-start;
+  border: 1px solid var(--chat-border);
+  background: var(--chat-surface);
+}
+
+/* An assistant reply: the bot avatar, top-aligned, beside the bubble. */
+.chat-widget__row--assistant {
+  display: flex;
+  align-items: flex-start;
+  align-self: flex-start;
+  gap: 0.5rem;
+  max-width: 92%;
+}
+
+.chat-widget__row--assistant .chat-widget__message {
+  min-width: 0;
+  max-width: none;
+}
+
+.chat-widget__avatar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin-top: 0.15rem;
+}
+
+.chat-widget__message a {
+  color: #ff6b63;
+  text-decoration: underline;
+}
+
+.chat-widget__starters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.chat-widget__hint {
+  margin: 0 0 0.25rem;
+  font-size: 0.85rem;
+  color: var(--chat-muted);
+}
+
+.chat-widget__starter {
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  background: var(--chat-surface-alt);
+  color: var(--chat-text);
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-widget__starter:hover {
+  border-color: var(--chat-accent);
+  background: var(--chat-accent-soft);
+}
+
+.chat-widget__typing {
+  display: flex;
+  align-self: flex-start;
+  gap: 0.3rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--chat-border);
+  border-radius: 10px;
+  background: var(--chat-surface);
+}
+
+.chat-widget__typing .chat-widget__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--chat-muted);
+  animation: chat-widget-typing 1s infinite ease-in-out;
+}
+
+.chat-widget__typing .chat-widget__dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.chat-widget__typing .chat-widget__dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* A slow reply: the dots plus a short note beside them. */
+.chat-widget__typing--slow {
+  align-items: center;
+}
+
+.chat-widget__typing-text {
+  margin-left: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--chat-muted);
+}
+
+@keyframes chat-widget-typing {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.chat-widget__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--chat-accent);
+  border-radius: 8px;
+  background: var(--chat-accent-soft);
+  font-size: 0.88rem;
+}
+
+.chat-widget__retry {
+  flex-shrink: 0;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--chat-text);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--chat-text);
+  cursor: pointer;
+}
+
+.chat-widget__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--chat-border);
+  background: var(--chat-surface-alt);
+}
+
+.chat-widget__input {
+  width: 100%;
+  min-height: 2.75rem;
+  max-height: 8rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--chat-border);
+  border-radius: 8px;
+  background: var(--chat-bg);
+  color: var(--chat-text);
+  font: inherit;
+  font-size: 0.92rem;
+  resize: vertical;
+}
+
+.chat-widget__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.chat-widget__counter {
+  font-size: 0.8rem;
+  color: var(--chat-muted);
+}
+
+.chat-widget__send {
+  padding: 0.5rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--chat-accent);
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.chat-widget__send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.chat-widget__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Very narrow screens: give the reply text the avatar's width. */
+@media (max-width: 399px) {
+  .chat-widget__avatar {
+    display: none;
+  }
+}
+
+/* Small screens: the panel fills nearly the whole viewport. */
+@media (max-width: 480px) {
+  .chat-widget {
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  /* Leave room above the panel for the robot, which sits clear of the input. */
+  .chat-widget__panel {
+    position: fixed;
+    top: 4rem;
+    right: 0.5rem;
+    bottom: 4.25rem;
+    left: 0.5rem;
+    width: auto;
+    height: auto;
+    margin: 0;
+  }
+
+  .chat-widget__robot--perched {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.75rem;
+    width: 52px;
+    height: 52px;
+  }
+
+  .chat-widget__launcher {
+    width: 60px;
+    height: 60px;
+  }
+
+  .chat-widget__bubble {
+    right: 68px;
+    bottom: 34px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Too narrow for the bubble beside the robot: leave it out. */
+@media (max-width: 340px) {
+  .chat-widget__bubble {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-widget__toggle,
+  .chat-widget__panel,
+  .chat-widget__typing .chat-widget__dot {
+    animation: none;
+    transition: none;
+  }
+
+  .chat-widget__toggle:hover {
+    transform: none;
+  }
+
+  /* No bob, no lift, and the bubble just appears and disappears. */
+  .chat-widget__robot,
+  .chat-widget__launcher,
+  .chat-widget__bubble {
+    animation: none;
+    transition: none;
+  }
+
+  .chat-widget__launcher:hover,
+  .chat-widget__launcher:focus-visible {
+    transform: none;
+  }
+
+  .chat-widget__typing .chat-widget__dot {
+    opacity: 0.7;
+  }
+}

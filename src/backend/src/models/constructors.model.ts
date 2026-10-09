@@ -94,3 +94,77 @@ export async function findSeasonPointRows(
     points: Number(row.points),
   }));
 }
+
+export interface TeamDriverRow {
+  driver_id: string;
+  driver_name: string;
+  /** RACE sessions this driver has a result in for this team that season. */
+  races_entered: number;
+}
+
+/**
+ * The drivers who raced for a constructor in a season, most races first.
+ *
+ * Read from race_results.constructor_id, which records the team per race, so
+ * a mid-season swap shows both drivers with their own race counts.
+ * driver_constructor_links is season-level with no dates and cannot say that.
+ */
+export async function findSeasonDrivers(
+  constructorId: string,
+  season: string
+): Promise<TeamDriverRow[]> {
+  const result = await getPool().query<TeamDriverRow>(
+    `SELECT rr.driver_id,
+            d.given_name || ' ' || d.family_name AS driver_name,
+            COUNT(DISTINCT rr.session_id)::int AS races_entered
+       FROM race_results rr
+       JOIN sessions s
+         ON s.session_id = rr.session_id
+       JOIN grand_prix gp
+         ON gp.grand_prix_id = s.grand_prix_id
+       JOIN drivers d
+         ON d.driver_id = rr.driver_id
+      WHERE gp.season_id = $1
+        AND s.type = 'RACE'
+        AND LOWER(rr.constructor_id) = LOWER($2)
+      GROUP BY rr.driver_id, d.given_name, d.family_name
+      ORDER BY races_entered DESC, rr.driver_id`,
+    [season, constructorId]
+  );
+
+  return result.rows;
+}
+
+export interface ConstructorMatch {
+  constructor_id: string;
+  name: string;
+  nationality: string;
+}
+
+/**
+ * Finds constructors by free text, so "RBR", "Red Bull" and "red bull racing
+ * team" all find Red Bull Racing: an exact id, a name containing the query, or
+ * a query containing the name. Exact id and exact name matches come first.
+ * The query's LIKE wildcards are escaped, so "%" and "_" match literally.
+ */
+export async function search(
+  query: string,
+  limit: number
+): Promise<ConstructorMatch[]> {
+  const escaped = query.replace(/[\\%_]/g, "\\$&");
+
+  const result = await getPool().query<ConstructorMatch>(
+    `SELECT constructor_id, name, nationality
+       FROM constructors
+      WHERE LOWER(constructor_id) = LOWER($1)
+         OR name ILIKE '%' || $2 || '%'
+         OR $1 ILIKE '%' || name || '%'
+      ORDER BY (LOWER(constructor_id) = LOWER($1)) DESC,
+               (LOWER(name) = LOWER($1)) DESC,
+               name
+      LIMIT $3`,
+    [query, escaped, limit]
+  );
+
+  return result.rows;
+}

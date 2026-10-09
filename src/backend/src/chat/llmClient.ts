@@ -35,6 +35,63 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 export const DEFAULT_TIMEOUT_MS = 15_000;
 
 /**
+ * A 429 whose limit resets within this long is waited out and retried once
+ * on the same provider. Groq's per-minute token window usually clears in
+ * about 10 s, which is still much faster than the Gemini fallback. The wait
+ * happens between calls, so the retried call gets its own full timeout.
+ */
+export const MAX_RATE_LIMIT_WAIT_MS = 12_000;
+
+/**
+ * The reasoning effort to request, or undefined to send none. Groq's gpt-oss
+ * models accept "low" (console.groq.com/docs/reasoning). Gemini 3 models
+ * cannot turn thinking off but accept "minimal"; Gemini 2.5 Flash models
+ * accept "none" (ai.google.dev/gemini-api/docs/openai). Other models get
+ * nothing, since an unsupported value is a 400.
+ */
+export function reasoningEffortFor(provider: LlmProvider): string | undefined {
+  if (provider.name === "groq") {
+    return provider.model.startsWith("openai/gpt-oss") ? "low" : undefined;
+  }
+  if (provider.model.startsWith("gemini-2.5-flash")) return "none";
+  if (provider.model.startsWith("gemini-3")) return "minimal";
+  return undefined;
+}
+
+/** A Groq reset duration ("7.66s", "1m2.5s", "250ms") in ms, or undefined. */
+export function parseResetDuration(value: string | null): number | undefined {
+  const reset = value?.trim();
+  if (!reset) return undefined;
+
+  const parts = [...reset.matchAll(/(\d+(?:\.\d+)?)(ms|h|m|s)/g)];
+  if (parts.length === 0 || parts.map((part) => part[0]).join("") !== reset) return undefined;
+
+  const scale: Record<string, number> = { h: 3_600_000, m: 60_000, s: 1_000, ms: 1 };
+  return parts.reduce((total, part) => total + Number(part[1]) * (scale[part[2] ?? ""] ?? 0), 0);
+}
+
+/**
+ * How long until a 429 clears, in ms, or undefined when the headers do not
+ * say. retry-after (seconds) wins. Otherwise it is the reset time of the
+ * limit that ran out: x-ratelimit-reset-requests when no requests remain
+ * (the daily limit), else x-ratelimit-reset-tokens (the per-minute token
+ * limit, the usual cause). The two resets are not combined: the daily one is
+ * often minutes away even when only the token window is full.
+ */
+export function rateLimitWaitMs(headers: Headers): number | undefined {
+  const retryAfter = headers.get("retry-after");
+  if (retryAfter !== null && /^\d+(\.\d+)?$/.test(retryAfter.trim())) {
+    return Number(retryAfter) * 1000;
+  }
+
+  if (headers.get("x-ratelimit-remaining-requests")?.trim() === "0") {
+    return parseResetDuration(headers.get("x-ratelimit-reset-requests"));
+  }
+
+  return parseResetDuration(headers.get("x-ratelimit-reset-tokens"));
+}
+
+/**
  * The configured providers, in fallback order. A provider without a key is
  * left out, so an empty list means the assistant is not configured.
  */
@@ -141,18 +198,22 @@ export class LlmError extends Error {
   readonly provider: string;
   readonly status: number | null;
   readonly retryable: boolean;
+  /** For a 429: how long until the provider's limit clears, when it says. */
+  readonly retryAfterMs: number | undefined;
 
   constructor(
     provider: string,
     message: string,
     status: number | null,
-    retryable: boolean
+    retryable: boolean,
+    retryAfterMs?: number
   ) {
     super(message);
     this.name = "LlmError";
     this.provider = provider;
     this.status = status;
     this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -179,6 +240,8 @@ export interface LlmClientOptions {
   timeoutMs?: number;
   /** Upper bound on generated tokens per call. */
   maxTokens?: number;
+  /** Injectable wait, for the 429 retry in tests. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 /** One provider bound to the client's fetch and timeout. */
@@ -189,11 +252,13 @@ export class LlmClient {
   private readonly fetchImpl: FetchLike;
   private readonly timeoutMs: number;
   private readonly maxTokens: number;
+  private readonly sleep: (ms: number) => Promise<void>;
 
   constructor(options: LlmClientOptions) {
     this.providers = options.providers;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     this.maxTokens = options.maxTokens ?? 1024;
+    this.sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
 
     const fetchImpl =
       options.fetchImpl ?? (globalThis.fetch as FetchLike | undefined);
@@ -209,8 +274,28 @@ export class LlmClient {
     return this.providers.length > 0;
   }
 
-  /** One /chat/completions call against one provider. */
+  /**
+   * One /chat/completions call against one provider. A 429 that clears
+   * within MAX_RATE_LIMIT_WAIT_MS is waited out and retried once here, so a
+   * brief per-minute token limit does not cost a fallback.
+   */
   async complete(
+    provider: LlmProvider,
+    request: CompletionRequest
+  ): Promise<AssistantMessage> {
+    try {
+      return await this.completeOnce(provider, request);
+    } catch (error) {
+      const waitMs = error instanceof LlmError ? error.retryAfterMs : undefined;
+      if (waitMs === undefined || waitMs > MAX_RATE_LIMIT_WAIT_MS) throw error;
+
+      console.info(`${provider.name} 429, retrying in ${(waitMs / 1000).toFixed(1)}s`);
+      await this.sleep(waitMs);
+      return this.completeOnce(provider, request);
+    }
+  }
+
+  private async completeOnce(
     provider: LlmProvider,
     request: CompletionRequest
   ): Promise<AssistantMessage> {
@@ -232,6 +317,7 @@ export class LlmClient {
           tool_choice: request.tool_choice ?? "auto",
           temperature: 0.2,
           max_tokens: this.maxTokens,
+          ...(reasoningEffortFor(provider) ? { reasoning_effort: reasoningEffortFor(provider) } : {}),
         }),
         signal: controller.signal,
       });
@@ -255,7 +341,8 @@ export class LlmClient {
         provider.name,
         `HTTP ${response.status}`,
         response.status,
-        response.status === 429 || response.status >= 500
+        response.status === 429 || response.status >= 500,
+        response.status === 429 ? rateLimitWaitMs(response.headers) : undefined
       );
     }
 

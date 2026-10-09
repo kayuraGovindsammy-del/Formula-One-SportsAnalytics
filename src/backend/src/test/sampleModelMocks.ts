@@ -104,6 +104,22 @@ export async function getConstructorIdByDriver(): Promise<Record<string, string>
   );
 }
 
+/** Stands in for names.model.ts's findNameDirectory. */
+export async function findNameDirectory(): Promise<{
+  drivers: ReadonlyMap<string, string>;
+  constructors: ReadonlyMap<string, string>;
+}> {
+  return {
+    drivers: new Map(
+      rawDrivers.map((driver) => [
+        driver.driver_id.toUpperCase(),
+        `${driver.given_name} ${driver.family_name}`,
+      ])
+    ),
+    constructors: new Map(Object.entries(CONSTRUCTOR_NAMES)),
+  };
+}
+
 export async function findConstructorById(constructorId: string) {
   const name = CONSTRUCTOR_NAMES[constructorId.toUpperCase()];
   if (name === undefined) return null;
@@ -136,6 +152,48 @@ export async function findSeasonPointRows(
     driver_id: result.driver_id,
     points: pointsForPosition(result.position),
   }));
+}
+
+/** Stands in for constructors.model.ts's search, with the same matching rules. */
+export async function searchConstructors(query: string, limit: number) {
+  const wanted = query.trim().toLowerCase();
+  return Object.entries(CONSTRUCTOR_NAMES)
+    .filter(
+      ([id, name]) =>
+        id.toLowerCase() === wanted ||
+        name.toLowerCase().includes(wanted) ||
+        wanted.includes(name.toLowerCase())
+    )
+    .sort(([idA, nameA], [idB, nameB]) => {
+      const rank = (id: string, name: string) =>
+        id.toLowerCase() === wanted ? 0 : name.toLowerCase() === wanted ? 1 : 2;
+      return rank(idA, nameA) - rank(idB, nameB) || nameA.localeCompare(nameB);
+    })
+    .slice(0, limit)
+    .map(([constructor_id, name]) => ({ constructor_id, name, nationality: "" }));
+}
+
+/**
+ * Stands in for constructors.model.ts's findSeasonDrivers, from the sample
+ * race's classification (one race, so races_entered is 1).
+ */
+export async function findSeasonDrivers(
+  constructorId: string,
+  season: string
+): Promise<{ driver_id: string; driver_name: string; races_entered: number }[]> {
+  if (season !== seasonId) return [];
+
+  return rawSessionResult.classification
+    .filter((result) => result.constructor_id.toLowerCase() === constructorId.toLowerCase())
+    .map((result) => {
+      const raw = rawDrivers.find((candidate) => candidate.driver_id === result.driver_id);
+      return {
+        driver_id: result.driver_id,
+        driver_name: raw ? `${raw.given_name} ${raw.family_name}` : result.driver_id,
+        races_entered: 1,
+      };
+    })
+    .sort((a, b) => a.driver_id.localeCompare(b.driver_id));
 }
 
 function buildSampleSession(): Session {

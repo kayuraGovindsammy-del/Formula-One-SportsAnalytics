@@ -40,11 +40,23 @@ export const postChat = asyncHandler(async (req, res) => {
   // Export links in replies point back at this server.
   const apiBaseUrl = `${req.protocol}://${req.get("host") ?? "localhost"}/api/v1`;
 
+  const started = Date.now();
   try {
     const answer = await runAssistant(client, parsed.data.messages, { apiBaseUrl });
-    res.status(200).json({ data: answer, meta: {} });
+
+    // Server-side only: which provider answered, how many tool rounds it took
+    // and how long. Never the messages, the reply or any key.
+    console.info(
+      `chat answered provider=${answer.provider} tool_rounds=${answer.tool_rounds} duration_ms=${Date.now() - started}`
+    );
+
+    res.status(200).json({
+      data: { reply: answer.reply, tools_used: answer.tools_used },
+      meta: {},
+    });
   } catch (error) {
     if (error instanceof LlmUnavailableError) {
+      console.warn(`chat failed: no provider answered duration_ms=${Date.now() - started}`);
       throw ApiError.badGateway(
         "The chat assistant is temporarily unavailable. Please try again later."
       );

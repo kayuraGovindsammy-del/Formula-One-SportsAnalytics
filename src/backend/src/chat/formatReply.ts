@@ -92,6 +92,9 @@ function cleanLine(line: string): string {
       .replace(/(?<![\w_])__(?=\S)(.+?)(?<=\S)__(?![\w_])/g, "$1")
       // *italic*
       .replace(/(?<![\w*])\*(?=\S)([^*\n]+?)(?<=\S)\*(?![\w*])/g, "$1")
+      // An average is not a place: "2.77th" -> "2.77". Whole-number
+      // ordinals ("3rd") are real places and stay.
+      .replace(/\b(\d+\.\d+)(?:st|nd|rd|th)\b/g, "$1")
       // Empty pairs left behind, e.g. "** **"
       .replace(/\*\*\s*\*\*|(?<![\w_])__\s*__(?![\w_])/g, "")
       .replace(/\s+$/, "")
@@ -178,4 +181,52 @@ export function formatReply(reply: string): string {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+/** Every http(s) URL in some text, without trailing sentence punctuation. */
+export function extractUrls(text: string): string[] {
+  return [...text.matchAll(URL_PATTERN)].map((match) => trimUrl(match[0]));
+}
+
+/** "https://x" alone on a line, or after a list marker ("- https://x"). */
+const URL_LINE = /^\s*(?:(?:-|\d+\.)\s+)?(https?:\/\/\S+)\s*$/;
+
+/**
+ * Removes every URL that is not in `allowed` (the URLs the tools returned in
+ * this request), so the assistant can never hand out an invented link.
+ *
+ * Runs on formatReply's output, where each URL already sits on its own line,
+ * so a removed URL takes its whole line with it. A lead-in line ending in ":"
+ * ("Download:", "Full list:") is dropped too when every URL it introduced was
+ * removed, so nothing is left dangling. Text without URLs is unchanged.
+ */
+export function removeUnknownUrls(reply: string, allowed: ReadonlySet<string>): string {
+  const lines = reply.split("\n");
+  const isUrlLine = (line: string) => URL_LINE.test(line);
+  const isAllowed = (line: string) => {
+    const url = URL_LINE.exec(line)?.[1];
+    return url !== undefined && allowed.has(trimUrl(url));
+  };
+
+  const output: string[] = [];
+  for (const [index, line] of lines.entries()) {
+    if (isUrlLine(line)) {
+      if (isAllowed(line)) output.push(line);
+      continue;
+    }
+
+    if (line.trimEnd().endsWith(":")) {
+      // The URL lines this one introduces: keep it only if one survives.
+      const introduced: string[] = [];
+      for (const next of lines.slice(index + 1)) {
+        if (!isUrlLine(next)) break;
+        introduced.push(next);
+      }
+      if (introduced.length > 0 && !introduced.some(isAllowed)) continue;
+    }
+
+    output.push(line);
+  }
+
+  return output.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }

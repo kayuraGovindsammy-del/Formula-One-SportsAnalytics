@@ -15,7 +15,7 @@ public API, and it is told to answer only from their results.
 | Provider | Role | Default model | Configured by |
 | --- | --- | --- | --- |
 | [Groq](https://console.groq.com/) | Primary | `openai/gpt-oss-20b` | `GROQ_API_KEY`, `GROQ_MODEL` |
-| [Google Gemini API](https://ai.google.dev/) | Fallback when Groq answers 429 or 5xx, or takes longer than 15 seconds | `gemini-3.5-flash-lite` | `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| [Google Gemini API](https://ai.google.dev/) | Fallback when Groq answers 5xx, takes longer than 15 seconds, or answers 429 for longer than 12 seconds (a shorter 429 is waited out and retried on Groq once) | `gemini-3.5-flash-lite` | `GEMINI_API_KEY`, `GEMINI_MODEL` |
 
 Both are called through their OpenAI-compatible `/chat/completions` endpoints
 with plain `fetch`, so no provider SDK is installed. If neither key is set,

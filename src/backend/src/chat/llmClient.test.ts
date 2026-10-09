@@ -8,6 +8,8 @@ import {
   LlmError,
   LlmUnavailableError,
   providersFromEnv,
+  rateLimitWaitMs,
+  reasoningEffortFor,
   type CompletionRequest,
   type FetchLike,
   type LlmProvider,
@@ -38,10 +40,14 @@ interface RecordedCall {
   body: Record<string, unknown>;
 }
 
-function jsonResponse(status: number, body: unknown): Response {
+function jsonResponse(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {}
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
   });
 }
 
@@ -331,5 +337,232 @@ describe("LlmClient.runWithFallback", () => {
       expect(text).not.toContain("secret-key");
       expect(text).not.toContain("Who won");
     }
+  });
+});
+
+describe("reasoning effort", () => {
+  it("asks Groq's gpt-oss for low effort and Gemini for the least it supports", () => {
+    expect(reasoningEffortFor({ ...groq, model: "openai/gpt-oss-20b" })).toBe("low");
+    expect(reasoningEffortFor({ ...groq, model: "openai/gpt-oss-120b" })).toBe("low");
+    expect(reasoningEffortFor({ ...gemini, model: "gemini-3.5-flash-lite" })).toBe("minimal");
+    expect(reasoningEffortFor({ ...gemini, model: "gemini-3.8-flash" })).toBe("minimal");
+    expect(reasoningEffortFor({ ...gemini, model: "gemini-2.5-flash-lite" })).toBe("none");
+  });
+
+  it("sends nothing for models that may not support it", () => {
+    expect(reasoningEffortFor({ ...groq, model: "llama-3.3-70b-versatile" })).toBeUndefined();
+    expect(reasoningEffortFor({ ...gemini, model: "gemini-2.5-pro" })).toBeUndefined();
+  });
+
+  it("puts reasoning_effort in the request body for each provider", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { fetchImpl, calls } = scriptedFetch([
+      () => jsonResponse(500, {}),
+      () => completion({ role: "assistant", content: "ok" }),
+    ]);
+    const client = new LlmClient({
+      providers: [
+        { ...groq, model: "openai/gpt-oss-20b" },
+        { ...gemini, model: "gemini-3.5-flash-lite" },
+      ],
+      fetchImpl,
+    });
+
+    await client.runWithFallback((complete) => complete(request));
+
+    expect(calls[0]?.body.reasoning_effort).toBe("low");
+    expect(calls[1]?.body.reasoning_effort).toBe("minimal");
+  });
+
+  it("leaves reasoning_effort out when the model has none", async () => {
+    const { fetchImpl, calls } = scriptedFetch([
+      () => completion({ role: "assistant", content: "ok" }),
+    ]);
+    const client = new LlmClient({ providers: [groq], fetchImpl });
+
+    await client.complete(groq, request);
+
+    expect(calls[0]?.body).not.toHaveProperty("reasoning_effort");
+  });
+});
+
+describe("rateLimitWaitMs", () => {
+  const headers = (values: Record<string, string>) => new Headers(values);
+
+  it("prefers retry-after, in seconds", () => {
+    expect(rateLimitWaitMs(headers({ "retry-after": "2", "x-ratelimit-reset-tokens": "9s" }))).toBe(2000);
+    expect(rateLimitWaitMs(headers({ "retry-after": "1.5" }))).toBe(1500);
+  });
+
+  it("uses the daily request reset only when no requests remain", () => {
+    expect(
+      rateLimitWaitMs(
+        headers({
+          "x-ratelimit-remaining-requests": "0",
+          "x-ratelimit-reset-requests": "8.5s",
+          "x-ratelimit-reset-tokens": "40s",
+        })
+      )
+    ).toBe(8500);
+    // Requests left: the token window is what ran out, not the daily limit.
+    expect(
+      rateLimitWaitMs(
+        headers({
+          "x-ratelimit-remaining-requests": "994",
+          "x-ratelimit-reset-requests": "8m38.4s",
+          "x-ratelimit-reset-tokens": "9.2s",
+        })
+      )
+    ).toBe(9200);
+  });
+
+  it("reads Groq's x-ratelimit-reset-tokens durations", () => {
+    expect(rateLimitWaitMs(headers({ "x-ratelimit-reset-tokens": "7.66s" }))).toBe(7660);
+    expect(rateLimitWaitMs(headers({ "x-ratelimit-reset-tokens": "1m2.5s" }))).toBe(62_500);
+    expect(rateLimitWaitMs(headers({ "x-ratelimit-reset-tokens": "250ms" }))).toBe(250);
+    expect(rateLimitWaitMs(headers({ "x-ratelimit-reset-tokens": "2m59.56s" }))).toBeCloseTo(179_560);
+  });
+
+  it("is undefined when there is nothing it can read", () => {
+    expect(rateLimitWaitMs(headers({}))).toBeUndefined();
+    expect(rateLimitWaitMs(headers({ "x-ratelimit-reset-tokens": "soon" }))).toBeUndefined();
+  });
+});
+
+describe("429 handling", () => {
+  function setup(responses: Array<() => Response>) {
+    const { fetchImpl, calls } = scriptedFetch(responses);
+    const sleep = vi.fn(async () => {});
+    const client = new LlmClient({ providers: [groq, gemini], fetchImpl, sleep });
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    return { client, calls, sleep, info };
+  }
+
+  it("waits out a short 429 and retries Groq once, without falling back", async () => {
+    const { client, calls, sleep, info } = setup([
+      () => jsonResponse(429, {}, { "retry-after": "2" }),
+      () => completion({ role: "assistant", content: "from groq" }),
+    ]);
+
+    const reply = await client.runWithFallback((complete) => complete(request));
+
+    expect(reply.content).toBe("from groq");
+    expect(sleep).toHaveBeenCalledWith(2000);
+    expect(info).toHaveBeenCalledWith("groq 429, retrying in 2.0s");
+    expect(calls.map((call) => call.url)).toEqual([
+      `${GROQ_BASE_URL}/chat/completions`,
+      `${GROQ_BASE_URL}/chat/completions`,
+    ]);
+  });
+
+  it("gives the retried call its own full timeout after the wait", async () => {
+    let call = 0;
+    const fetchImpl: FetchLike = (_url, init) => {
+      call += 1;
+      if (call === 1) {
+        return Promise.resolve(jsonResponse(429, {}, { "retry-after": "10" }));
+      }
+      // The retry answers after 30 ms; the per-call timeout is 50 ms.
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () => resolve(completion({ role: "assistant", content: "in time" })),
+          30
+        );
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    };
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    // A real 40 ms wait standing in for 10 s: wait + call > one timeout.
+    const client = new LlmClient({
+      providers: [groq, gemini],
+      fetchImpl,
+      timeoutMs: 50,
+      sleep: () => new Promise((resolve) => setTimeout(resolve, 40)),
+    });
+
+    const reply = await client.runWithFallback((complete) => complete(request));
+
+    expect(reply.content).toBe("in time");
+    expect(call).toBe(2);
+  });
+
+  it("uses x-ratelimit-reset-tokens when there is no retry-after", async () => {
+    const { client, sleep } = setup([
+      () => jsonResponse(429, {}, { "x-ratelimit-reset-tokens": "1.25s" }),
+      () => completion({ role: "assistant", content: "ok" }),
+    ]);
+
+    await client.runWithFallback((complete) => complete(request));
+
+    expect(sleep).toHaveBeenCalledWith(1250);
+  });
+
+  it("waits up to 12 s: a 10 s retry-after is waited out on Groq", async () => {
+    const { client, calls, sleep, info } = setup([
+      () => jsonResponse(429, {}, { "retry-after": "10", "x-ratelimit-reset-tokens": "49.97s" }),
+      () => completion({ role: "assistant", content: "from groq" }),
+    ]);
+
+    const reply = await client.runWithFallback((complete) => complete(request));
+
+    expect(reply.content).toBe("from groq");
+    expect(sleep).toHaveBeenCalledWith(10_000);
+    expect(info).toHaveBeenCalledWith("groq 429, retrying in 10.0s");
+    expect(calls.every((call) => call.url.startsWith(GROQ_BASE_URL))).toBe(true);
+  });
+
+  it("waits exactly 12 s, but falls back straight away beyond that", async () => {
+    const atLimit = setup([
+      () => jsonResponse(429, {}, { "retry-after": "12" }),
+      () => completion({ role: "assistant", content: "ok" }),
+    ]);
+    await atLimit.client.runWithFallback((complete) => complete(request));
+    expect(atLimit.sleep).toHaveBeenCalledWith(12_000);
+    vi.restoreAllMocks();
+
+    const { client, calls, sleep } = setup([
+      () => jsonResponse(429, {}, { "retry-after": "13", "x-ratelimit-reset-tokens": "49.97s" }),
+      () => completion({ role: "assistant", content: "from gemini" }),
+    ]);
+
+    const reply = await client.runWithFallback((complete) => complete(request));
+
+    expect(reply.content).toBe("from gemini");
+    expect(sleep).not.toHaveBeenCalled();
+    expect(calls[1]?.url).toBe(`${GEMINI_BASE_URL}/chat/completions`);
+  });
+
+  it("retries only once, then falls back", async () => {
+    const { client, calls, sleep } = setup([
+      () => jsonResponse(429, {}, { "retry-after": "1" }),
+      () => jsonResponse(429, {}, { "retry-after": "1" }),
+      () => completion({ role: "assistant", content: "from gemini" }),
+    ]);
+
+    const reply = await client.runWithFallback((complete) => complete(request));
+
+    expect(reply.content).toBe("from gemini");
+    expect(sleep).toHaveBeenCalledTimes(1);
+    expect(calls.map((call) => call.url)).toEqual([
+      `${GROQ_BASE_URL}/chat/completions`,
+      `${GROQ_BASE_URL}/chat/completions`,
+      `${GEMINI_BASE_URL}/chat/completions`,
+    ]);
+  });
+
+  it("falls back on a 429 without any timing headers", async () => {
+    const { client, sleep, calls } = setup([
+      () => jsonResponse(429, {}),
+      () => completion({ role: "assistant", content: "from gemini" }),
+    ]);
+
+    await client.runWithFallback((complete) => complete(request));
+
+    expect(sleep).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(2);
   });
 });

@@ -44,5 +44,7 @@ describe("Navbar and Layout", () => {
     render(<MemoryRouter><Layout><h1>Page body</h1></Layout></MemoryRouter>);
     expect(screen.getByText("F1")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Page body" })).toBeInTheDocument();
+    // The chat widget is rendered once by App, outside the routes, not per page.
+    expect(screen.queryByRole("button", { name: "Open F1 Assistant" })).not.toBeInTheDocument();
   });
 });
