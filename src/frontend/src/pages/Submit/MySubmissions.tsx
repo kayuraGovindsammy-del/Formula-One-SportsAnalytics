@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../auth/useAuth";
 import { submissionRequest, type SubmissionRecord } from "../../api/submissions";
+import "../SubmissionPages.css";
 
 export default function MySubmissions() {
   const { user } = useAuth();
@@ -48,10 +49,10 @@ export default function MySubmissions() {
   }, [user, filter]);
 
   return (
-    <div style={{ maxWidth: 1000, margin: "40px auto", padding: 24 }}>
+   <div className="submission-page my-submissions-page">
       <h1>My Submissions</h1>
       <p>Track your event submissions and any administrator review decisions.</p>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+     <div className="submission-toolbar">
         <label>Show{" "}
           <select value={filter} onChange={event => { setLoading(true); setFilter(event.target.value); }}>
             <option value="all">All</option>
@@ -63,17 +64,37 @@ export default function MySubmissions() {
         <button onClick={() => void load()} disabled={loading}>Refresh</button>
       </div>
       {loading && <p>Loading submissions...</p>}
-      {error && <p role="alert" style={{ color: "#ff7373" }}>{error}</p>}
-      {!loading && !error && records.length === 0 && <p>No submissions found.</p>}
+      {error && (
+  <p
+    role="alert"
+    className="submission-alert submission-alert-error"
+  >
+    {error}
+  </p>
+)}
+      {!loading &&
+  !error &&
+  records.length === 0 && (
+    <div className="submission-empty">
+      No submissions found.
+    </div>
+  )}
       {!loading && records.map(record => (
         <article key={record.submission_id} style={{
           border: "1px solid #444", borderRadius: 10, padding: 20, marginBottom: 16
         }}>
-          <h2>{record.event.type}</h2>
+          <div className="submission-card-heading">
+  <h2>{record.event.type}</h2>
+
+  <span
+    className={`status-badge status-${record.status}`}
+  >
+    {record.status}
+  </span>
+</div>
           <p><strong>Submission:</strong> #{record.submission_id}</p>
           <p><strong>Event ID:</strong> {record.event.event_id}</p>
           <p><strong>Session:</strong> {record.event.session_id}</p>
-          <p><strong>Status:</strong> {record.status}</p>
           <p><strong>Submitted:</strong> {new Date(record.submitted_at).toLocaleString()}</p>
           {record.reviewed_at && <p><strong>Reviewed:</strong> {new Date(record.reviewed_at).toLocaleString()}</p>}
           {record.validation_errors.length > 0 && (

@@ -119,7 +119,7 @@ function RaceCard({
         {activeTab === "qualifying" && (
           <div className="race-tab-panel race-tab-placeholder">
             <strong>Qualifying</strong>
-            <p>Open the race details to view qualifying results.</p>
+            <p>Open to view qualifying results.</p>
           </div>
         )}
 
@@ -127,7 +127,7 @@ function RaceCard({
           <div className="race-tab-panel race-tab-placeholder">
             <strong>Predicted Times</strong>
             <p>
-              Predictions will be available once qualifying data is recorded.
+              View Predictions 
             </p>
           </div>
         )}
@@ -136,8 +136,10 @@ function RaceCard({
       <Link
         to={
           activeTab === "qualifying"
-            ? `/races/${grandPrixId}#qualifying`
-            : `/races/${grandPrixId}`
+          ? `/races/${grandPrixId}/qualifying`
+          : activeTab === "predictions"
+          ? `/races/${grandPrixId}/predictions`
+          : `/races/${grandPrixId}`
         }
         className="race-card-view-button"
       >

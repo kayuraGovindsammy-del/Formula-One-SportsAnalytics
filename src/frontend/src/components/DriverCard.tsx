@@ -10,6 +10,8 @@ type DriverCardProps = {
   number: number;
   nationality: string;
   dateOfBirth: string;
+  points: number | null;
+  rank: number | null;
 };
 
 function DriverCard({
@@ -20,6 +22,8 @@ function DriverCard({
   number,
   nationality,
   dateOfBirth,
+  points,
+  rank,
 }: DriverCardProps) {
   const teamStyle = getTeamStyle(constructorId);
   const driverImage = getDriverImage(driverId);
@@ -47,6 +51,20 @@ function DriverCard({
           <p>{team}</p>
         </div>
       </div>
+
+      <div className="driver-standing">
+  <span>
+    {rank !== null
+      ? `Championship P${rank}`
+      : "No standing yet"}
+  </span>
+
+  <strong>
+    {points !== null
+      ? `${points} pts`
+      : "No points data"}
+  </strong>
+</div>
 
       <div className="driver-stats">
         <div>

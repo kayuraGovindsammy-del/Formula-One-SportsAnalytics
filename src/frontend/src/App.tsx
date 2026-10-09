@@ -24,6 +24,8 @@ import Layout from "./components/layout/Layout";
 import ChatWidget from "./components/chat/ChatWidget";
 import Constructors from "./pages/Constructors/Constructors";
 import Statistics from "./pages/Statistics/Statistics";
+import QualifyingDetails from "./pages/QualifyingDetails/QualifyingDeatils";
+import PredictionsDetails from "./pages/PredictionsDetails/PredictionsDetails";
 
 function App() {
   const { user, loading } = useAuth();
@@ -77,6 +79,27 @@ function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+  path="/races/:id/qualifying"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <QualifyingDetails />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="/races/:id/predictions"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <PredictionsDetails />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
 
       {/* RACES */}
       <Route

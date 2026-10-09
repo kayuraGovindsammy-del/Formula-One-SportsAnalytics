@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { useAuth } from "../../auth/useAuth";
 import { submissionRequest, type SubmissionRecord } from "../../api/submissions";
+import "../SubmissionPages.css";
 
 type EventType =
   | "SESSION_START"
@@ -470,13 +471,7 @@ function SubmitData() {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: "800px",
-        margin: "40px auto",
-        padding: "30px",
-      }}
-    >
+   <div className="submission-page submit-data-page">
       <h1>Submit F1 Event Data</h1>
 
       <p>
@@ -486,7 +481,9 @@ function SubmitData() {
 
       <p><Link to="/my-submissions">View my submission history</Link></p>
       {createdId !== null && <p role="status">Created submission #{createdId}. <Link to="/my-submissions">Track its review</Link></p>}
-      <p style={{ overflowWrap: "anywhere" }}><strong>Event ID:</strong> {eventId}</p>
+     <p className="event-id-box">
+  <strong>Event ID:</strong> {eventId}
+</p>
       <button type="button" disabled={loading} onClick={() => {
         if (window.confirm("Start a new event ID? Check My Submissions first if a previous request may have succeeded.")) {
           setEventId(createEventId());
@@ -1034,30 +1031,22 @@ function SubmitData() {
         )}
 
         {error && (
-          <div
-            style={{
-              marginTop: "25px",
-              padding: "12px",
-              border: "1px solid red",
-              borderRadius: "6px",
-            }}
-          >
-            <strong>Error:</strong> {error}
-          </div>
-        )}
+  <div
+    className="submission-alert submission-alert-error"
+    role="alert"
+  >
+    <strong>Error:</strong> {error}
+  </div>
+)}
 
         {message && (
-          <div
-            style={{
-              marginTop: "25px",
-              padding: "12px",
-              border: "1px solid green",
-              borderRadius: "6px",
-            }}
-          >
-            {message}
-          </div>
-        )}
+  <div
+    className="submission-alert submission-alert-success"
+    role="status"
+  >
+    {message}
+  </div>
+)}
 
         <button
           type="submit"

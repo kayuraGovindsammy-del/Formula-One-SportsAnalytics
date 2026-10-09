@@ -1,0 +1,170 @@
+.prediction-navigation {
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.prediction-intro {
+  margin: 2rem 0 1rem;
+}
+
+.prediction-intro h2 {
+  margin: 0.25rem 0;
+}
+
+.prediction-intro p:last-child {
+  color: #aaa;
+  max-width: 700px;
+}
+
+.prediction-card {
+  background: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.prediction-table {
+  width: 100%;
+}
+
+.prediction-row {
+  display: grid;
+
+  grid-template-columns:
+    90px
+    1.4fr
+    1.3fr
+    80px
+    110px
+    150px;
+
+  gap: 1rem;
+  align-items: center;
+
+  padding: 1rem 1.25rem;
+
+  border-bottom:
+    1px solid rgba(255, 255, 255, 0.07);
+}
+
+.prediction-row:last-child {
+  border-bottom: none;
+}
+
+.prediction-header {
+  color: #888;
+
+  font-size: 0.75rem;
+  font-weight: 800;
+
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.predicted-time {
+  color: #2ecc71;
+}
+
+.prediction-top-1 {
+  background: rgba(255, 215, 0, 0.05);
+}
+
+.prediction-top-2 {
+  background: rgba(192, 192, 192, 0.04);
+}
+
+.prediction-top-3 {
+  background: rgba(205, 127, 50, 0.04);
+}
+
+.prediction-note {
+  margin-top: 1rem;
+
+  color: #777;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .prediction-card {
+    overflow-x: auto;
+  }
+
+  .prediction-table {
+    min-width: 850px;
+  }
+}
+
+.prediction-formula {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.prediction-formula span {
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #aaa;
+}
+
+.prediction-formula strong {
+  color: white;
+}
+
+.predicted-position {
+  font-size: 1.05rem;
+}
+
+.predicted-time {
+  color: #2ecc71;
+}
+
+.prediction-method {
+  margin-top: 2rem;
+}
+
+.prediction-method-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.prediction-method-grid article {
+  padding: 1.25rem;
+
+  background: #181818;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.08);
+
+  border-radius: 12px;
+}
+
+.prediction-method-grid article strong {
+  font-size: 1rem;
+}
+
+.prediction-method-grid article p {
+  margin-bottom: 0;
+  color: #999;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .prediction-card {
+    overflow-x: auto;
+  }
+
+  .prediction-table {
+    min-width: 950px;
+  }
+
+  .prediction-method-grid {
+    grid-template-columns: 1fr;
+  }
+}

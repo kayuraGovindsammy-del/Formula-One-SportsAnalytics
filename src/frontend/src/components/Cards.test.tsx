@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import DriverCard from "./DriverCard";
 import RaceCard from "./RaceCard";
 import StatCard from "./StatCard";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("../data/teamStyles", () => ({
   getTeamStyle: vi.fn(() => ({ primary: "#ff0000" })),
@@ -17,11 +18,73 @@ vi.mock("../data/circuitImages", () => ({
 }));
 
 describe("reusable cards", () => {
+  test("RaceCard changes details link when switching tabs", async () => {
+  const user = userEvent.setup();
+
+  render(
+    <MemoryRouter>
+      <RaceCard
+        grandPrixId="BEL"
+        round={13}
+        name="Belgian Grand Prix"
+        circuitName="Circuit de Spa-Francorchamps"
+        locality="Stavelot"
+        country="Belgium"
+        date="2025-07-27"
+        hasSprint={false}
+        hasResults={true}
+      />
+    </MemoryRouter>
+  );
+
+  // Race is active by default
+  expect(
+    screen.getByRole("link", {
+      name: /view race/i,
+    })
+  ).toHaveAttribute(
+    "href",
+    "/races/BEL"
+  );
+
+  // Switch to Qualifying
+  await user.click(
+    screen.getByRole("button", {
+      name: /qualifying/i,
+    })
+  );
+
+  expect(
+    screen.getByRole("link", {
+      name: /view qualifying/i,
+    })
+  ).toHaveAttribute(
+    "href",
+    "/races/BEL/qualifying"
+  );
+
+  // Switch to Predictions
+  await user.click(
+    screen.getByRole("button", {
+      name: /predictions/i,
+    })
+  );
+
+  expect(
+    screen.getByRole("link", {
+      name: /view predictions/i,
+    })
+  ).toHaveAttribute(
+    "href",
+    "/races/BEL/predictions"
+  );
+});
   test("DriverCard renders driver information and details link", () => {
     render(
       <MemoryRouter>
         <DriverCard driverId="lec" name="Charles Leclerc" team="Ferrari" constructorId="FER"
-          number={16} nationality="Monégasque" dateOfBirth="1997-10-16" />
+          number={16} nationality="Monégasque" dateOfBirth="1997-10-16" points={210}
+  rank={3} />
       </MemoryRouter>
     );
     expect(screen.getByRole("link")).toHaveAttribute("href", "/drivers/lec");
