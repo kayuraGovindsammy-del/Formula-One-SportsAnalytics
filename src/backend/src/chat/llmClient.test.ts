@@ -394,6 +394,28 @@ describe("rateLimitWaitMs", () => {
     expect(rateLimitWaitMs(headers({ "retry-after": "1.5" }))).toBe(1500);
   });
 
+  it("uses the daily request reset only when no requests remain", () => {
+    expect(
+      rateLimitWaitMs(
+        headers({
+          "x-ratelimit-remaining-requests": "0",
+          "x-ratelimit-reset-requests": "8.5s",
+          "x-ratelimit-reset-tokens": "40s",
+        })
+      )
+    ).toBe(8500);
+    // Requests left: the token window is what ran out, not the daily limit.
+    expect(
+      rateLimitWaitMs(
+        headers({
+          "x-ratelimit-remaining-requests": "994",
+          "x-ratelimit-reset-requests": "8m38.4s",
+          "x-ratelimit-reset-tokens": "9.2s",
+        })
+      )
+    ).toBe(9200);
+  });
+
   it("reads Groq's x-ratelimit-reset-tokens durations", () => {
     expect(rateLimitWaitMs(headers({ "x-ratelimit-reset-tokens": "7.66s" }))).toBe(7660);
     expect(rateLimitWaitMs(headers({ "x-ratelimit-reset-tokens": "1m2.5s" }))).toBe(62_500);
@@ -434,6 +456,40 @@ describe("429 handling", () => {
     ]);
   });
 
+  it("gives the retried call its own full timeout after the wait", async () => {
+    let call = 0;
+    const fetchImpl: FetchLike = (_url, init) => {
+      call += 1;
+      if (call === 1) {
+        return Promise.resolve(jsonResponse(429, {}, { "retry-after": "10" }));
+      }
+      // The retry answers after 30 ms; the per-call timeout is 50 ms.
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () => resolve(completion({ role: "assistant", content: "in time" })),
+          30
+        );
+        init?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    };
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    // A real 40 ms wait standing in for 10 s: wait + call > one timeout.
+    const client = new LlmClient({
+      providers: [groq, gemini],
+      fetchImpl,
+      timeoutMs: 50,
+      sleep: () => new Promise((resolve) => setTimeout(resolve, 40)),
+    });
+
+    const reply = await client.runWithFallback((complete) => complete(request));
+
+    expect(reply.content).toBe("in time");
+    expect(call).toBe(2);
+  });
+
   it("uses x-ratelimit-reset-tokens when there is no retry-after", async () => {
     const { client, sleep } = setup([
       () => jsonResponse(429, {}, { "x-ratelimit-reset-tokens": "1.25s" }),
@@ -445,9 +501,31 @@ describe("429 handling", () => {
     expect(sleep).toHaveBeenCalledWith(1250);
   });
 
-  it("falls back straight away when the wait is longer than 3 s", async () => {
-    const { client, calls, sleep } = setup([
+  it("waits up to 12 s: a 10 s retry-after is waited out on Groq", async () => {
+    const { client, calls, sleep, info } = setup([
       () => jsonResponse(429, {}, { "retry-after": "10", "x-ratelimit-reset-tokens": "49.97s" }),
+      () => completion({ role: "assistant", content: "from groq" }),
+    ]);
+
+    const reply = await client.runWithFallback((complete) => complete(request));
+
+    expect(reply.content).toBe("from groq");
+    expect(sleep).toHaveBeenCalledWith(10_000);
+    expect(info).toHaveBeenCalledWith("groq 429, retrying in 10.0s");
+    expect(calls.every((call) => call.url.startsWith(GROQ_BASE_URL))).toBe(true);
+  });
+
+  it("waits exactly 12 s, but falls back straight away beyond that", async () => {
+    const atLimit = setup([
+      () => jsonResponse(429, {}, { "retry-after": "12" }),
+      () => completion({ role: "assistant", content: "ok" }),
+    ]);
+    await atLimit.client.runWithFallback((complete) => complete(request));
+    expect(atLimit.sleep).toHaveBeenCalledWith(12_000);
+    vi.restoreAllMocks();
+
+    const { client, calls, sleep } = setup([
+      () => jsonResponse(429, {}, { "retry-after": "13", "x-ratelimit-reset-tokens": "49.97s" }),
       () => completion({ role: "assistant", content: "from gemini" }),
     ]);
 

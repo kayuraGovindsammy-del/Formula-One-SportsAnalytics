@@ -138,8 +138,9 @@ paths:
         Mounted by `routes/chat.routes.ts`; covered by
         `routes/chat.routes.test.ts`. Public: no token is required.
 
-        An LLM (Groq, falling back to Gemini on a 429, a 5xx or a 15-second
-        timeout; see docs/third-party-services.md) answers using only
+        An LLM (Groq, falling back to Gemini on a 5xx, a 15-second timeout or
+        a 429 that does not clear within 12 s; a shorter 429 is retried on
+        Groq once; see docs/third-party-services.md) answers using only
         whitelisted, read-only tools that call the same code as this API
         (`chat/tools.ts`): search_drivers, search_constructors,
         search_races, get_driver_stats,

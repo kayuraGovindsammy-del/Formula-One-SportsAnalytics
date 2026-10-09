@@ -34,8 +34,13 @@ export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 export const DEFAULT_TIMEOUT_MS = 15_000;
 
-/** A 429 whose limit resets within this long is retried once on the same provider. */
-export const MAX_RATE_LIMIT_WAIT_MS = 3_000;
+/**
+ * A 429 whose limit resets within this long is waited out and retried once
+ * on the same provider. Groq's per-minute token window usually clears in
+ * about 10 s, which is still much faster than the Gemini fallback. The wait
+ * happens between calls, so the retried call gets its own full timeout.
+ */
+export const MAX_RATE_LIMIT_WAIT_MS = 12_000;
 
 /**
  * The reasoning effort to request, or undefined to send none. Groq's gpt-oss
@@ -53,18 +58,9 @@ export function reasoningEffortFor(provider: LlmProvider): string | undefined {
   return undefined;
 }
 
-/**
- * Seconds until a 429 clears: Groq's retry-after (seconds), else its
- * x-ratelimit-reset-tokens duration ("7.66s", "1m2.5s", "250ms").
- * Undefined when neither can be read.
- */
-export function rateLimitWaitMs(headers: Headers): number | undefined {
-  const retryAfter = headers.get("retry-after");
-  if (retryAfter !== null && /^\d+(\.\d+)?$/.test(retryAfter.trim())) {
-    return Number(retryAfter) * 1000;
-  }
-
-  const reset = headers.get("x-ratelimit-reset-tokens")?.trim();
+/** A Groq reset duration ("7.66s", "1m2.5s", "250ms") in ms, or undefined. */
+export function parseResetDuration(value: string | null): number | undefined {
+  const reset = value?.trim();
   if (!reset) return undefined;
 
   const parts = [...reset.matchAll(/(\d+(?:\.\d+)?)(ms|h|m|s)/g)];
@@ -72,6 +68,27 @@ export function rateLimitWaitMs(headers: Headers): number | undefined {
 
   const scale: Record<string, number> = { h: 3_600_000, m: 60_000, s: 1_000, ms: 1 };
   return parts.reduce((total, part) => total + Number(part[1]) * (scale[part[2] ?? ""] ?? 0), 0);
+}
+
+/**
+ * How long until a 429 clears, in ms, or undefined when the headers do not
+ * say. retry-after (seconds) wins. Otherwise it is the reset time of the
+ * limit that ran out: x-ratelimit-reset-requests when no requests remain
+ * (the daily limit), else x-ratelimit-reset-tokens (the per-minute token
+ * limit, the usual cause). The two resets are not combined: the daily one is
+ * often minutes away even when only the token window is full.
+ */
+export function rateLimitWaitMs(headers: Headers): number | undefined {
+  const retryAfter = headers.get("retry-after");
+  if (retryAfter !== null && /^\d+(\.\d+)?$/.test(retryAfter.trim())) {
+    return Number(retryAfter) * 1000;
+  }
+
+  if (headers.get("x-ratelimit-remaining-requests")?.trim() === "0") {
+    return parseResetDuration(headers.get("x-ratelimit-reset-requests"));
+  }
+
+  return parseResetDuration(headers.get("x-ratelimit-reset-tokens"));
 }
 
 /**
