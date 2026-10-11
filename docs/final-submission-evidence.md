@@ -60,7 +60,7 @@ existing documentation and implementation evidence.
 
 | Criterion | Weight | Evidence |
 |---|---:|---|
-| Availability | 3% | [API Design](api-design.md) and the [OpenAPI specification](api/openapi.yaml) document internal frontend use and external API access; the production base URL is [Railway](https://f1-sport-analytics-api-production.up.railway.app/api/v1). |
+| Availability | 3% | [API Design](api-design.md) and the [OpenAPI specification](api/openapi.yaml) document internal frontend use and external API access; the production base URL is [Railway](https://f1-sport-analytics-api-production.up.railway.app/api/v1); [Swagger UI](https://f1-sport-analytics-api-production.up.railway.app/api/docs) provides externally accessible public API documentation. |
 | Architecture | 5% | [API Design](api-design.md) documents the versioned Express API and route organization. |
 | Deployment | 2% | The production API is hosted on Railway at [the production API base URL](https://f1-sport-analytics-api-production.up.railway.app/api/v1). |
 | Performance | 5% | [Testing](testing.md#performance-evidence) records query-count tests, pagination, pooling, caching, and timeouts; no load-test or latency results are reported. |

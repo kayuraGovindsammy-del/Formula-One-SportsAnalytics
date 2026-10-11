@@ -10,7 +10,7 @@ This document is the contract for the backend API. It exists so that:
 
 It reflects the entities in [`data-model.md`](data-model.md), the event log in [`event-schema.md`](event-schema.md), the formulas in [`f1-statistics.md`](f1-statistics.md), the tables in `schema.sql`, and the actual read shapes the frontend already consumes via `f1Data.ts`.
 
-The current backend uses PostgreSQL read models, reviewed SQL submissions, dataset exports and a public chat assistant. Of the identity and admin endpoints in §8, only `DELETE /users/me` is mounted; profiles and submitter requests still use Firestore. [`openapi.yaml`](api/openapi.yaml) describes the mounted routes and is served publicly at `/api/openapi.yaml` and `/api/openapi.json`, with Swagger UI at `/api/docs`.
+The current backend uses PostgreSQL read models, reviewed SQL submissions, dataset exports and a public chat assistant. Of the identity and admin endpoints in §8, only `DELETE /users/me` is mounted; profiles and submitter requests still use Firestore. The OpenAPI source, [`docs/api/openapi.yaml`](api/openapi.yaml), describes the mounted routes and is served publicly at `/api/openapi.yaml` and `/api/openapi.json`.
 
 ---
 
@@ -23,7 +23,11 @@ The current backend uses PostgreSQL read models, reviewed SQL submissions, datas
 The production API is hosted on Railway at
 [`https://f1-sport-analytics-api-production.up.railway.app/api/v1`](https://f1-sport-analytics-api-production.up.railway.app/api/v1).
 
-All routes are versioned from day one under `/api/v1`. Breaking changes to a resource's shape get a new version prefix (`/api/v2/...`) rather than mutating `/v1` in place — existing frontend code should never break out from under it without a version bump.
+Interactive Swagger UI: [https://f1-sport-analytics-api-production.up.railway.app/api/docs](https://f1-sport-analytics-api-production.up.railway.app/api/docs).
+
+Swagger UI is served by the Railway-hosted backend at `/api/docs`, intentionally outside the `/api/v1` resource-route prefix.
+
+Resource routes are versioned from day one under `/api/v1`. Breaking changes to a resource's shape get a new version prefix (`/api/v2/...`) rather than mutating `/v1` in place — existing frontend code should never break out from under it without a version bump.
 
 ---
 

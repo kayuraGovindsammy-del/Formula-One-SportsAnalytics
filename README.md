@@ -2,6 +2,9 @@
 
 A Formula 1 sport analytics platform developed for COMS3011A.
 
+- Production application: [Azure](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/)
+- Interactive API documentation (Swagger UI): [https://f1-sport-analytics-api-production.up.railway.app/api/docs](https://f1-sport-analytics-api-production.up.railway.app/api/docs)
+
 The project supports exploration of Formula 1 drivers, constructors, races, event data, and derived statistics. It also includes authenticated users, approved data submitters, and administrative review of submission records.
 
 ## Project Overview
