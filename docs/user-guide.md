@@ -5,6 +5,20 @@ sign-in, even though the backend's read and dataset-export endpoints are
 public. Most season statistics currently use **2025**; the interface does
 not provide a general season selector.
 
+## Core Feature Coverage
+
+| Core capability | Current implementation | Supporting documentation |
+|---|---|---|
+| Driver, constructor and race browsing | Browse searchable driver, constructor, and race pages, with detail views. | [Explore Formula 1 data](#explore-formula-1-data) |
+| Formula 1 statistics and analytics | View season statistics, rankings, comparisons, race charts, and derived metrics where data is available. | [Explore Formula 1 data](#explore-formula-1-data), [F1 Statistics](f1-statistics.md) |
+| Approved submitter data contribution | Approved submitters can submit event records for review. | [Submit and review events](#submit-and-review-events), [Authentication and Submission Workflow](auth-and-submission-workflow.md) |
+| Administrator review and management | Administrators manage submitter requests and review submitted records. | [Submit and review events](#submit-and-review-events), [Authentication and Submission Workflow](auth-and-submission-workflow.md) |
+| Hand-written public Express API | The custom Express API exposes public read and dataset-export routes with a documented OpenAPI contract. | [API Design](api-design.md), [OpenAPI](api/openapi.yaml) |
+| Event-derived analytics/statistics | Statistics derive from stored event/lap data where available and use documented published-result fallbacks for supported metrics. | [F1 Statistics](f1-statistics.md), [Event Schema](event-schema.md) |
+| External Formula 1 data integration | Jolpica supplies season/race results and related data; OpenF1 supplies position-change/overtake events. | [Jolpica-F1 Pipeline](ingestion/jolpica-ingestion.md), [OpenF1 Overtakes](ingestion/openf1-overtakes.md) |
+| CSV/JSON datasets | Public export routes provide supported datasets in CSV or JSON. | [Download datasets](#download-datasets), [Datasets](datasets.md) |
+| Authentication and account management | Firebase sign-in, registration, password reset, role-aware access, and account deletion are provided. | [Sign in and account access](#sign-in-and-account-access), [Authentication and Submission Workflow](auth-and-submission-workflow.md) |
+
 ## Sign in and account access
 
 Opening the dashboard while signed out redirects to `/login`. Use email

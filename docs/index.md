@@ -36,7 +36,6 @@ Use the navigation to explore the project documentation:
 - [Assessment Evidence](final-submission-evidence.md) maps the milestone rubrics to project evidence
 - [Project Roadmap and Evolution](project-roadmap.md) summarizes the original design and sprint progression
 - Project Methodology and Sprint working approach
-- [Final Submission Evidence](final-submission-evidence.md) maps rubric criteria to project evidence
 - Git Workflow and delivery process
 - Technical architecture, API design, and data model documentation
 - public documentation site and deployment notes

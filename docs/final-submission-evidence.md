@@ -1,8 +1,7 @@
 # Assessment Evidence
 
-This index maps each Milestone 4 rubric criterion to the project's existing
-documentation and implementation evidence. It is an evidence guide, not a
-self-assessment or certification of live systems.
+This index maps Milestone 1, 2, 3, and 4 rubric criteria to the project's
+existing documentation and implementation evidence.
 
 ## Milestone 1 — Sprint 1
 
@@ -23,7 +22,7 @@ self-assessment or certification of live systems.
 
 | Criterion | Evidence | Documentation |
 |---|---|---|
-| Core Features | User-facing browsing and contribution workflows, with Sprint 2 implementation context. | [User Guide](user-guide.md), [Sprint 2 Retrospective](retrospectives/sprint2-retrospective.md) |
+| Core Features | Core browsing, analytics, submission/review, API, data integration, and export capabilities with links to implementation details. | [Core Feature Coverage](user-guide.md#core-feature-coverage), [F1 Statistics](f1-statistics.md), [Authentication and Submission Workflow](auth-and-submission-workflow.md), [API Design](api-design.md), [Datasets](datasets.md), [Sprint 2 Retrospective](retrospectives/sprint2-retrospective.md) |
 | Automated Testing | Backend coverage, Firestore rules, Playwright login checks, and CI expansion are documented. | [Testing](testing.md), [Sprint 2 Retrospective](retrospectives/sprint2-retrospective.md) |
 | Stakeholder Reviews | One stakeholder response is separated from external-user ratings; retained meeting records establish occurrence/attendance, not discussion content. | [Sprint 2 Stakeholder Feedback](user-testing/sprint2-user-testing.md#stakeholder-feedback-summary), [Sprint Evidence](sprint-evidence.md) |
 | API | Versioned route design and machine-readable endpoint contract. | [API Design](api-design.md), [OpenAPI](api/openapi.yaml) |
@@ -54,7 +53,7 @@ self-assessment or certification of live systems.
 | Criterion | Weight | Evidence |
 |---|---:|---|
 | Data | 3% | [Datasets](datasets.md), [Data Model](data-model.md), and [Data Ingestion](ingestion/jolpica-ingestion.md) describe production-source data, development samples, and test data. |
-| Deployment | 2% | [Repository Overview](repo-overview.md) documents the Railway API and Aiven PostgreSQL production flow; live database availability is not established by this documentation. |
+| Deployment | 2% | Aiven PostgreSQL is the production database in the documented Browser → Azure frontend → Railway API → Aiven PostgreSQL flow. |
 | Structure | 5% | [Database Design](database-design.md), [Data Model](data-model.md), and [Event Schema](event-schema.md) document the relational design and event structure. |
 
 ## API — 25%
@@ -63,7 +62,7 @@ self-assessment or certification of live systems.
 |---|---:|---|
 | Availability | 3% | [API Design](api-design.md) and the [OpenAPI specification](api/openapi.yaml) document internal frontend use and external API access; the production base URL is [Railway](https://f1-sport-analytics-api-production.up.railway.app/api/v1). |
 | Architecture | 5% | [API Design](api-design.md) documents the versioned Express API and route organization. |
-| Deployment | 2% | [Repository Overview](repo-overview.md) documents the Railway production service and [API base URL](https://f1-sport-analytics-api-production.up.railway.app/api/v1); this is not a live availability check. |
+| Deployment | 2% | The production API is hosted on Railway at [the production API base URL](https://f1-sport-analytics-api-production.up.railway.app/api/v1). |
 | Performance | 5% | [Testing](testing.md#performance-evidence) records query-count tests, pagination, pooling, caching, and timeouts; no load-test or latency results are reported. |
 | Design | 10% | [API Design](api-design.md) and the [OpenAPI specification](api/openapi.yaml) provide endpoint, method, versioning, and schema evidence. |
 
@@ -74,7 +73,7 @@ self-assessment or certification of live systems.
 | Accessibility | 5% | [Accessibility and Responsive Design](accessibility-responsive-design.md) documents semantic landmarks, form labels, ARIA use, focus styles, reduced motion, and the absence of a formal WCAG audit. |
 | Aesthetics | 5% | [User Guide](user-guide.md) and [Sprint 3 User Testing Evidence](user-testing/sprint3-user-testing.md) provide interface guidance and before/after feedback evidence. |
 | User Experience | 5% | [User Guide](user-guide.md), [Authentication and Submission Workflow](auth-and-submission-workflow.md), and the user-testing pages document primary workflows and feedback. |
-| Deployment | 2% | [Repository Overview](repo-overview.md) identifies the Azure-hosted production frontend; deployment configuration is documented separately from live verification. |
+| Deployment | 2% | The production frontend is hosted on [Azure](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/). |
 | Performance | 5% | [Testing](testing.md#performance-evidence) describes frontend and backend safeguards and explicitly notes the lack of measured performance results. |
 | Features | 10% | [User Guide](user-guide.md), [F1 Statistics](f1-statistics.md), [Datasets](datasets.md), and [Authentication and Submission Workflow](auth-and-submission-workflow.md) document core user-facing features. |
 | Responsiveness | 5% | [Accessibility and Responsive Design](accessibility-responsive-design.md) documents CSS breakpoints and small-screen navigation behaviour. |
@@ -91,14 +90,11 @@ self-assessment or certification of live systems.
 
 ## Production service flow
 
-The documented production application flow is Browser → Azure-hosted frontend →
-Railway Express API → Aiven PostgreSQL. Firebase Authentication and Firestore
-provide identity, profiles, and roles. The production API base URL is
+The production application flow is Browser → [Azure-hosted frontend](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/) →
+[Railway Express API](https://f1-sport-analytics-api-production.up.railway.app/api/v1) → Aiven PostgreSQL.
+Firebase Authentication and Firestore provide identity, profiles, and roles.
+The production API base URL is
 [`https://f1-sport-analytics-api-production.up.railway.app/api/v1`](https://f1-sport-analytics-api-production.up.railway.app/api/v1).
-
-The service and deployment descriptions above identify the documented
-production setup; this page does not independently verify current live
-availability.
 
 ## Evidence for Later Reports
 

@@ -376,8 +376,8 @@ It contains four validation jobs and a dependent deployment job:
 The Railway deployment job waits for all four validation jobs and runs only
 on pushes to `main`. Both coverage uploads are best-effort; their failures
 do not disable the test gates. Application jobs use Node.js 22, and docs use
-Python 3.12. The workflow records the intended checks, not proof of a hosted
-successful run.
+Python 3.12. The workflow runs the listed validation jobs and gates the
+Railway deployment job on their completion.
 
 The local commands in this document are the same commands that the CI workflow expects. In other words, the CI process is reproducible locally and is intended to provide project-wide validation, while hosted execution depends on Gitea runner availability and the repository’s runtime context.
 

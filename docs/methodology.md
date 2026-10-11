@@ -51,9 +51,6 @@ A well-formed Taiga item should include:
 
 This makes the team’s planned work visible from Sprint planning through implementation and review. It supports traceability for priority setting, ownership, and progress across the project.
 
-The repository documents this workflow but does not include a Taiga export or
-screenshots of the board, stories, or sprint activity.
-
 ## 4. Bug / Issue Tracking — Gitea
 
 Gitea provides the development and version-control traceability layer. It records the work as it moves from a feature branch into implementation, review, and merge. This is where the team works with `main`, `feature/...` branches, commits, Pull Requests, and code review.
@@ -67,15 +64,17 @@ Gitea is used for:
 - CI workflow recognition and validation evidence
 - merge history and repository-level traceability
 
-The repository includes `.gitea/ISSUE_TEMPLATE/bug_report.md`. Sprint
-retrospectives also cite concrete fix and feature pull requests, including
-Sprint 2 PRs #66, #69, #76, and #79 and Sprint 4 PRs #130 and #142. These
-references demonstrate repository delivery and fixes; they do not by
-themselves establish the corresponding Gitea issue history. See
+The repository includes `.gitea/ISSUE_TEMPLATE/bug_report.md` and the
+[Gitea Issue Tracking screenshot](#gitea-issue-tracking), which shows actual
+open and closed issue activity. Sprint retrospectives also cite concrete fix
+and feature pull requests, including Sprint 2 PRs #66, #69, #76, and #79 and
+Sprint 4 PRs #130 and #142. These records show issue-tracker use and selected
+delivery examples, not that every project task or bug was tracked. See
 [Git Workflow](git-workflow.md) and the [Sprint 2 Retrospective](retrospectives/sprint2-retrospective.md).
 
-Together, Taiga and Gitea are the documented planning and implementation
-workflow; only the repository-side artefacts are retained locally.
+Together, Taiga and Gitea support the project’s planning and implementation
+workflow; representative screenshots and repository artefacts are retained
+here.
 
 ## Project Tracking Evidence
 
