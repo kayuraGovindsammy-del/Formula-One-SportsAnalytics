@@ -49,6 +49,29 @@ The repository contains coverage reporting for both packages and frontend tests 
 - Current measured coverage and run limitations are recorded in [Test Coverage](#test-coverage)
 - CI does not include a dedicated dependency vulnerability scanner or SAST job
 
+## Performance Evidence
+
+### Backend and API
+
+- Driver-season statistics use a constant number of database queries as the
+  number of races grows. The regression tests are
+  `src/backend/src/routes/driverStats.characterization.test.ts` and
+  `src/backend/src/routes/driverStats.queryCount.test.ts`.
+- PostgreSQL read models use a shared connection pool and indexed lookup
+  columns; schema indexes are listed in `database/schema.sql`.
+- List and event endpoints paginate results, with `per_page` capped at 100.
+  The frontend list helpers request up to 100 rows per request.
+- Jolpica ingestion uses rate handling and an on-disk HTTP response cache.
+  Chat tools use a ten-minute in-process cache; provider requests have a
+  15-second timeout and bounded retry/fallback behavior.
+
+### Frontend
+
+The application uses a Vite production build, bounded list retrieval, and
+loading/error states on data-driven pages. These are implementation safeguards
+for delivery and interaction; the repository does not report load-test results,
+API latency benchmarks, or frontend performance measurements.
+
 ## Backend Automated Testing
 
 ### Test framework and commands

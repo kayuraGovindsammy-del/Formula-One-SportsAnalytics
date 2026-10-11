@@ -38,6 +38,20 @@ podiums, averages) use the `/stats` and `/statistics` endpoints instead.
 The full request/response contract is in the OpenAPI spec
 (`docs/api/openapi.yaml`, served at `/api/docs`).
 
+## Production and Test Data
+
+Production read models use data loaded into PostgreSQL. Jolpica ingestion
+provides published calendars, classifications, results, points, grids, fastest
+laps, qualifying results and related race data. OpenF1 ingestion separately
+provides position-change/overtake events.
+
+`data/sample/` contains development fixtures, including Belgian Grand Prix
+event and lap samples. `database/seed.sql` loads the development sample into a
+fresh database; automated tests also use dedicated fixtures. CI creates
+disposable PostgreSQL databases for schema validation and integration tests.
+These samples and test databases support development and validation; they are
+not a runtime fallback when the production database is unavailable.
+
 ## Available datasets
 
 ### `races`

@@ -4,6 +4,16 @@ This project uses a lightweight Agile/Scrum-style methodology suited to a five-p
 
 The team’s development process is built around a small number of practical habits: clear task definition, branch-based delivery from `main`, peer review, automated validation, and regular Sprint check-ins. This gives the project enough structure to stay coordinated while remaining focused on implementation and delivery.
 
+## AI Usage
+
+The following AI tools assisted with implementation, review, and documentation:
+
+- **Claude Code — Claude Sonnet 5, Claude Opus 4.5, Claude Opus 5:** code generation and code review.
+- **Claude Web — Claude Sonnet 5:** code generation during development.
+- **ChatGPT Web — GPT-5.6 Sol:** frontend/backend code generation, integration, and debugging.
+- **OpenAI Codex — Default model selection:** code and documentation assistance, repository inspection, and validation through VS Code.
+- **GitHub Copilot Chat — Auto model selection:** in-editor assistance and documentation work in VS Code.
+
 ## 1. Core workflow
 
 The project uses a simple and consistent workflow:
@@ -28,7 +38,7 @@ The Sprint backlog is maintained in Taiga, where product and Sprint work are vis
 
 This project is not large enough to justify a heavy formal process, but it does benefit from a visible backlog, clear ownership, and a regular review of progress. That makes planning practical and keeps the team aligned on what is being delivered next.
 
-## 3. Taiga project management and traceability
+## 3. Work Tracker — Taiga
 
 Taiga provides the project-management layer for the team’s Agile/Scrum work. It is used to record the Sprint, backlog, user stories, tasks, ownership, and progress/status history that keep planning visible and accountable.
 
@@ -41,7 +51,10 @@ A well-formed Taiga item should include:
 
 This makes the team’s planned work visible from Sprint planning through implementation and review. It supports traceability for priority setting, ownership, and progress across the project.
 
-## 4. Gitea development and traceability
+The repository documents this workflow but does not include a Taiga export or
+screenshots of the board, stories, or sprint activity.
+
+## 4. Bug / Issue Tracking — Gitea
 
 Gitea provides the development and version-control traceability layer. It records the work as it moves from a feature branch into implementation, review, and merge. This is where the team works with `main`, `feature/...` branches, commits, Pull Requests, and code review.
 
@@ -54,7 +67,35 @@ Gitea is used for:
 - CI workflow recognition and validation evidence
 - merge history and repository-level traceability
 
-Together, Taiga and Gitea provide end-to-end traceability from planned work to implementation to review to merge.
+The repository includes `.gitea/ISSUE_TEMPLATE/bug_report.md`. Sprint
+retrospectives also cite concrete fix and feature pull requests, including
+Sprint 2 PRs #66, #69, #76, and #79 and Sprint 4 PRs #130 and #142. These
+references demonstrate repository delivery and fixes; they do not by
+themselves establish the corresponding Gitea issue history. See
+[Git Workflow](git-workflow.md) and the [Sprint 2 Retrospective](retrospectives/sprint2-retrospective.md).
+
+Together, Taiga and Gitea are the documented planning and implementation
+workflow; only the repository-side artefacts are retained locally.
+
+## Project Tracking Evidence
+
+The following screenshots provide retained evidence of the project tools being used during development.
+
+### Taiga Work Tracking
+
+![Taiga work tracker showing project activity, user stories and tasks](evidence/project-management/taiga.png)
+
+*Taiga project activity showing user stories, numbered tasks, progress updates and team participation during development.*
+
+The screenshot supports the documented use of Taiga for Scrum/project tracking, user stories, tasks, and sprint work. Its visible activity also shows ownership and progress updates.
+
+### Gitea Issue Tracking
+
+![Gitea issue tracker showing open and closed project issues](evidence/project-management/gitea_issues.png)
+
+*Gitea issue tracker showing open and closed issues, severity labels and concrete implementation/testing tasks.*
+
+The screenshot demonstrates actual issue-tracker use, including open and closed issues, issue numbers, severity labels, bugs, testing tasks, and implementation work. At capture time it showed 47 closed issues and 3 open issues; it does not imply every project bug was recorded there.
 
 ## 5. Feature branches and focused delivery
 
@@ -106,11 +147,18 @@ Node jobs use Node 22; the frontend job also installs Java 21 for the Firestore 
 
 This gives the team automated project checks for branch delivery and pull-request review. See [Testing](testing.md) and [Local Setup](setup.md) for the commands, prerequisites, and limitations of local validation.
 
-## 10. Stakeholder interaction and requirement flow
+## 10. Stakeholder Interaction
 
 The project is not built in isolation. Tutor or stakeholder feedback is treated as a source of project direction and requirement clarification. When feedback is received, it is translated into concrete technical decisions, backlog items, or issue updates so that the team can act on it consistently.
 
-This makes stakeholder input part of the delivery process rather than an isolated conversation. In practice, this means requirements can evolve as the project develops, and changes are captured in the same issue and backlog workflow used for all technical work.
+Recorded stakeholder and external-user evidence includes the
+[Sprint 2 stakeholder response](user-testing/sprint2-user-testing.md#stakeholder-feedback-summary)
+and [Sprint 2](user-testing/sprint2-user-testing.md) and
+[Sprint 3](user-testing/sprint3-user-testing.md) external testing. The
+[Sprint Evidence](sprint-evidence.md) page links retained meeting PDFs but
+explicitly limits them to meeting occurrence/attendance evidence; it does not
+reconstruct stakeholder discussions. Sprint 1-specific stakeholder feedback
+is not established by the retained local evidence.
 
 ## 11. Sprint review and retrospective
 

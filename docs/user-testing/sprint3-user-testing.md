@@ -181,3 +181,28 @@ The strongest remaining opportunities identified by external users are:
 5. broader historical-season access.
 
 These findings should be used as concrete improvement evidence rather than treating every request as a required Sprint 3 implementation.
+
+## Before and After Evidence
+
+These screenshots provide visual evidence associated with the feedback-driven interface changes.
+
+![Sprint 3 interface before the user-feedback changes](images/sprint_3_user_feedback_before.jpeg)
+
+*Interface before the Sprint 3 user-feedback changes.*
+
+![Sprint 3 interface after the user-feedback changes](images/sprint_3_user_feedback_after.jpeg)
+
+*Interface after the Sprint 3 user-feedback changes.*
+
+## Final Implementation Outcomes
+
+These outcomes compare the recorded Sprint 3 requests with the final
+documented implementation. Unresolved items remain explicit.
+
+| Feedback | Final outcome | Evidence |
+| --- | --- | --- |
+| Two users requested qualifying information | Implemented later: qualifying results are ingested, exposed through the API, and presented in dedicated qualifying views. | [User Guide](../user-guide.md#explore-formula-1-data), [Sprint 4 Delivery Evidence](../retrospectives/sprint4-evidence.md#2-current-implementation-additions). |
+| More driver statistics, including wins, podiums, and fastest laps | Implemented where data is available: driver details expose wins, podiums, fastest laps, points, and other statistics. | [User Guide](../user-guide.md#explore-formula-1-data), [F1 Statistics](../f1-statistics.md); data coverage can affect values. |
+| Easier return from a race detail to the previous list position | Browser back navigation restores race-list scroll position; no separate breadcrumb/back-control implementation is claimed. | [User Guide](../user-guide.md#explore-formula-1-data). |
+| Access to seasons before 2025 | A general season picker remains unavailable in the interface; most statistics remain centered on 2025. | [User Guide](../user-guide.md), [Repository Overview](../repo-overview.md#9-current-implementation-limits). |
+| Optional light mode | No optional light-mode setting is exposed in the current interface; this remains an unimplemented enhancement. | The current [User Guide](../user-guide.md) documents available controls; no theme switch is described. |

@@ -45,10 +45,13 @@ The current implementation covers:
 The project uses a custom backend and shared PostgreSQL database for Formula 1 application data, while Firebase Authentication is used for identity and access control. The application data itself is accessed through the team’s Express API rather than Firebase-generated database endpoints.
 
 ```text
-React Frontend
+Browser
       |
       v
-Custom Express API (Node.js + TypeScript)
+Azure-hosted React Frontend
+      |
+      v
+Railway-hosted Express API (Node.js + TypeScript)
       |
       +---------------------------+
       |                           |
@@ -57,6 +60,10 @@ Firebase Authentication      Aiven PostgreSQL
 Identity + access control    Formula 1 data + app data
 Firestore roles/profiles    Submissions
 ```
+
+The production flow is Browser → Azure frontend → Railway API → Aiven
+PostgreSQL. Firebase Authentication and Firestore provide identity, profiles
+and roles.
 
 The frontend is a Vite + React application, and the backend is a hand-written Express API. The current codebase uses Firebase Authentication and Firebase Admin for identity-related flows, while the main project data model and submission records are handled through the backend and PostgreSQL.
 

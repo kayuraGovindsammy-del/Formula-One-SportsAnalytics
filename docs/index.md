@@ -12,6 +12,9 @@ email/password sign-in, registration and password reset.
 
 The production application is deployed and operational at
 [f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/).
+Production requests flow from the Azure frontend to the Railway Express API
+and Aiven PostgreSQL; Firebase Authentication and Firestore provide identity,
+profiles, and roles.
 
 ## Key Features
 
@@ -30,7 +33,10 @@ The production application is deployed and operational at
 
 Use the navigation to explore the project documentation:
 
+- [Assessment Evidence](final-submission-evidence.md) maps the milestone rubrics to project evidence
+- [Project Roadmap and Evolution](project-roadmap.md) summarizes the original design and sprint progression
 - Project Methodology and Sprint working approach
+- [Final Submission Evidence](final-submission-evidence.md) maps rubric criteria to project evidence
 - Git Workflow and delivery process
 - Technical architecture, API design, and data model documentation
 - public documentation site and deployment notes

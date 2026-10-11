@@ -6,19 +6,17 @@ docs_dir: docs
 
 nav:
   - Home: index.md
+  - Assessment Evidence: final-submission-evidence.md
+  - Project Roadmap: project-roadmap.md
   - User Guide: user-guide.md
   - Datasets: datasets.md
   - Local Setup: setup.md
-  - Repository Overview: repo-overview.md
-  - Git Workflow: git-workflow.md
   - Project Methodology: methodology.md
-  - Retrospectives:
-      - Sprint 1: retrospectives/sprint1-retrospective.md
-      - Sprint 2: retrospectives/sprint2-retrospective.md
-      - Sprint 3 Delivery Evidence: retrospectives/sprint3-evidence.md
-      - Sprint 4 Delivery Evidence: retrospectives/sprint4-evidence.md
+  - Git Workflow: git-workflow.md
+  - Repository Overview: repo-overview.md
   - Testing:
       - Testing Overview: testing.md
+      - Accessibility & Responsive Design: accessibility-responsive-design.md
       - Sprint 2 User Testing Evidence: user-testing/sprint2-user-testing.md
       - Sprint 3 User Testing Evidence: user-testing/sprint3-user-testing.md
   - Architecture:
@@ -38,6 +36,11 @@ nav:
       - SQL Read Models: issue2b-sql-read-models.md
       - Account Deletion: member4-account-deletion.md
       - Submissions: member4-submissions.md
+  - Retrospectives:
+      - Sprint 1: retrospectives/sprint1-retrospective.md
+      - Sprint 2: retrospectives/sprint2-retrospective.md
+      - Sprint 3 Delivery Evidence: retrospectives/sprint3-evidence.md
+      - Sprint 4 Delivery Evidence: retrospectives/sprint4-evidence.md
   - Meeting Templates:
       - Sprint Check-in: meetings/sprint-checkin-template.md
       - Tutor Meeting: meetings/tutor-meeting-template.md

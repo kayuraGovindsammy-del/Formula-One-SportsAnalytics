@@ -20,6 +20,9 @@ The current backend uses PostgreSQL read models, reviewed SQL submissions, datas
 /api/v1/...
 ```
 
+The production API is hosted on Railway at
+[`https://f1-sport-analytics-api-production.up.railway.app/api/v1`](https://f1-sport-analytics-api-production.up.railway.app/api/v1).
+
 All routes are versioned from day one under `/api/v1`. Breaking changes to a resource's shape get a new version prefix (`/api/v2/...`) rather than mutating `/v1` in place — existing frontend code should never break out from under it without a version bump.
 
 ---

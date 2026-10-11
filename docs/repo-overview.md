@@ -11,7 +11,7 @@ fallbacks or published-fact inputs when the log is unavailable.
 
 ---
 
-## 1. Stack
+## 1. Tech Stack
 
 | Layer | Choice | Version (from package.json) |
 |---|---|---|
@@ -328,9 +328,10 @@ migrations.
 
 `workflows/deploy-azure.yml` remains outside `.gitea/workflows/` and
 `.github/workflows/`; it describes Azure App Service deployment for the frontend.
-The production application is live and operational on Azure; its frontend uses
-the Railway backend API, which connects to Aiven PostgreSQL. The public MkDocs
-site is available at the Netlify URL recorded on the documentation home page.
+The production flow is Browser → [Azure-hosted frontend](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/)
+→ [Railway Express API](https://f1-sport-analytics-api-production.up.railway.app/api/v1)
+→ Aiven PostgreSQL. Firebase Authentication and Firestore provide identity,
+profiles, and roles. The public MkDocs site is hosted on Netlify.
 See [Git Workflow](git-workflow.md) and [Local Setup](setup.md).
 
 ---
