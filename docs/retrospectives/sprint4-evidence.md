@@ -31,3 +31,6 @@ Current commands and any measured validation results belong in [Testing](../test
 - The predictions page uses season aggregates as returned by the API; it does not restrict the inputs to races preceding the selected race. No model training, backtesting, confidence interval, or accuracy measurement is implemented in that page.
 - Existing PNG wireframes in `docs/wireframes/` remain historical design artefacts, not evidence of the final screen layout or dataset size.
 
+## Sprint Meeting Summary
+
+Sprint 4 meetings were centred on completing the remaining user-facing functionality and hardening the system for final delivery. The F1 Assistant was introduced with validated read-only tools, provider fallback and rate limiting, alongside a persistent conversation interface. Qualifying data was added across ingestion, database storage, API access and the frontend, and a fixed-weight prediction feature was introduced using qualifying and season statistics with its limitations explicitly documented. Race timelines, statistical charts, rankings and driver-season points were expanded to make the analytical side of the application richer. The final sprint also focused heavily on reliability, including consistent API errors, malformed-JSON and CORS handling, season validation, CI improvements and the final documentation audit.

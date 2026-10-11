@@ -17,6 +17,16 @@ Commit `af8bab5` and PR #92 explicitly identify Member 4's work as Sprint 3. PR 
 | Dataset downloads | CSV/JSON export endpoints and frontend download controls were introduced, including season-result downloads on the Races page. | `b3ee103`, `0dccd03`, `80e28f8` (PR #124); `src/backend/src/routes/exports.routes.ts`, `src/frontend/src/components/DatasetDownloads.tsx`. |
 | Frontend behavioural coverage | Login, submission, admin-review, browsing/detail pages, data mapping, and constructor standings received Vitest tests; frontend V8 coverage was added. | `1d4e651` (PR #111), PRs #117, #119, #121, #125; `src/frontend/vitest.config.ts`, the corresponding `*.test.tsx` / `*.test.ts` files. |
 
+The following images are before-and-after evidence associated with the Sprint 3 user-feedback and interface discussion.
+
+![Sprint 3 interface before the user-feedback changes](../user-testing/images/sprint_3_user_feedback_before.jpeg)
+
+*Interface before the Sprint 3 user-feedback changes.*
+
+![Sprint 3 interface after the user-feedback changes](../user-testing/images/sprint_3_user_feedback_after.jpeg)
+
+*Interface after the Sprint 3 user-feedback changes.*
+
 ## 3. Validation and delivery changes
 
 The same period introduced fresh-database CI validation (`af8bab5`, followed by PRs #95 and #98). It builds `database/schema.sql`, loads `database/seed.sql`, and checks required objects with `database/verify_schema.sql`. PR #116 then supplied a disposable local PostgreSQL database to backend coverage tests so the submission integration suite can run in CI, and strengthened frontend coverage execution.
@@ -29,3 +39,6 @@ PR #99 (`fef1f81`) added Railway backend deployment after the frontend, backend,
 - Git merge records identify Pull Requests; they do not by themselves establish the content of peer review or Taiga task completion.
 - The team must supply reflections, meeting decisions, feedback, and exact sprint boundaries before those can be added as evidence.
 
+## Sprint Meeting Summary
+
+Sprint 3 meetings focused on strengthening the analytics layer and improving the reliability of the project as a complete system. Constructor standings, published points and per-race team attribution were moved onto database-backed data, while driver-season statistics were redesigned to use a constant-query approach with additional characterisation and query-count testing. The team also added OpenF1 overtake ingestion and expanded authentication testing. Frontend coverage, fresh-database validation and database integration testing were extended, while deployment became more controlled through a gated Railway process. CSV and JSON exports were also introduced so that users could download season and result data. A major theme during the sprint was therefore moving from isolated functionality toward more dependable, integrated and reusable analytics.

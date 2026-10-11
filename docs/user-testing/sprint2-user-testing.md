@@ -4,6 +4,10 @@ This page records verified Sprint 2 user-testing evidence for the SportsAnalytic
 
 The results and screenshots below are retained Sprint 2 evidence. The raw response CSV is not committed in the current repository, so the published response counts and averages cannot be independently recalculated from this checkout. Later Sprint 3/4 changes and automated tests do not constitute additional recorded user feedback.
 
+## Sprint Meeting Summary
+
+Sprint 2 meetings concentrated on moving beyond the initial prototype and making the application work with more realistic data and workflows. Jolpica ingestion, caching and PostgreSQL read models were introduced so that Formula 1 information could be sourced and queried more reliably. The team also strengthened the submission review and history process, role rules and recoverable account-deletion behaviour, while expanding the statistics available to users, including points, consistency, grid-gain and race-result fallbacks. User testing became an important part of the sprint, and the interface was adjusted in response to the feedback collected. Testing also matured substantially through increased backend coverage, Firestore rules testing, Playwright login checks and CI integration.
+
 ## Testing window
 
 - Responses were collected between 11 and 13 September 2026.

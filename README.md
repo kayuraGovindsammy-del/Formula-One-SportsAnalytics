@@ -13,6 +13,7 @@ The current implementation covers:
 - Formula 1 drivers and constructors
 - race and session metadata
 - race/event data and derived statistics
+- external Formula 1 data from Jolpica and OpenF1
 - authenticated user roles and submitter approval states
 - administrative review of data submissions
 - qualifying results and a frontend performance forecast
@@ -327,23 +328,30 @@ The following AI tools were used to assist with code generation:
 - **Claude-Web [Claude Sonnet 5]**
   - Assisted with code generation during development.
 
+- **Claude Code**
+  - Assisted with code generation during development.
+
 ### AI Code Review
 
 The following AI tool was used for code review:
 
-- **Claude-Code [Claude Sonnet 5]**
+- **Claude Code**
   - Used to review project code and assist with identifying implementation issues.
 
 ### AI-Assisted Development
 
 The following AI tool was used to assist with repository inspection, targeted code and documentation edits, validation, and project setup work:
 
-- **OpenAI Codex**
+- **OpenAI Codex — Default model selection**
+  - Used through VS Code for repository inspection and in-editor assistance.
   - Used to inspect the repository and existing implementation.
-  - Assisted with targeted code and documentation edits under developer instruction.
+  - Assisted with targeted code and documentation edits, including AI-assisted in-line editing, under developer instruction.
   - Helped investigate frontend lint/build issues and backend test/configuration problems.
   - Assisted with MkDocs documentation refinement and CI workflow configuration.
   - Helped review completed changes and run validation commands.
+
+- **GitHub Copilot Chat**
+  - Used in VS Code for in-editor assistance and documentation work.
 
 ### Human Responsibility
 

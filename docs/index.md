@@ -10,6 +10,19 @@ and a floating F1 Assistant. Predictions use qualifying and whole-season statist
 they are estimates rather than official results. Authentication supports Google and
 email/password sign-in, registration and password reset.
 
+## Key Features
+
+- Browse drivers, constructors and races.
+- Explore race, season and driver statistics with rankings and visualisations.
+- View qualifying results and qualifying-specific pages.
+- See race predictions based on qualifying and season statistics.
+- Use the F1 Assistant for read-only Formula 1 queries.
+- Explore interactive race timelines, charts and statistical views.
+- Download and export datasets in CSV and JSON.
+- Sign in with Firebase Authentication and role-based access.
+- Submit data and use review, publication and history workflows.
+- Ingest Formula 1 data from Jolpica and OpenF1.
+
 ## Main documentation
 
 Use the navigation to explore the project documentation:
