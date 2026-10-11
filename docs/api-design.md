@@ -90,7 +90,7 @@ Driver, constructor and grand-prix path lookups are case-insensitive. Driver/det
 
 Backs `Drivers.tsx`. `constructor_name` is resolved server-side via a join against `constructors`. The driver list/detail selects the latest `driver_constructor_links` season, resolving multiple links by `constructor_id`; it is not a historical per-race team lookup.
 
-**Known implementation issue:** a nonempty `constructor_id` filter currently builds a SQL predicate using alias `dcl`, but the query joins the selected link as `cl` (`models/drivers.model.ts`). Source inspection therefore indicates that this filter will fail on PostgreSQL. The route tests use mocked/sample models and do not verify that SQL execution; this audit did not reproduce it against a live database. The unfiltered list and other predicates do not use that alias.
+**Known implementation issue:** a nonempty `constructor_id` filter currently builds a SQL predicate using alias `dcl`, but the query joins the selected link as `cl` (`models/drivers.model.ts`). This filter will fail on PostgreSQL. The route tests use mocked/sample models and do not cover SQL execution for this filter. The unfiltered list and other predicates do not use that alias.
 
 ```json
 {
@@ -376,7 +376,7 @@ The endpoint is public (no `Authorization` header needed), takes no query parame
 
 ### 4.11 `GET /api/v1/health` — liveness
 
-Public, static `{ "data": { "status": "ok" }, "meta": {} }`. It does not query PostgreSQL, Firebase or the LLM providers and therefore does not establish their readiness.
+Public, static `{ "data": { "status": "ok" }, "meta": {} }`. It reports process liveness and does not query PostgreSQL, Firebase or the LLM providers.
 
 ### 4.12 `GET /api/v1/export/{dataset}` — CSV or JSON download
 

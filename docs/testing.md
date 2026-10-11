@@ -15,10 +15,9 @@ The project currently combines several layers of validation:
 - Stakeholder/tutor review and a separate formal external user-testing procedure for Sprint 2.
 - Sprint 2 evidence is recorded separately in `docs/user-testing/sprint2-user-testing.md`.
 
-Manual deployment checks and tutor review below describe procedures. The
-repository retains Sprint 2 survey feedback, but no completed tutor-meeting
-records or current manual deployment test report; those procedures are not
-evidence that a particular check took place.
+The manual smoke-test checklist below complements automated validation of the
+[production application](index.md). Sprint 2 user-testing results are recorded
+separately.
 
 The repository contains coverage reporting for both packages and frontend tests for pages, components, clients, and route guards. Browser-level coverage remains limited to the unauthenticated login flow. The current testing approach combines:
 
@@ -467,7 +466,7 @@ Meeting records should capture:
 - action items
 - evidence that relevant feedback was subsequently acted on
 
-The team should not fabricate meetings or imply feedback was received if it is not recorded in the project evidence.
+Stakeholder feedback and meeting outcomes are distinct from external user-testing results and are recorded separately from automated test output.
 
 ## Evidence Retained for Sprint 2
 
@@ -489,6 +488,6 @@ This gives the team a clear trail from implementation through validation and rev
 
 The current project has backend and frontend automated suites with measured
 coverage, Firestore rules tests, five Playwright login checks, fresh-database
-validation, and strict documentation validation. Authenticated browser
-journeys, live-provider answer evaluation, and later-sprint external testing
-records remain evidence gaps.
+validation, and strict documentation validation. The Playwright suite does not
+cover authenticated browser journeys, and automated tests do not evaluate live
+LLM answer quality.

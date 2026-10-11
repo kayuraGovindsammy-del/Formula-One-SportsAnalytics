@@ -1,10 +1,10 @@
 # Sprint 4 Final Delivery Evidence
 
-This page records final-project changes supported by current implementation and reachable `main` history. The final documentation task identifies the current phase as Sprint 4. October commits provide the implementation evidence; the repository does not contain a formal Sprint 4 schedule, completed retrospective, or additional survey responses.
+This page summarizes final-sprint implementation and meeting outcomes. October changes represent the final delivery period.
 
 ## 1. Scope and sprint attribution
 
-The [Sprint 3 evidence page](sprint3-evidence.md) records the late-September delivery period. This page groups the subsequent October changes as final-sprint evidence. This is a chronology-based grouping, not a claim that exact sprint boundaries or individual Taiga assignments are available.
+The [Sprint 3 evidence page](sprint3-evidence.md) records the late-September delivery period. This page groups subsequent October changes as final-sprint evidence.
 
 ## 2. Current implementation additions
 
@@ -20,17 +20,15 @@ The [Sprint 3 evidence page](sprint3-evidence.md) records the late-September del
 
 PR #130 standardised authentication/error responses, returns client errors for malformed JSON and rejected CORS origins, and validates four-digit season values for driver/constructor statistics. The assistant work added tool, route, provider-fallback, formatting, and widget tests; these exercise controlled/mocked provider behaviour rather than proving live LLM response accuracy.
 
-PR #138 (`44bcba6`) increased the frontend Vitest timeout for shared CI runners and adjusted frontend tests. PR #142 (`7aab2f4`) made frontend/backend coverage artifact uploads non-blocking with `continue-on-error: true`. Test/build jobs still fail when their required commands fail, and Railway deployment still depends on all four validation jobs. These configuration changes do not establish a recorded pass rate or live deployment outcome.
+PR #138 (`44bcba6`) increased the frontend Vitest timeout for shared CI runners and adjusted frontend tests. PR #142 (`7aab2f4`) made frontend/backend coverage artifact uploads non-blocking with `continue-on-error: true`. Test/build jobs still fail when their required commands fail, and Railway deployment still depends on all four validation jobs.
 
-Current commands and any measured validation results belong in [Testing](../testing.md); environment and service prerequisites are in [Local Setup](../setup.md). The documentation audit updates those pages and the architecture/API/user-facing documentation to reflect the final checkout.
+Validation commands and results are in [Testing](../testing.md); environment and service prerequisites are in [Local Setup](../setup.md).
 
-## 4. Evidence limits and manual follow-up
+## 4. Technical notes
 
-- The repository retains Sprint 2 user-testing results and screenshots. No Sprint 4 user survey, tutor meeting outcome, or stakeholder acceptance result is available here.
-- Formal team reflections, named action owners, exact sprint dates, CI run reports, and verified production rollout outcomes require records supplied by the team.
 - The predictions page uses season aggregates as returned by the API; it does not restrict the inputs to races preceding the selected race. No model training, backtesting, confidence interval, or accuracy measurement is implemented in that page.
-- Existing PNG wireframes in `docs/wireframes/` remain historical design artefacts, not evidence of the final screen layout or dataset size.
+- PNG wireframes in `docs/wireframes/` are historical design artefacts.
 
 ## Sprint Meeting Summary
 
-Sprint 4 meetings were centred on completing the remaining user-facing functionality and hardening the system for final delivery. The F1 Assistant was introduced with validated read-only tools, provider fallback and rate limiting, alongside a persistent conversation interface. Qualifying data was added across ingestion, database storage, API access and the frontend, and a fixed-weight prediction feature was introduced using qualifying and season statistics with its limitations explicitly documented. Race timelines, statistical charts, rankings and driver-season points were expanded to make the analytical side of the application richer. The final sprint also focused heavily on reliability, including consistent API errors, malformed-JSON and CORS handling, season validation, CI improvements and the final documentation audit.
+Sprint 4 meetings were centred on completing the remaining user-facing functionality and hardening the system for final delivery. The F1 Assistant was introduced with validated read-only tools, provider fallback and rate limiting, alongside a persistent conversation interface. Qualifying data was added across ingestion, database storage, API access and the frontend, and a fixed-weight prediction feature was introduced using qualifying and season statistics with its limitations explicitly documented. Race timelines, statistical charts, rankings and driver-season points were expanded to make the analytical side of the application richer. The final sprint also focused heavily on reliability, including consistent API errors, malformed-JSON and CORS handling, season validation, and CI improvements.

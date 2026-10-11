@@ -126,11 +126,11 @@ This means the repository contains meaningful frontend smoke coverage for the lo
 
 ## Evidence and limitations
 
-This Sprint 2 evidence page is intentionally conservative:
+This Sprint 2 evidence page summarizes the recorded feedback and its implementation context:
 
-- It is based on the uploaded Google Form CSV and the verified repository state.
+- Results are based on the uploaded Google Form CSV and the repository changes referenced on this page.
 - It separates external-user results from the stakeholder response.
-- It does not invent or assume unverified outcomes.
-- It does not claim that every suggested improvement has already been implemented.
+- Feedback themes are limited to the recorded responses.
+- Suggested improvements are reported separately from implementation evidence.
 
 The evidence supports the conclusion that Sprint 2 external-user feedback was strongly positive overall, with the main remaining opportunities focused on search affordances, visual polish consistency, and clearer contribution workflow guidance.

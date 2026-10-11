@@ -66,9 +66,9 @@ The project later improved setup documentation, and the September 8 repository o
 
 The docs site was created early, but the history shows that documentation quality also needed tightening. The broken-link fix (`bdc8a99`) provides good evidence that docs had to be validated rather than merely written. This was not a team failure; it was a useful reminder that project documentation is part of the build and quality story.
 
-### Deployment verification and evidence gaps
+### Deployment clarity
 
-The historical repository overview also shows that deployment assumptions were not always fully verifiable from repository configuration alone. The Azure deployment workflow in `workflows/deploy-azure.yml` is outside the Gitea workflow directory. This matters because it shows that deployment status needed to be verified rather than assumed. Later Railway deployment automation is Sprint 3 evidence and is not attributed to Sprint 1 here.
+Sprint 1 documentation did not clearly distinguish the Azure frontend deployment workflow from the Gitea validation workflow. Railway backend deployment automation was introduced later and is covered in the Sprint 3 delivery evidence.
 
 ### Testing depth was still maturing
 

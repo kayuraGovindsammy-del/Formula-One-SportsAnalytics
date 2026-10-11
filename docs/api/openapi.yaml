@@ -1,19 +1,6 @@
 openapi: 3.1.0
 
-# =============================================================================
-# F1 Sport Analytics — OpenAPI description of the API **as implemented**.
-#
-# Audited against the current final-sprint working tree:
-#   src/backend/src/app.ts
-#   src/backend/src/routes/{index,health,chat,drivers,constructors,exports,races,submissions,users}.routes.ts
-#   src/backend/src/controllers/*.ts
-#   src/backend/src/models/*.model.ts
-#   src/backend/src/services/{driverStatistics,constructorStatistics,raceStatistics,pointsTable}.ts
-#   src/backend/src/types/*.types.ts
-#   src/backend/src/utils/{pagination,queryValidation}.ts
-#   src/backend/src/middleware/{ApiError,errorHandler,notFoundHandler,
-#                               authenticate,authorization}.ts
-#   docs/api-design.md
+# F1 Sport Analytics — OpenAPI description of the mounted API routes.
 #
 # SCOPE: only routes actually mounted on the Express app are described. The
 # contract in docs/api-design.md also retains explicitly proposed identity/admin
@@ -60,13 +47,11 @@ servers:
   - url: /api/v1
     description: This server — all routes are mounted under this prefix by app.ts.
 
-  # Recorded Railway backend URL; availability was not checked in this audit.
-  # Selecting this entry while reading the
-  # docs on another origin (e.g. a local server) is a cross-origin request, so
-  # that origin must be listed in the deployed CORS_ORIGINS for "Try it out"
-  # to succeed.
+  # Railway backend API. Selecting this entry from another origin (e.g. a
+  # local server) is a cross-origin request, so that origin must be listed in
+  # the deployed CORS_ORIGINS for "Try it out" to succeed.
   - url: https://f1-sport-analytics-api-production.up.railway.app/api/v1
-    description: Recorded production URL (Railway).
+    description: Production backend API (Railway).
 
 tags:
   - name: health

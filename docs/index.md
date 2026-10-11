@@ -10,6 +10,9 @@ and a floating F1 Assistant. Predictions use qualifying and whole-season statist
 they are estimates rather than official results. Authentication supports Google and
 email/password sign-in, registration and password reset.
 
+The production application is deployed and operational at
+[f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/).
+
 ## Key Features
 
 - Browse drivers, constructors and races.

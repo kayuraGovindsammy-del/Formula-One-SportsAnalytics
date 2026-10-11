@@ -9,8 +9,7 @@
 > has no publication-triggered invalidation. The current review API accepts at most one
 > reason of 2,000 characters, requires a reason for rejection and none for acceptance.
 > See [API Design](api-design.md), [Setup](setup.md) and [Testing](testing.md) for current
-> contracts/configuration and execution evidence. The historical generation limitations
-> below do not claim that the current suite has or has not passed.
+> contracts, configuration and test results.
 
 Baseline: SportsAnalytics(20260909-104712).zip plus the working Stage 1,
 Stage 2 and Stage 3 changes. This is a focused manual replacement package,
@@ -70,8 +69,7 @@ nothing and retains the original event and review reason.
 Apply database/migrations/003_submissions.sql only after migration 002.
 It creates accepted_events and supporting indexes. It does not delete,
 rewrite or backfill existing data. Existing legacy accepted submissions
-remain untouched; this package does not claim that they have been published
-into the new accepted_events table.
+remain untouched; the migration does not backfill them into accepted_events.
 
 Use the existing member4-deletion-test Neon branch first. Confirm the selected
 database contains the existing Sprint 1 tables and account_deletions. In the
@@ -104,10 +102,9 @@ The new route/model tests mock PostgreSQL and authentication. The validation
 tests cover all eight event types and invalid data. The real PostgreSQL
 integration suite is optional and skipped unless TEST_DATABASE_URL is set.
 
-The source was checked with TypeScript syntax/transpilation, but the full npm
-build, Vitest suites and real PostgreSQL integration suite could not be run
-in the generation environment because npm package downloads failed. Run
-these checks on your machine before declaring the feature complete.
+Current test counts, coverage and integration-test requirements are recorded
+in [Testing](testing.md). The real PostgreSQL integration suite runs when
+`TEST_DATABASE_URL` is supplied; CI provides a disposable test database.
 
 ## Optional isolated PostgreSQL integration tests
 

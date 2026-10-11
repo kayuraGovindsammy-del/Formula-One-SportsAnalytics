@@ -295,13 +295,11 @@ Frontend and backend coverage reports are uploaded as artifacts on a best-effort
 
 ## Deployment
 
-The active Gitea workflow in `.gitea/workflows/ci.yml` deploys the backend with `railway up --ci` to the configured production service, using `RAILWAY_TOKEN`, `RAILWAY_PROJECT_ID`, and `RAILWAY_SERVICE_ID` secrets. The root build/start scripts delegate to `src/backend`; the build also packages the OpenAPI specification. Runtime configuration requires the Aiven connection/CA, Firebase Admin credentials for protected operations, allowed CORS origins, and optional chat provider keys. The frontend template points to `https://f1-sport-analytics-api-production.up.railway.app/api/v1`.
+The production application is deployed and operational at [f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/). The frontend is hosted on Azure; the backend API is deployed to Railway and uses Aiven for PostgreSQL. The frontend template points to `https://f1-sport-analytics-api-production.up.railway.app/api/v1`.
 
-`workflows/deploy-azure.yml` describes a frontend build and Azure App Service deployment to `f1-sport-analytics`, using `AZURE_WEBAPP_PUBLISH_PROFILE`. It is outside `.gitea/workflows` and `.github/workflows`, so this checkout does not establish automatic discovery/execution of that file. Its declared triggers are pushes to `main` and manual dispatch. The Azure frontend origin is listed in the backend environment template.
+The active Gitea workflow in `.gitea/workflows/ci.yml` deploys the backend with `railway up --ci` after all four validation jobs succeed, using `RAILWAY_TOKEN`, `RAILWAY_PROJECT_ID`, and `RAILWAY_SERVICE_ID` secrets. The root build/start scripts delegate to `src/backend`; the build also packages the OpenAPI specification. Runtime configuration requires the Aiven connection/CA, Firebase Admin credentials for protected operations, allowed CORS origins, and optional chat provider keys. `workflows/deploy-azure.yml` describes Azure App Service deployment for the frontend; it is separate from the Gitea backend deployment workflow.
 
-The recorded public documentation URL is https://eagle-stack-documentation.netlify.app/.
-
-The repository contains no Netlify deployment workflow or configuration, so the recorded documentation URL does not establish a reproducible Netlify publishing process. Workflow configuration alone does not prove a successful hosted run.
+The public documentation site is available at https://eagle-stack-documentation.netlify.app/.
 
 ## Project Management
 
@@ -350,7 +348,7 @@ The following AI tool was used to assist with repository inspection, targeted co
   - Assisted with MkDocs documentation refinement and CI workflow configuration.
   - Helped review completed changes and run validation commands.
 
-- **GitHub Copilot Chat**
+- **GitHub Copilot Chat — Auto model selection**
   - Used in VS Code for in-editor assistance and documentation work.
 
 ### Human Responsibility

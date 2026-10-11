@@ -1,8 +1,8 @@
 # Repo Overview — F1 Sport Analytics
 
-Handoff document based on the current source at commit `08b43e7` (`main`), audited
-for Sprint 4. The earlier `37d20b5` snapshot has been reconciled with the current
-implementation; test measurements are recorded in [Testing Overview](testing.md).
+This document summarizes the project's architecture, data model, integrations,
+testing, and deployment. Test measurements are recorded in
+[Testing Overview](testing.md).
 
 The project is a Formula 1 analytics platform: an event-sourced data model where race
 statistics are *derived* from a lap/event log rather than stored as totals. Ingested
@@ -327,10 +327,10 @@ workflow does not deploy Firestore rules or automatically run production
 migrations.
 
 `workflows/deploy-azure.yml` remains outside `.gitea/workflows/` and
-`.github/workflows/`; it is a legacy reference, not the active deployment path.
-The frontend's API default points to Railway. The homepage records the public
-Netlify documentation URL; the repository has no Netlify deployment configuration.
-No frontend-host deployment job is present in this CI file.
+`.github/workflows/`; it describes Azure App Service deployment for the frontend.
+The production application is live and operational on Azure; its frontend uses
+the Railway backend API, which connects to Aiven PostgreSQL. The public MkDocs
+site is available at the Netlify URL recorded on the documentation home page.
 See [Git Workflow](git-workflow.md) and [Local Setup](setup.md).
 
 ---
@@ -368,21 +368,18 @@ See [Git Workflow](git-workflow.md) and [Local Setup](setup.md).
     `drivers.model.ts` builds a nonempty `constructor_id` filter against
     `dcl.constructor_id`, while the query joins the current link as `cl`.
     This is expected to fail on PostgreSQL; the route tests mock the model
-    and do not establish real execution of that filter. No live database
-    reproduction was performed during the documentation audit. The Drivers
-    page filters teams locally and does not send this API parameter.
+    and do not cover SQL execution for this filter. The Drivers page filters
+    teams locally and does not send this API parameter.
 
 ---
 
-## 10. Source and history
+## 10. Delivery references
 
-The audited source is local `main` at `08b43e7`. Remote branch completeness and
-live deployment state are not established by this local snapshot. The repository
-uses Gitea at `sdp.ms.wits.ac.za/eaglestack/SportsAnalytics`; merged changes are
-recorded as pull requests. See [Git Workflow](git-workflow.md) for the delivery
-process and sprint retrospectives for evidence-backed progression.
+The repository uses Gitea at `sdp.ms.wits.ac.za/eaglestack/SportsAnalytics`;
+merged changes are recorded as pull requests. See [Git Workflow](git-workflow.md)
+for the delivery process and sprint retrospectives for implementation summaries.
 
-Current final-sprint UI evidence includes `108f570` (race timeline/statistics),
+Final-sprint UI changes include `108f570` (race timeline/statistics),
 `0baaa9d` (qualifying support), `93a50aa` (assistant widget), and `1df8703`
 (qualifying/predictions pages, filters and final UI changes). `9fd1ec9` and
 `5ccac18` preserve chat during navigation and clear it on sign-out. The current

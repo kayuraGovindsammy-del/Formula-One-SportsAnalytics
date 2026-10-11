@@ -102,7 +102,7 @@ The workflow contains four validation jobs, followed by a backend deployment job
 - MkDocs strict documentation build
 - Railway backend deployment after all four validation jobs succeed, only for pushes to `main`
 
-Node jobs use Node 22; the frontend job also installs Java 21 for the Firestore emulator. Frontend and backend coverage reports are uploaded with `continue-on-error: true`, so an artifact-service failure does not itself fail a validation job. Build, test, and database checks remain required. Railway deployment uses repository secrets and is skipped for pull requests. Configuration shows the intended gates, not evidence that a particular CI run or production deployment succeeded.
+Node jobs use Node 22; the frontend job also installs Java 21 for the Firestore emulator. Frontend and backend coverage reports are uploaded with `continue-on-error: true`, so an artifact-service failure does not itself fail a validation job. Build, test, and database checks remain required. Railway deployment uses repository secrets and is skipped for pull requests. The production application is live on Azure, with its backend API on Railway and PostgreSQL on Aiven.
 
 This gives the team automated project checks for branch delivery and pull-request review. See [Testing](testing.md) and [Local Setup](setup.md) for the commands, prerequisites, and limitations of local validation.
 
@@ -118,9 +118,7 @@ Sprint reviews are used to check progress against the planned work, identify wha
 
 Retrospectives are used to reflect on what went well, what caused friction, and what should improve in the next Sprint. This is particularly useful in a project with multiple workstreams, where communication, task ownership, and integration work are just as important as the code itself.
 
-For Sprint 2, repository evidence should capture both kinds of review work: Sprint review records should document completed work, unfinished work, feedback, and next priorities, while retrospective records should capture what worked, what caused friction, and the agreed process improvements for the next cycle.
-
-The repository retains the [Sprint 1 retrospective](retrospectives/sprint1-retrospective.md) and [Sprint 2 user-testing evidence](user-testing/sprint2-user-testing.md). The [Sprint 3 delivery evidence](retrospectives/sprint3-evidence.md) and [Sprint 4 delivery evidence](retrospectives/sprint4-evidence.md) record implementation and process changes supported by Git and current configuration. They do not supply unrecorded team reflections or meeting outcomes. Exact sprint date boundaries are not committed, so the later evidence pages explain where attribution follows chronology rather than an explicit sprint label.
+The [Sprint 1 retrospective](retrospectives/sprint1-retrospective.md) and [Sprint 2 user-testing evidence](user-testing/sprint2-user-testing.md) record the early project reflection and feedback. The [Sprint 3 delivery evidence](retrospectives/sprint3-evidence.md) and [Sprint 4 delivery evidence](retrospectives/sprint4-evidence.md) summarize later implementation and sprint meetings, grouping work by its recorded chronology and attribution.
 
 The goal is not to create bureaucracy, but to keep the team aligned and to improve the process over time as the project matures.
 
@@ -157,8 +155,6 @@ Process evidence:
 - retrospective
 
 These artefacts make the team’s process visible and maintainable. Together they provide traceability from planned work through implementation, review, and merge, which is essential for a collaborative project with several concurrent workstreams.
-
-Repository evidence has limits: Taiga backlog exports, completed meeting records, and Sprint 3/4 user-testing responses are not included. The [sprint check-in](meetings/sprint-checkin-template.md) and [tutor meeting](meetings/tutor-meeting-template.md) files are templates, not records of meetings that took place. The team must supply those records before specific attendance, decisions, feedback, or acceptance outcomes can be documented.
 
 ## 13. Summary
 

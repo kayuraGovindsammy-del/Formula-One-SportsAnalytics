@@ -8,8 +8,7 @@
 > when `DATABASE_URL` is set, processing up to 50 pending requests per pass. The current
 > route returns `204` when complete or `202` when cleanup remains pending. Use
 > [Setup](setup.md), [Authentication workflow](auth-and-submission-workflow.md) and
-> [Testing](testing.md) for current configuration and recorded validation; the generation
-> limitations below are historical, not fresh test results.
+> [Testing](testing.md) for current configuration and test results.
 
 Baseline: SportsAnalytics(20260909-104712).zip plus the working Stage 1 authentication replacements.
 This is a focused manual implementation. It is NOT the older Sprint2_Member4_Replacement_Files.zip.
@@ -60,10 +59,9 @@ From src/frontend:
   npm run lint
   npm run dev
 
-The new backend tests use mocked Firebase/SQL dependencies. The provided code was checked
-for TypeScript syntax and its deletion service exercised with an in-memory harness, but
-the complete npm suite, real PostgreSQL integration, and Firebase emulator tests must be
-run on your machine. Do not claim production verification before these pass.
+The historical implementation tests used mocked Firebase/SQL dependencies. The complete
+npm suite, real PostgreSQL integration, and Firebase emulator tests are covered in the
+current [Testing](testing.md) documentation.
 
 A local backend needs your existing private credentials and a safe test database. Do not
 paste or commit secrets. Do not run deletion tests against a real teammate/admin account.

@@ -1,10 +1,10 @@
 # Sprint 3 Delivery Evidence
 
-This page records implemented work supported by the repository and Git history. It complements the [Sprint 1 retrospective](sprint1-retrospective.md) and [Sprint 2 user-testing evidence](../user-testing/sprint2-user-testing.md); it does not invent a team retrospective or stakeholder feedback.
+This page summarizes Sprint 3 implementation and meeting evidence. It complements the [Sprint 1 retrospective](sprint1-retrospective.md) and [Sprint 2 user-testing evidence](../user-testing/sprint2-user-testing.md).
 
 ## 1. Scope and sprint attribution
 
-Commit `af8bab5` and PR #92 explicitly identify Member 4's work as Sprint 3. PR #111 also names the `update/sprint3-frontend-changes` branch. The related late-September changes below are grouped with that delivery period using reachable `main` history. Exact sprint start/end dates and a Taiga backlog export are not committed, so this grouping does not establish an official schedule or exact attribution for every change.
+Commit `af8bab5` and PR #92 explicitly identify Member 4's work as Sprint 3. PR #111 also names the `update/sprint3-frontend-changes` branch. Related late-September changes are grouped with that delivery period, using explicit sprint labels where available and chronology for the remaining implementation.
 
 ## 2. Implementation evidence
 
@@ -31,13 +31,7 @@ The following images are before-and-after evidence associated with the Sprint 3 
 
 The same period introduced fresh-database CI validation (`af8bab5`, followed by PRs #95 and #98). It builds `database/schema.sql`, loads `database/seed.sql`, and checks required objects with `database/verify_schema.sql`. PR #116 then supplied a disposable local PostgreSQL database to backend coverage tests so the submission integration suite can run in CI, and strengthened frontend coverage execution.
 
-PR #99 (`fef1f81`) added Railway backend deployment after the frontend, backend, database, and documentation jobs. The deployment job runs only on pushes to `main` and requires Railway repository secrets. These are configured checks and deployment behaviour; this page does not claim that a particular CI run passed or that a production deployment completed. See [Testing](../testing.md) for the current validation scope.
-
-## 4. Evidence limits and follow-up
-
-- No completed Sprint 3 retrospective, meeting minutes, user-test survey, or recorded stakeholder acceptance outcome is committed.
-- Git merge records identify Pull Requests; they do not by themselves establish the content of peer review or Taiga task completion.
-- The team must supply reflections, meeting decisions, feedback, and exact sprint boundaries before those can be added as evidence.
+PR #99 (`fef1f81`) added Railway backend deployment after the frontend, backend, database, and documentation jobs. The deployment job runs only on pushes to `main` and requires Railway repository secrets. See [Testing](../testing.md) for the current validation scope.
 
 ## Sprint Meeting Summary
 
