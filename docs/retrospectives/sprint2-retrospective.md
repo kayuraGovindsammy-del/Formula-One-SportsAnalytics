@@ -4,6 +4,10 @@
 
 Sprint 2 ended around 15 September 2026. The repository records work across frontend presentation, PostgreSQL and ingestion, derived statistics, API documentation, testing, and project process. This is a team-wide retrospective based on Git history and the [Sprint 2 user testing evidence](../user-testing/sprint2-user-testing.md). It does not reconstruct meeting discussion.
 
+## Sprint Meeting Summary
+
+Sprint 2 meetings concentrated on moving beyond the initial prototype and making the application work with more realistic data and workflows. Jolpica ingestion, caching and PostgreSQL read models were introduced so that Formula 1 information could be sourced and queried more reliably. The team also strengthened the submission review and history process, role rules and recoverable account-deletion behaviour, while expanding the statistics available to users, including points, consistency, grid-gain and race-result fallbacks. User testing became an important part of the sprint, and the interface was adjusted in response to the feedback collected. Testing also matured substantially through increased backend coverage, Firestore rules testing, Playwright login checks and CI integration.
+
 ## What Went Well
 
 - The team integrated database and analytics work through PRs #51 and #52, then expanded statistics behavior with points, lap consistency, qualifying-grid comparisons, and result-status fixes through PRs #57, #59, #63, #66, and #69.

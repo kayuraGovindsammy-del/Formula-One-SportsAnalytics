@@ -148,7 +148,7 @@ This gives the team automated project checks for branch delivery and pull-reques
 
 ## 10. Stakeholder Interaction
 
-The project is not built in isolation. Tutor or stakeholder feedback is treated as a source of project direction and requirement clarification. When feedback is received, it is translated into concrete technical decisions, backlog items, or issue updates so that the team can act on it consistently.
+The project is not built in isolation. Tutor or stakeholder feedback is treated as a source of project direction and requirement clarification. When feedback is received, it is translated into concrete technical decisions, backlog items, or issue updates so that the team can act on it consistently. Stakeholder feedback was limited during the project, so most iterative improvements were informed by formal user testing, team review, and the evidence available from sprint activities.
 
 Recorded stakeholder and external-user evidence includes the
 [Sprint 2 stakeholder response](user-testing/sprint2-user-testing.md#stakeholder-feedback-summary)

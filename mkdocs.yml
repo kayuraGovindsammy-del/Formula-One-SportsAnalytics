@@ -41,9 +41,5 @@ nav:
       - Sprint 2: retrospectives/sprint2-retrospective.md
       - Sprint 3 Delivery Evidence: retrospectives/sprint3-evidence.md
       - Sprint 4 Delivery Evidence: retrospectives/sprint4-evidence.md
-  - Meeting Templates:
-      - Sprint Check-in: meetings/sprint-checkin-template.md
-      - Tutor Meeting: meetings/tutor-meeting-template.md
-
 theme:
   name: mkdocs
