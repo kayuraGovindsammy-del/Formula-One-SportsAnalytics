@@ -1,5 +1,16 @@
 # Member 4 — Account deletion (Stage 2)
 
+> Historical Stage 2 handoff and verification plan. Neon references and replacement
+> instructions below describe that baseline; the current service uses Aiven PostgreSQL
+> with verified TLS. Account deletion remains `DELETE /api/v1/users/me`, with a recent
+> Firebase login, SQL/Firestore tombstones, contact-field anonymization and retained
+> submission relationships. The runtime worker retries at startup and every minute
+> when `DATABASE_URL` is set, processing up to 50 pending requests per pass. The current
+> route returns `204` when complete or `202` when cleanup remains pending. Use
+> [Setup](setup.md), [Authentication workflow](auth-and-submission-workflow.md) and
+> [Testing](testing.md) for current configuration and recorded validation; the generation
+> limitations below are historical, not fresh test results.
+
 Baseline: SportsAnalytics(20260909-104712).zip plus the working Stage 1 authentication replacements.
 This is a focused manual implementation. It is NOT the older Sprint2_Member4_Replacement_Files.zip.
 

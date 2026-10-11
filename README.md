@@ -15,6 +15,8 @@ The current implementation covers:
 - race/event data and derived statistics
 - authenticated user roles and submitter approval states
 - administrative review of data submissions
+- qualifying results and a frontend performance forecast
+- CSV/JSON dataset downloads and a floating F1 Assistant
 
 ## Technology Stack
 
@@ -24,6 +26,7 @@ The current implementation covers:
 - Vite
 - Firebase Authentication
 - Firestore for user profiles, roles, and submitter approval status
+- Recharts for statistics charts
 
 ### Backend
 - Node.js
@@ -49,12 +52,14 @@ Custom Express API (Node.js + TypeScript)
       +---------------------------+
       |                           |
       v                           v
-Firebase Authentication      Neon PostgreSQL
+Firebase Authentication      Aiven PostgreSQL
 Identity + access control    Formula 1 data + app data
 Firestore roles/profiles    Submissions
 ```
 
 The frontend is a Vite + React application, and the backend is a hand-written Express API. The current codebase uses Firebase Authentication and Firebase Admin for identity-related flows, while the main project data model and submission records are handled through the backend and PostgreSQL.
+
+The frontend reads profiles and submitter requests directly from Firestore. The backend verifies Firebase ID tokens and reads those profiles for protected submissions and account deletion. Public read/export routes and `POST /api/v1/chat` do not require a token. The assistant calls Groq, with Gemini as a fallback, using validated tools backed by the project's own data.
 
 ## Repository Structure
 
@@ -73,7 +78,7 @@ The repository is organised as follows:
 Before setting up the project locally, make sure you have:
 
 - Git
-- Node.js 20 LTS (the version used in the current project tooling and CI environment)
+- Node.js 22, at least 22.13 (CI uses 22; the root declares `>=22`, but locked frontend tooling requires a later 22.x release)
 - npm
 - Python 3.12 (used in the docs CI environment for MkDocs builds; match this locally if you want to mirror CI)
 
@@ -139,7 +144,7 @@ The backend expects the following environment variables in its local environment
 
 ```bash
 PORT=3001
-CORS_ORIGIN=http://localhost:5173
+CORS_ORIGINS=http://localhost:5173
 DATABASE_URL=postgres://avnadmin:YOUR_PASSWORD@YOUR_SERVICE-YOUR_PROJECT.a.aivencloud.com:YOUR_PORT/defaultdb
 FIREBASE_PROJECT_ID=your-firebase-project-id
 FIREBASE_CLIENT_EMAIL=your-firebase-service-account-email
@@ -147,6 +152,8 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PR
 ```
 
 These settings correspond to the backend configuration in `src/backend/src/index.ts`, `src/backend/src/app.ts`, `src/backend/src/config/database.ts`, and `src/backend/src/config/firebaseAdmin.ts`.
+
+Copy the Aiven connection string without its `sslmode` query parameter so the explicit CA verification remains in effect. The optional assistant variables (`GROQ_API_KEY`, `GEMINI_API_KEY`, model overrides, and `CHAT_DAILY_LIMIT`) are described in `src/backend/.env.example` and `docs/setup.md`.
 
 ### Database CA certificate (required)
 
@@ -164,19 +171,21 @@ Download it once:
 4. Save it as `src/backend/certs/ca.pem`.
 
 ```bash
-mkdir -p src/backend/certs
-# move the downloaded ca.pem into src/backend/certs/ca.pem
+mkdir -p certs
+# move the downloaded ca.pem into certs/ca.pem
 ```
 
 `src/backend/src/config/database.ts` resolves `certs/ca.pem` relative to the
 process working directory, so run the backend from `src/backend` (as the
 commands in this section do) for the local file to be found.
 
+If you copied `.env.example`, clear or remove its `DATABASE_CA_CERT` placeholder
+when using the local file; a non-empty environment value takes precedence.
+
 **Never commit the certificate.** `certs/` and `*.pem` are in `.gitignore`;
 each developer and each environment downloads its own copy.
 
-Deployed environments (Railway) have no checkout to read the file from, so
-they set `DATABASE_CA_CERT` instead — the PEM contents on a single line with
+Deployed environments (Railway) can supply `DATABASE_CA_CERT` instead — the PEM contents on a single line with
 every newline written as a literal `\n`, which `database.ts` unescapes before
 use. `DATABASE_CA_CERT` takes precedence when both are present, which also
 makes it a usable local override if you would rather not keep the file.
@@ -212,6 +221,10 @@ Run the project checks with the actual repository scripts:
 cd src/frontend
 npm run lint
 npm run build
+npm run test:ui:coverage
+npx --yes firebase-tools emulators:exec --only firestore --project demo-member4-roles "npm run test:rules"
+npx playwright install chromium
+npm run test:e2e
 ```
 
 ### Backend
@@ -268,21 +281,26 @@ The full process is documented in `docs/git-workflow.md`. This project does not 
 
 The repository includes a Gitea CI workflow at `.gitea/workflows/ci.yml`. It is configured to run on pushes to `main` and on pull requests targeting `main`.
 
-The workflow defines three validation jobs:
+The workflow defines four validation jobs (Node.js 22 for the application jobs):
 
-- frontend lint and build
-- backend build and tests
+- frontend lint, build, Vitest coverage, Firestore emulator rules tests (Java 21), and five Playwright login-page smoke tests
+- backend build and Vitest coverage, including submission integration tests against a disposable local PostgreSQL database
+- fresh PostgreSQL schema, seed, and required-object verification
 - MkDocs strict documentation build
 
 This gives the project a repeatable validation pipeline for the main branch and pull-request review flow.
 
+Frontend and backend coverage reports are uploaded as artifacts on a best-effort basis (`continue-on-error: true`); the validation commands remain blocking. After all four validation jobs succeed, pushes to `main` trigger the Railway backend deployment job. Pull requests do not deploy.
+
 ## Deployment
 
-The repository currently proves a frontend deployment to Azure App Service. The workflow in `workflows/deploy-azure.yml` builds the frontend from `src/frontend`, then deploys the packaged app to the Azure Web App named `f1-sport-analytics` on pushes to `main` and via manual workflow dispatch.
+The active Gitea workflow in `.gitea/workflows/ci.yml` deploys the backend with `railway up --ci` to the configured production service, using `RAILWAY_TOKEN`, `RAILWAY_PROJECT_ID`, and `RAILWAY_SERVICE_ID` secrets. The root build/start scripts delegate to `src/backend`; the build also packages the OpenAPI specification. Runtime configuration requires the Aiven connection/CA, Firebase Admin credentials for protected operations, allowed CORS origins, and optional chat provider keys. The frontend template points to `https://f1-sport-analytics-api-production.up.railway.app/api/v1`.
 
-The public documentation site remains deployed at https://eagle-stack-documentation.netlify.app/.
+`workflows/deploy-azure.yml` describes a frontend build and Azure App Service deployment to `f1-sport-analytics`, using `AZURE_WEBAPP_PUBLISH_PROFILE`. It is outside `.gitea/workflows` and `.github/workflows`, so this checkout does not establish automatic discovery/execution of that file. Its declared triggers are pushes to `main` and manual dispatch. The Azure frontend origin is listed in the backend environment template.
 
-The current source tree does not provide evidence for a separate Railway deployment for this project. The verified deployment statements in this repository are the Azure frontend deployment and the Netlify documentation site.
+The recorded public documentation URL is https://eagle-stack-documentation.netlify.app/.
+
+The repository contains no Netlify deployment workflow or configuration, so the recorded documentation URL does not establish a reproducible Netlify publishing process. Workflow configuration alone does not prove a successful hosted run.
 
 ## Project Management
 

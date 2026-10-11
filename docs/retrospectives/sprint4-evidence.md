@@ -1,0 +1,33 @@
+# Sprint 4 Final Delivery Evidence
+
+This page records final-project changes supported by current implementation and reachable `main` history. The final documentation task identifies the current phase as Sprint 4. October commits provide the implementation evidence; the repository does not contain a formal Sprint 4 schedule, completed retrospective, or additional survey responses.
+
+## 1. Scope and sprint attribution
+
+The [Sprint 3 evidence page](sprint3-evidence.md) records the late-September delivery period. This page groups the subsequent October changes as final-sprint evidence. This is a chronology-based grouping, not a claim that exact sprint boundaries or individual Taiga assignments are available.
+
+## 2. Current implementation additions
+
+| Workstream | Implemented change | Supporting history and files |
+| --- | --- | --- |
+| Race/statistics UI | Race details gained a timeline and richer results/event presentation; the Statistics page gained broader rankings, sorting, and charts. Driver details now show season points. | `108f570` (PR #127), `099de88` (PR #134); `src/frontend/src/components/RaceTimeline.tsx`, `src/frontend/src/pages/Statistics/Statistics.tsx`, `src/frontend/src/pages/DriverDetails/DriverDetails.tsx`. |
+| Qualifying | Qualifying results gained ingestion, a PostgreSQL table/model, `GET /api/v1/races/:id/qualifying`, and frontend presentation. The final UI adds a dedicated qualifying detail route with tests. | `0baaa9d` (PR #128), `1df8703` (PR #141); `database/migrations/007_qualifying_results.sql`, `src/backend/src/models/qualifyingResults.model.ts`, `src/frontend/src/pages/QualifyingDetails/QualifyingDeatils.tsx`. |
+| Predictions | A predictions detail page combines qualifying positions/times with available driver-season average finish and pace. It uses fixed frontend weights and a qualifying-to-race pace factor, with fallbacks when driver statistics are unavailable. It is an illustrative estimate; no validated predictive accuracy is recorded. | `1df8703` (PR #141); `src/frontend/src/pages/PredictionsDetails/PredictionsDetails.tsx` and its tests. |
+| F1 Assistant | `POST /api/v1/chat` uses validated read-only tools, shared statistics loaders, Groq with Gemini fallback, and configurable rate limits. The frontend assistant widget provides follow-up conversation, safe links, retries, and a slow-response note. Conversation survives route navigation and clears on sign-out. | PRs #137 and #139; `src/backend/src/chat/`, `src/backend/src/routes/chat.routes.ts`, `src/frontend/src/components/chat/ChatWidget.tsx`, `src/frontend/src/App.chat.test.tsx`; [API Design](../api-design.md), [Third-Party Services](../third-party-services.md). |
+| Submission and browsing UI | Final frontend updates expanded driver/race filters, polished submission history and admin pages, and added qualifying/prediction page tests. | `1df8703`, `eb647f6` (PR #141); `src/frontend/src/pages/Drivers/Drivers.tsx`, `src/frontend/src/pages/Races/Races.tsx`, submission/admin pages and related tests. |
+
+## 3. API hardening and validation
+
+PR #130 standardised authentication/error responses, returns client errors for malformed JSON and rejected CORS origins, and validates four-digit season values for driver/constructor statistics. The assistant work added tool, route, provider-fallback, formatting, and widget tests; these exercise controlled/mocked provider behaviour rather than proving live LLM response accuracy.
+
+PR #138 (`44bcba6`) increased the frontend Vitest timeout for shared CI runners and adjusted frontend tests. PR #142 (`7aab2f4`) made frontend/backend coverage artifact uploads non-blocking with `continue-on-error: true`. Test/build jobs still fail when their required commands fail, and Railway deployment still depends on all four validation jobs. These configuration changes do not establish a recorded pass rate or live deployment outcome.
+
+Current commands and any measured validation results belong in [Testing](../testing.md); environment and service prerequisites are in [Local Setup](../setup.md). The documentation audit updates those pages and the architecture/API/user-facing documentation to reflect the final checkout.
+
+## 4. Evidence limits and manual follow-up
+
+- The repository retains Sprint 2 user-testing results and screenshots. No Sprint 4 user survey, tutor meeting outcome, or stakeholder acceptance result is available here.
+- Formal team reflections, named action owners, exact sprint dates, CI run reports, and verified production rollout outcomes require records supplied by the team.
+- The predictions page uses season aggregates as returned by the API; it does not restrict the inputs to races preceding the selected race. No model training, backtesting, confidence interval, or accuracy measurement is implemented in that page.
+- Existing PNG wireframes in `docs/wireframes/` remain historical design artefacts, not evidence of the final screen layout or dataset size.
+

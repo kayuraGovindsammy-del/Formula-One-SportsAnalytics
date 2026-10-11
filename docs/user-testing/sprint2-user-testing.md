@@ -2,6 +2,8 @@
 
 This page records verified Sprint 2 user-testing evidence for the SportsAnalytics frontend. It uses only repository facts and the local Google Form CSV that was uploaded during the Sprint 2 review process.
 
+The results and screenshots below are retained Sprint 2 evidence. The raw response CSV is not committed in the current repository, so the published response counts and averages cannot be independently recalculated from this checkout. Later Sprint 3/4 changes and automated tests do not constitute additional recorded user feedback.
+
 ## Testing window
 
 - Responses were collected between 11 and 13 September 2026.
@@ -110,7 +112,7 @@ Current verified scope:
 
 - `src/frontend/e2e/navigation.spec.ts`
 - Five unauthenticated tests that verify:
-  1. the login page loads at `/`
+  1. an unauthenticated visit to `/` redirects to `/login`, where the login page loads
   2. the email and password fields are visible
   3. the sign-in and Google sign-in controls are visible
   4. the password reset option is visible

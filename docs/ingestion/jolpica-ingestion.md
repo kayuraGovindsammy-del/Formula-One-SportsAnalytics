@@ -23,10 +23,12 @@ Run from the repo root (delegates into `src/backend`) or from `src/backend` dire
 | `--cache-dir <path>` | Override the response cache location. |
 | `--help` | Usage. |
 
-Writing requires `DATABASE_URL`. `--dry-run` deliberately does not, so the mapping can be
-inspected without database access.
+Writing requires `DATABASE_URL` and the Aiven CA (`DATABASE_CA_CERT` or local
+`certs/ca.pem`). `--dry-run` deliberately does not access the database, though it still
+fetches source data or reads its response cache.
 
-A full 2025 run:
+The earlier 2025 results/pit-stop/retirement run documented on 2026-09-11,
+before qualifying ingestion was added, recorded:
 
 ```
 circuits                 24
@@ -42,6 +44,11 @@ retirements              51
 
 Pit stops and retirements are unaffected by `--include-sprints`: both are derived from
 `RACE` sessions only.
+
+The current CLI also fetches qualifying, includes `QUALIFYING` sessions and prints a
+`qualifying_results` count. The historical counts above are retained as evidence of that
+earlier run, not a current expected plan or deployment snapshot. The actual dry-run plan
+reports counts for the current source responses.
 
 ---
 
@@ -92,8 +99,10 @@ Verified against `api.jolpi.ca` for season 2025 on 2026-09-11.
 - A sprint weekend is marked in the calendar by a `Sprint` block on the race entry.
 - Responses carry `cache-control: max-age=600`.
 
-A races-only 2025 run costs **30 requests**: 5 results pages, 1 calendar page, and 24
-per-round pit-stop pages. `--include-sprints` adds 2 more.
+The historical results/calendar/pit-stop run cost **30 requests**: 5 results pages,
+1 calendar page and 24 per-round pit-stop pages; sprint opt-in added 2 more. Current
+`buildPlan` also fetches the paginated season qualifying endpoint, so its requests must
+be added to that total. Cache hits and retries also change network request counts.
 
 ---
 
@@ -104,7 +113,7 @@ per-round pit-stop pages. `--include-sprints` adds 2 more.
 `{season}_R{round}` with the round **padded to two digits** — `2025_R01`, not `2025_R1`.
 Round 13 is `2025_R13` either way; only rounds 1–9 differ.
 
-The reason is that the identifiers already exist. The hosted Neon database and
+The reason is that the identifiers already exist. The then-hosted Neon database and
 `database/seed.sql` both store the padded form, so an ingest emitting `2025_R1` would not
 update the existing row for round 1 — it would insert a **second** grand prix beside it,
 and every session, result and pit stop hanging off it would attach to the wrong one. Nine
@@ -310,8 +319,8 @@ Places that need more than a plain upsert:
 (override with `--cache-dir`), keyed by a hash of the full URL, with a 6-hour TTL. Entries
 are written temp-then-rename, so an interrupted run cannot leave a half-written file that
 still parses. A corrupt or URL-mismatched entry is treated as a miss, never as an error.
-**A cache hit costs no rate-limit budget** — that is the point, and it matters more now
-that a races-only run is 30 requests rather than 6.
+**A cache hit costs no rate-limit budget**, avoiding repeated calendar/results/qualifying
+and per-round pit-stop requests.
 
 **Rate limiting.** Two rolling-window limiters in series, matching Jolpica's published
 unauthenticated allowances with headroom: 3 requests/second (published 4) and 450/hour
@@ -329,8 +338,9 @@ cached.
 
 ## 8. Tests
 
-112 tests across six files in `src/backend/src/ingestion/`, none of which touch the network
-or a database:
+The core importer suites below in `src/backend/src/ingestion/` use injected HTTP/SQL
+dependencies rather than a live network or database. Refer to [Testing](../testing.md)
+for current execution evidence; test counts change as coverage is added.
 
 | File | Covers |
 |---|---|
@@ -355,9 +365,11 @@ production Zod schemas, so a test cannot assert against a shape the API never se
 - **`grid_position` is a fallback, not a derivation.** `driverStatistics.ts` reads it for
   `positions_gained_lost_avg` only when no qualifying `LAP_COMPLETED` position is
   derivable; `0` (a pit-lane start) is skipped. Because ingestion writes no qualifying
-  events, it is the live grid source for ingested races. The same fallback-only treatment applies to
-  the classified `position` (wins, podiums, average finish) and `fastest_lap_rank = 1`
-  (`fastest_laps`) when a session has no laps. `average_race_pace_ms` still needs laps.
+  events, it is the grid source for ingested races unless accepted/sample qualifying
+  events provide a position. The classified `position` supplies wins/podiums/average
+  finish when the driver's last recorded lap provides no position. Stored
+  `fastest_lap_rank = 1` supplies `fastest_laps` only when the session has no laps for
+  any driver. `average_race_pace_ms` still needs timed racing laps.
 - **Qualifying is ingested as results, not as events.** The pipeline fetches the season's
   qualifying classification (`fetchSeasonQualifyingResults`), creates a `QUALIFYING`
   session per race that has one, and upserts a `qualifying_results` row per driver
@@ -365,10 +377,16 @@ production Zod schemas, so a test cannot assert against a shape the API never se
   It writes no events for that session, so the qualifying `LAP_COMPLETED` events that
   `positions_gained_lost_avg` would otherwise prefer come only from sample data or
   accepted submissions. `qualifying_results` is served by
-  `GET /races/{grand_prix_id}/qualifying` and does not feed any statistic.
-- **Sprints are opt-in.** Without `--include-sprints`, any points total derived from
-  `race_results` undercounts a sprint season. `grand_prix.has_sprint` is still set
-  correctly either way, from the calendar.
+  `GET /races/{grand_prix_id}/qualifying`, including for frontend heuristic predictions,
+  and does not feed backend season-statistics derivation.
+- **Sprints are opt-in for storage.** `--include-sprints` stores their published results
+  and points, but driver/constructor statistics and chat standings explicitly select
+  only `RACE` sessions regardless. Those totals are Grand Prix-only, not official
+  championship totals. The results export can include stored sprint rows.
+  `grand_prix.has_sprint` is set from the calendar either way.
+- **No automatic chat cache invalidation.** Public statistics read current database
+  rows on each request; chat season/standings/name caches can keep earlier data for
+  up to ten minutes after ingestion.
 
 ---
 *This document was edited with the assistance of: Claude-Web[Claude Sonnet 5], Claude-Code[Claude Sonnet 5]*

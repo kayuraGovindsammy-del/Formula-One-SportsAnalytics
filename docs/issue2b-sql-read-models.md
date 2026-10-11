@@ -1,5 +1,15 @@
 # Issue 2B — PostgreSQL-backed basic read models
 
+> Historical integration instructions for the earlier Neon stage. The current backend
+> uses Aiven PostgreSQL with verified TLS; `laps.model.ts` and `events.model.ts` have
+> since moved to SQL too. Runtime reads do not load `data/sample/*.json`.
+> Race statistics prefer derived lap/event values, falling back to the whole stored
+> classification only when no classification can be derived, and independently to
+> the stored fastest lap when none is derivable. The current setup and contract are
+> [Setup](setup.md), [API Design](api-design.md) and [Data Model](data-model.md).
+> The package-replacement/test-branch steps below describe that historical rollout,
+> not instructions to reapply old files or bootstrap an existing database.
+
 This change replaces the Sprint 1 sample-backed reads for:
 - drivers
 - constructors

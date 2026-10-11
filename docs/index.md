@@ -4,6 +4,12 @@ This project is a Formula 1 sport analytics platform built for the course team. 
 
 The application is designed to let users explore drivers, races, statistics, and event data, while approved submitters and administrators can contribute race-related data for review.
 
+The current frontend also includes qualifying results, analytical race predictions,
+driver comparisons and charts, a filtered race timeline, CSV/JSON dataset downloads,
+and a floating F1 Assistant. Predictions use qualifying and whole-season statistics;
+they are estimates rather than official results. Authentication supports Google and
+email/password sign-in, registration and password reset.
+
 ## Main documentation
 
 Use the navigation to explore the project documentation:
@@ -12,6 +18,8 @@ Use the navigation to explore the project documentation:
 - Git Workflow and delivery process
 - Technical architecture, API design, and data model documentation
 - public documentation site and deployment notes
+- [Local Setup](setup.md), [User Guide](user-guide.md) and [Testing Overview](testing.md)
+- [Repo Overview](repo-overview.md) for the current stack, source layout and implementation limits
 
 The team uses Taiga for Sprint planning and backlog tracking, while Gitea is used for repository management, feature branches, Pull Requests, and review. The public documentation for the project is available at: https://eagle-stack-documentation.netlify.app/
 

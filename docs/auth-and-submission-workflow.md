@@ -14,11 +14,13 @@ ADMIN
 
 The implementation uses:
 
-- Google Sign-In
+- Google Sign-In and email/password registration/sign-in/password reset
 - Firebase Authentication
 - Cloud Firestore
 - React protected routes
 - Firestore Security Rules
+- Express API authentication/authorization middleware
+- PostgreSQL submissions, accepted envelopes and normalized event tables
 
 The main goals are to:
 
@@ -36,13 +38,13 @@ The main goals are to:
 
 # 2. Authentication Architecture
 
-Authentication begins with Google Sign-In.
+Authentication begins with Google Sign-In or email/password sign-in.
 
 ```text
 User
  |
  v
-Google Sign-In
+Google / email-password sign-in
  |
  v
 Firebase Authentication
@@ -58,6 +60,8 @@ Firebase Authentication verifies the user's identity.
 
 The Firebase UID is then used to locate the user's application profile in Firestore.
 
+Submission requests send a Firebase ID token to Express. The backend verifies it (including revocation), reads the current Firestore role/status, checks deletion markers, then accesses PostgreSQL. Firestore remains the authorization source; SQL `users` is a mirror for submission/reviewer foreign keys, refreshed on submission creation/review.
+
 ---
 
 # 3. Google Sign-In
@@ -72,6 +76,8 @@ After successful authentication, Firebase provides information including:
 - profile image
 
 The Firebase UID is the main identifier used to associate the authenticated user with application data.
+
+The same login page supports email/password sign-in, registration and password reset. `AuthContext.tsx` uses the corresponding Firebase Auth methods and creates the same default Firestore profile for either provider.
 
 ---
 
@@ -219,6 +225,11 @@ Examples include:
  /drivers/:id
  /races
  /races/:id
+ /races/:id/qualifying
+ /races/:id/predictions
+ /constructors
+ /statistics
+ /my-submissions
  /account
 ```
 
@@ -312,7 +323,9 @@ Review Submissions
 Account
 ```
 
-Navigation visibility improves the user experience, while Firestore Security Rules provide the database-level authorization.
+The current navigation also includes Constructors, Statistics and My Submissions for authenticated users. My Submissions uses a protected route and stays available after submitter privileges are revoked.
+
+Navigation visibility and route guards control the interface. Firestore Security Rules protect profile/access-request operations; the backend independently enforces SQL submission permissions. The chat widget also appears on `/login`, and its public endpoint does not require authentication.
 
 ---
 
@@ -348,6 +361,8 @@ USER
 ```
 
 while the request is waiting for administrative review.
+
+A rejected user may request access again. The Firestore write records `requestedAt` and clears `reviewedAt`, `reviewedBy` and `reviewReason`.
 
 ---
 
@@ -436,6 +451,8 @@ submitterStatus = rejected
 ```
 
 The user does not receive submission privileges.
+
+Review records `reviewedAt`, `reviewedBy` and `reviewReason`; rejection requires a reason. Firestore rules allow an active administrator to review another pending `USER` request, rather than arbitrarily assign roles or grant `ADMIN` through the client.
 
 ---
 
@@ -553,7 +570,7 @@ No additional payload information is required by the current submission form.
 
 # 16. Submission Validation
 
-The submission form performs basic validation before creating a Firestore submission.
+The submission form performs basic validation before calling `POST /api/v1/submissions`. The backend applies a strict schema for all eight event types and checks database references before creating a pending SQL row.
 
 Examples include:
 
@@ -577,24 +594,30 @@ Lap number must be a positive whole number.
 
 rather than a generic submission failure.
 
+The backend requires an ISO timestamp with an offset, safe identifier characters and type-specific payload fields; unknown fields are rejected. It also checks that the session and referenced drivers exist, the lap does not exceed a known session total, a driver does not overtake themselves and the event ID is not already pending/accepted. `LAP_COMPLETED` permits null lap time/position for unknown values. Retirement lap numbers may be omitted or zero; time penalties require a duration and other penalty types require `duration_ms: null`.
+
 ---
 
 # 17. Submission Creation
 
-When validation succeeds, the application creates a Firestore document in:
+When validation succeeds, the backend creates a PostgreSQL row in:
 
 ```text
 submissions
 ```
 
-The submission wrapper contains:
+The API submission wrapper contains:
 
 ```text
-submittedBy
-submittedByEmail
-submittedAt
+submission_id
+submitted_by
+submitted_by_email
+submitted_at
+reviewed_at
+reviewed_by
+reviewed_by_email
 status
-validationErrors
+validation_errors
 event
 ```
 
@@ -602,7 +625,7 @@ A new submission begins with:
 
 ```text
 status = pending
-validationErrors = []
+validation_errors = []
 ```
 
 ---
@@ -611,11 +634,15 @@ validationErrors = []
 
 ```json
 {
-  "submittedBy": "firebase-user-uid",
-  "submittedByEmail": "user@example.com",
-  "submittedAt": "Firestore Timestamp",
+  "submission_id": 42,
+  "submitted_by": "firebase-user-uid",
+  "submitted_by_email": "user@example.com",
+  "submitted_at": "2026-09-10T10:15:00Z",
+  "reviewed_at": null,
+  "reviewed_by": null,
+  "reviewed_by_email": null,
   "status": "pending",
-  "validationErrors": [],
+  "validation_errors": [],
   "event": {
     "event_id": "evt_example",
     "session_id": "2025_R13_RACE",
@@ -645,10 +672,10 @@ SUBMITTER / ADMIN
    Submit Event
         |
         v
-Basic Validation
+Client + Backend Validation
         |
         v
-Firestore Submission
+PostgreSQL Submission
 status = pending
         |
         v
@@ -660,9 +687,11 @@ status = pending
    |         |
    v         v
 accepted   rejected
-             |
-             v
-      rejection reason
+   |          |
+   v          v
+publish    rejection reason
+envelope +
+normalized row
 ```
 
 ---
@@ -720,6 +749,10 @@ The validation error list remains empty:
 []
 ```
 
+Acceptance revalidates the stored event, checks its references and duplicates, inserts its envelope into `accepted_events` and publishes its applicable lap/pit-stop/position-change/penalty/retirement row in one transaction with the review update. Session boundaries and fastest-lap markers remain envelope-only. Failure rolls back the review and publication together. A reviewed submission cannot be reviewed again.
+
+Public SQL lap/event readers see accepted records automatically. `events.model.ts` includes accepted envelopes and only source/legacy normalized rows with `submission_id IS NULL`, so a published event is counted once. Statistics are computed per public request; the chat tools' separate ten-minute cache may delay a changed value.
+
 ---
 
 # 22. Rejecting a Submission
@@ -735,7 +768,7 @@ status = rejected
 and the reason is stored in:
 
 ```text
-validationErrors
+validation_errors
 ```
 
 Example:
@@ -743,7 +776,7 @@ Example:
 ```json
 {
   "status": "rejected",
-  "validationErrors": [
+  "validation_errors": [
     "Incorrect driver information for the selected session."
   ]
 }
@@ -758,9 +791,9 @@ This ensures that rejected submissions provide useful information about why they
 Every submission stores:
 
 ```text
-submittedBy
-submittedByEmail
-submittedAt
+submitted_by
+submitted_by_email
+submitted_at
 event
 ```
 
@@ -770,7 +803,7 @@ This provides a traceable relationship:
 Authenticated User
        |
        v
-Firestore User Profile
+Firestore User Profile -> SQL User Mirror
        |
        v
 Submission
@@ -779,7 +812,7 @@ Submission
 F1 Event
 ```
 
-The system can therefore determine:
+The SQL row retains submitter/reviewer foreign keys and review timestamps. The API exposes submitter identity to the owner/admin and reviewer identity only to admins. The system can therefore determine:
 
 - who submitted an event
 - when it was submitted
@@ -827,7 +860,7 @@ Administrator privileges are required for role approval.
 
 ---
 
-# 26. Submission Security Rules
+# 26. Submission API Security
 
 Submission creation is allowed for:
 
@@ -850,7 +883,9 @@ A new submission must:
 
 Normal users cannot create submissions.
 
-Only administrators can modify the review state of a submission.
+Only administrators can modify the review state of a submission. The SQL API derives the owner from the verified token, validates the event and enforces these checks server-side. Firestore has no client submission collection access: the catch-all rule denies unmatched collections.
+
+`GET /submissions` requires an approved submitter or admin, while `GET /submissions/mine` permits any authenticated user to read their own history. Both are unpaginated and accept only the optional lowercase `status` filter. A detail record is visible only to its owner or an admin.
 
 ---
 
@@ -870,9 +905,9 @@ The account page provides:
 
 Signing out ends the Firebase Authentication session.
 
-Account deletion removes the user's application profile and Firebase Authentication account.
+Account deletion reauthenticates with the password or Google popup, then calls `DELETE /api/v1/users/me` with a fresh ID token. The backend requires authentication within five minutes and derives the target solely from that token. A durable SQL tombstone and server-owned Firestore marker block further access and profile recreation. It deletes the Firebase identity/profile and anonymizes SQL contact fields and roles while preserving submission/reviewer relationships.
 
-Firebase Authentication may require a recent login before allowing account deletion for security reasons.
+Completed cleanup returns `204`; partial provider failure returns `202` and the backend retries pending requests at startup and every minute when `DATABASE_URL` is configured. Tombstones remain, so deletion is pseudonymization rather than a claim that every historical trace is erased. See [Account deletion](member4-account-deletion.md).
 
 ---
 
@@ -905,13 +940,14 @@ Firebase Authentication may require a recent login before allowing account delet
 
 ---
 
-# 29. Current Sprint Implementation
+# 29. Current Implementation
 
-The current sprint establishes the authentication and controlled submission foundation for the F1 Sport Analytics platform.
+The current implementation combines Firebase identity/profiles with SQL validation, review and publication.
 
 Implemented functionality includes:
 
 - Google Sign-In
+- email/password registration/sign-in and password reset
 - Firebase Authentication
 - automatic Firestore user creation
 - USER, SUBMITTER and ADMIN roles
@@ -922,11 +958,13 @@ Implemented functionality includes:
 - role-based navigation
 - dynamic F1 event submission
 - event validation
-- Firestore submission storage
+- PostgreSQL submission storage and ownership-filtered history
 - administrator submission review
 - submission acceptance
 - submission rejection with reasons
 - Firestore Security Rules
 - user-to-submission traceability
+- atomic accepted-envelope and normalized-event publication
+- recent-login account deletion with durable retry/tombstones
 
-This provides the foundation that later sprints can extend with additional event processing, analytics, statistics generation, and publication functionality.
+Historical event replacement/correction is not exposed as an API; current review permits one transition from pending to accepted/rejected. The current API contract is in [API Design](api-design.md) and [OpenAPI](api/openapi.yaml).

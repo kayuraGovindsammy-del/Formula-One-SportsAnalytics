@@ -1,5 +1,17 @@
 # Member 4 — Stage 4: Submission validation and persistence
 
+> Historical Stage 4 handoff and verification plan. The Neon/package instructions below
+> describe its baseline; the current backend uses Aiven PostgreSQL with verified TLS.
+> The SQL submission workflow is integrated with public reads: `laps.model.ts` reads
+> normalized laps and `events.model.ts` combines accepted envelopes with only
+> source/legacy normalized rows (`submission_id IS NULL`), avoiding duplicate counting.
+> Public statistics read those models per request. Chat's separate ten-minute cache
+> has no publication-triggered invalidation. The current review API accepts at most one
+> reason of 2,000 characters, requires a reason for rejection and none for acceptance.
+> See [API Design](api-design.md), [Setup](setup.md) and [Testing](testing.md) for current
+> contracts/configuration and execution evidence. The historical generation limitations
+> below do not claim that the current suite has or has not passed.
+
 Baseline: SportsAnalytics(20260909-104712).zip plus the working Stage 1,
 Stage 2 and Stage 3 changes. This is a focused manual replacement package,
 not the older all-in-one Sprint 2 package.
