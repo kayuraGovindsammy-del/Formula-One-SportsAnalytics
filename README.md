@@ -49,7 +49,7 @@ Custom Express API (Node.js + TypeScript)
       +---------------------------+
       |                           |
       v                           v
-Firebase Authentication      Neon PostgreSQL
+Firebase Authentication      Aiven PostgreSQL
 Identity + access control    Formula 1 data + app data
 Firestore roles/profiles    Submissions
 ```
@@ -73,7 +73,7 @@ The repository is organised as follows:
 Before setting up the project locally, make sure you have:
 
 - Git
-- Node.js 20 LTS (the version used in the current project tooling and CI environment)
+- Node.js 22 (the version used in the Gitea CI workflow)
 - npm
 - Python 3.12 (used in the docs CI environment for MkDocs builds; match this locally if you want to mirror CI)
 
@@ -268,10 +268,11 @@ The full process is documented in `docs/git-workflow.md`. This project does not 
 
 The repository includes a Gitea CI workflow at `.gitea/workflows/ci.yml`. It is configured to run on pushes to `main` and on pull requests targeting `main`.
 
-The workflow defines three validation jobs:
+The workflow defines four validation jobs:
 
-- frontend lint and build
-- backend build and tests
+- frontend lint, build, coverage, Firestore rules tests, and Playwright smoke tests
+- backend build and coverage tests
+- fresh PostgreSQL database validation
 - MkDocs strict documentation build
 
 This gives the project a repeatable validation pipeline for the main branch and pull-request review flow.
@@ -282,7 +283,7 @@ The repository currently proves a frontend deployment to Azure App Service. The 
 
 The public documentation site remains deployed at https://eagle-stack-documentation.netlify.app/.
 
-The current source tree does not provide evidence for a separate Railway deployment for this project. The verified deployment statements in this repository are the Azure frontend deployment and the Netlify documentation site.
+The Gitea workflow at `.gitea/workflows/ci.yml` also deploys the Express backend to Railway after the frontend, backend, database, and documentation validation jobs succeed on a push to `main`. The backend is available at https://f1-sport-analytics-api-production.up.railway.app/. Railway deployment requires the configured Gitea secrets.
 
 ## Project Management
 
