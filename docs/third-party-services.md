@@ -95,3 +95,29 @@ or ingestion can appear there before a cached chat answer.
 
 These terms belong to the providers and can change. Re-check both pages before
 relying on them, for example before a public launch.
+
+## Selected dependencies and licences
+
+Declared package ranges are shown below; licence information is taken from the
+committed lockfiles. The list highlights direct runtime dependencies and major
+development tools.
+
+| Area | Package | Declared version | Licence |
+| --- | --- | --- | --- |
+| Frontend | React / React DOM | `^19.2.8` | MIT |
+| Frontend | React Router | `^7.18.2` | MIT |
+| Frontend | Firebase | `^12.17.1` | Apache-2.0 |
+| Frontend | Recharts | `^3.10.1` | MIT |
+| Frontend | Vite | `^8.2.0` | MIT |
+| Backend | Express | `^5.2.1` | MIT |
+| Backend | `pg` | `^8.23.0` | MIT |
+| Backend | Zod | `^4.4.3` | MIT |
+| Backend | Firebase Admin | `^14.3.0` | Apache-2.0 |
+| Backend | Swagger UI Express | `^5.0.1` | MIT |
+| Backend | YAML | `^2.9.1` | ISC |
+| Testing | Vitest (backend / frontend) | `^4.1.11` / `^5.0.2` | MIT |
+| Testing | Playwright Test | `^1.63.0` | Apache-2.0 |
+| Testing | Testing Library React | `^16.3.3` | MIT |
+| Testing | Firebase Rules Unit Testing | `^5.0.0` | Apache-2.0 |
+| Quality | ESLint | `^10.8.0` | MIT |
+| Documentation | MkDocs | `>=1.6,<2.0` | BSD-2-Clause |

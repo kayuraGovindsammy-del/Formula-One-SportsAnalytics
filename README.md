@@ -311,43 +311,16 @@ Taiga project: https://tree.taiga.io/project/andrianos-mastrokolias-f1-analytics
 
 AI tools were used during the development of this project in accordance with the course AI usage policy.
 
-### AI Code Generation
+The following tools were used for code generation, review, development, and documentation assistance:
 
-The following AI tools were used to assist with code generation:
-
-- **ChatGPT-Web [GPT-5.6 Sol]**
-  - Assisted with frontend and backend code generation.
-  - Assisted with Firebase authentication and role-based access integration.
-  - Assisted with the submission and admin review functionality.
-  - Assisted with integrating the frontend with the backend API.
-  - Assisted with PostgreSQL integration, database migration, development seed data, and local setup scripts.
-  - Assisted with debugging and resolving implementation errors.
-
-- **Claude-Web [Claude Sonnet 5]**
+- **Claude Code — Claude Sonnet 5, Claude Opus 4.5, Claude Opus 5**
+  - Assisted with code generation and code review.
+- **Claude Web — Claude Sonnet 5**
   - Assisted with code generation during development.
-
-- **Claude Code**
-  - Assisted with code generation during development.
-
-### AI Code Review
-
-The following AI tool was used for code review:
-
-- **Claude Code**
-  - Used to review project code and assist with identifying implementation issues.
-
-### AI-Assisted Development
-
-The following AI tool was used to assist with repository inspection, targeted code and documentation edits, validation, and project setup work:
-
+- **ChatGPT Web — GPT-5.6 Sol**
+  - Assisted with frontend and backend code generation, integration, and debugging.
 - **OpenAI Codex — Default model selection**
-  - Used through VS Code for repository inspection and in-editor assistance.
-  - Used to inspect the repository and existing implementation.
-  - Assisted with targeted code and documentation edits, including AI-assisted in-line editing, under developer instruction.
-  - Helped investigate frontend lint/build issues and backend test/configuration problems.
-  - Assisted with MkDocs documentation refinement and CI workflow configuration.
-  - Helped review completed changes and run validation commands.
-
+  - Used through VS Code for code and documentation assistance, repository inspection, and validation.
 - **GitHub Copilot Chat — Auto model selection**
   - Used in VS Code for in-editor assistance and documentation work.
 

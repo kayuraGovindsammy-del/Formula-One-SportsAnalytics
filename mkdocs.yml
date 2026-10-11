@@ -14,12 +14,15 @@ nav:
   - Project Methodology: methodology.md
   - Retrospectives:
       - Sprint 1: retrospectives/sprint1-retrospective.md
+      - Sprint 2: retrospectives/sprint2-retrospective.md
       - Sprint 3 Delivery Evidence: retrospectives/sprint3-evidence.md
       - Sprint 4 Delivery Evidence: retrospectives/sprint4-evidence.md
   - Testing:
       - Testing Overview: testing.md
       - Sprint 2 User Testing Evidence: user-testing/sprint2-user-testing.md
+      - Sprint 3 User Testing Evidence: user-testing/sprint3-user-testing.md
   - Architecture:
+      - UML Diagrams: uml-diagrams.md
       - API Design: api-design.md
       - Authentication and Submission Workflow: auth-and-submission-workflow.md
       - Data Model: data-model.md
@@ -31,6 +34,7 @@ nav:
       - Jolpica-F1 Pipeline: ingestion/jolpica-ingestion.md
       - OpenF1 Overtakes: ingestion/openf1-overtakes.md
   - Implementation Evidence:
+      - Sprint Evidence: sprint-evidence.md
       - SQL Read Models: issue2b-sql-read-models.md
       - Account Deletion: member4-account-deletion.md
       - Submissions: member4-submissions.md

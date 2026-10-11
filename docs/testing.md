@@ -47,6 +47,7 @@ The repository contains coverage reporting for both packages and frontend tests 
 - Backend CI supplies a disposable PostgreSQL test database; a separate job validates the consolidated schema and seed
 - Both coverage artifact uploads use `if: always()` and `continue-on-error: true`; failed tests still fail their jobs
 - Current measured coverage and run limitations are recorded in [Test Coverage](#test-coverage)
+- CI does not include a dedicated dependency vulnerability scanner or SAST job
 
 ## Backend Automated Testing
 
