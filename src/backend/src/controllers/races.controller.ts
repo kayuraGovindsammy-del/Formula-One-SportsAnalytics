@@ -177,22 +177,18 @@ export async function loadRaceStatistics(
     });
 
   /*
-   * Prefer statistics derived from lap/event data whenever that derivation is
-   * available.  This is important because derived rows can contain fields
-   * (for example consistency_ms) that are not present in race_results.
-   *
-   * Real ingested seasons currently have race_results even when no complete
-   * lap log has been ingested.  In that case the derived classification is
-   * empty, so race_results is a data-availability fallback rather than an
-   * override.  The same rule applies to fastest lap: use the derived value
-   * first, then the stored Jolpica value only when no lap-derived value exists.
+   * Prefer the derived classification when it covers at least as many
+   * drivers as the stored classification. Partial lap data must not hide
+   * a more complete stored race result. Keep lap-derived fastest-lap data.
    */
   return {
     ...derivedStatistics,
     fastest_lap:
       derivedStatistics.fastest_lap ?? storedRaceResults?.fastest_lap ?? null,
     classification:
-      derivedStatistics.classification.length > 0
+      derivedStatistics.classification.length > 0 &&
+      derivedStatistics.classification.length >=
+        (storedRaceResults?.classification.length ?? 0)
         ? derivedStatistics.classification
         : (storedRaceResults?.classification.map((result) => ({
             position: result.position,
