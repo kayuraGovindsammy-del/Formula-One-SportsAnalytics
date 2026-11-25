@@ -22,7 +22,7 @@ User 1─* Submission      (submitter; reviewed_by also points at a User)
 AccountDeletion          (standalone, keyed by Firebase UID)
 ```
 
-`RaceResult` and `QualifyingResult` have one row per driver per session (a session holds many, not one). `Submission`, `AcceptedEvent`, `User` and `AccountDeletion` are the submission-workflow and account tables; they carry no race data themselves.
+`RaceResult` and `QualifyingResult` have one row per driver per session (a session holds many, not one). `Submission`, `AcceptedEvent`, `User` and `AccountDeletion` support the workflow/account relationships; submissions and accepted events retain complete event envelopes alongside the normalized sports rows.
 
 **Key design decision:** `Session` (not `Race`) is the atomic unit of the model. A Grand Prix weekend has several sessions — practice, qualifying, sprint, race — and laps, pit stops, and position changes all happen *within* a session, not within the weekend as a whole.
 
@@ -168,7 +168,7 @@ For races loaded by the Jolpica ingestion this is **stored published data**: the
 | `status` | enum | `FINISHED`, `DNF`, `DSQ` |
 
 ### QualifyingResult
-The published qualifying classification for a `QUALIFYING` session (`qualifying_results` table, one row per driver per session). Like ingested `RaceResult` rows this is stored Jolpica data; the ingestion writes these rows but no events for the session. It is served by `GET /races/{grand_prix_id}/qualifying` and does not feed any statistic.
+The published qualifying classification for a `QUALIFYING` session (`qualifying_results` table, one row per driver per session). Like ingested `RaceResult` rows this is stored Jolpica data; the ingestion writes these rows but no events for the session. It is served by `GET /races/{grand_prix_id}/qualifying`, including for frontend heuristic predictions, but does not feed backend season-statistics derivation.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -181,7 +181,7 @@ The published qualifying classification for a `QUALIFYING` session (`qualifying_
 | `q3_time_ms` | integer \| null | Best Q3 lap in milliseconds, > 0 |
 
 ### User
-An application account (`users` table). Identity comes from Firebase Auth; this row holds the role and submitter state the backend authorizes against.
+An application account mirror (`users` table). Identity comes from Firebase Auth and the backend authorizes against the current Firestore `users/{uid}` profile. Submission creation/review upserts this SQL row from that verified identity/profile for stable contributor/reviewer foreign keys; stored SQL role/status are not the source of current privileges.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -235,9 +235,9 @@ An account-deletion request (`account_deletions` table). The row is kept after t
 ## Sample data
 
 Real 2025-season sample data implementing this model is in `data/sample/`:
-- `drivers.json` — full 2025 driver roster
+- `drivers.json` — sample 2025 driver roster
 - `races.json` — full 2025 season calendar
-- `events.json` — event log for one race session (Belgian GP), demonstrating the event types above
+- `events.json` — Belgian GP race and qualifying event samples
 - `laps.json` — flat per-lap records for a subset of drivers
 
 See `docs/event-schema.md` for the event log format these are derived from, and `docs/f1-statistics.md` for how statistics are computed from them.

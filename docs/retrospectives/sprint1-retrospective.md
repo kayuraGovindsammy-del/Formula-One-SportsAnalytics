@@ -32,7 +32,7 @@ This is a major Sprint 1 strength: the project did not stop at CRUD-like scaffol
 
 ### Project process, documentation, and CI workstream
 
-The project also invested early in process and documentation. The repo records methodology and Git workflow work (`56503c6`, `2d54e97`), MkDocs setup (`42dd7f8`), developer setup improvements (`611ae23`), and CI foundations (`5bf92f9`, `b8fd504`). These are supported by [docs/methodology.md](../methodology.md), [docs/git-workflow.md](../git-workflow.md), `README.md`, `mkdocs.yml`, and `.gitea/workflows/ci.yml`.
+The project also invested early in process and documentation. The repo records methodology and Git workflow work (`dba207d`, `2d54e97`), MkDocs setup (`2e3e7dd`), developer setup improvements (`611ae23`), and CI foundations (`b8fd504`). These are supported by [docs/methodology.md](../methodology.md), [docs/git-workflow.md](../git-workflow.md), `README.md`, `mkdocs.yml`, and `.gitea/workflows/ci.yml`.
 
 This work should be recognised as part of Sprint 1’s success, but not as the whole story. The project’s real strength was that the team built technical foundations, process foundations, and documentation foundations together.
 
@@ -60,15 +60,15 @@ Sprint 1 also showed that the data layer still had limits. The repository record
 
 ### Environment and setup assumptions
 
-The project later improved setup documentation, and [docs/repo-overview.md](../repo-overview.md) records that setup assumptions were not always completely clear. The Node.js engine mismatch noted there (`engines: >=22` at the root while CI ran Node 20) is one example. This was a genuine friction point in Sprint 1: local setup expectations needed to be more explicit.
+The project later improved setup documentation, and the September 8 repository overview recorded that setup assumptions were not always completely clear. The historical Node.js engine mismatch (`engines: >=22` at the root while CI ran Node 20) is one example. This was a genuine friction point in Sprint 1: local setup expectations needed to be more explicit. Current CI uses Node 22; the mismatch is retained here as historical evidence rather than a current setup issue.
 
 ### Documentation quality and validation
 
 The docs site was created early, but the history shows that documentation quality also needed tightening. The broken-link fix (`bdc8a99`) provides good evidence that docs had to be validated rather than merely written. This was not a team failure; it was a useful reminder that project documentation is part of the build and quality story.
 
-### Deployment verification and evidence gaps
+### Deployment clarity
 
-The repository overview also shows that deployment assumptions were not always fully verifiable from repository configuration alone. [docs/repo-overview.md](../repo-overview.md) explains that the Azure deployment workflow is not in a CI-recognised directory and that the active pipeline evidence is the project’s CI file. This matters because it shows that deployment status needed to be verified rather than assumed.
+Sprint 1 documentation did not clearly distinguish the Azure frontend deployment workflow from the Gitea validation workflow. Railway backend deployment automation was introduced later and is covered in the Sprint 3 delivery evidence.
 
 ### Testing depth was still maturing
 
@@ -139,14 +139,14 @@ Representative repository evidence for this retrospective includes:
 - `3255642` — Implement race and driver details
 - `c8c84b9` — Set up Express backend with health endpoint and error handling
 - `c52baac` — Add API read endpoints for drivers, races, laps and events (PR `#19`)
-- `3d05dde` — Add derivation engine and derived statistics endpoints (PR `#16`)
+- `3d05dde` — Add derivation engine and derived statistics endpoints (issue `#16`, merged in PR `#21`)
 - `1da91b3` / `7f91fd9` — Add F1 data model, event schema, and statistics catalogue docs
 - `ab6f0be` — Add sample F1 dataset
-- `56503c6` — Document team Git workflow
+- `dba207d` — Document team Git workflow
 - `2d54e97` — Document project methodology
-- `42dd7f8` — Set up MkDocs documentation site
+- `2e3e7dd` — Add MkDocs documentation site
 - `611ae23` — Improve developer setup documentation
-- `5bf92f9` / `b8fd504` — Add CI pipeline foundations
+- `b8fd504` — Add CI workflow
 - `0f535a5` — Fix frontend lint and build errors (PR `#31`)
 - `9da7cf9` — Fix backend test initialization and race statistics (PR `#32`)
 - `bdc8a99` — Fix broken documentation links
@@ -154,4 +154,8 @@ Representative repository evidence for this retrospective includes:
 
 ## 8. Scope note
 
-This retrospective is explicitly about Sprint 1. It does not treat later Sprint 2 work as if it already existed during Sprint 1, including the Playwright login-route fix, the Sprint 2 user-testing evidence page, the later coverage/CI expansion, and the later auth/roles/submission work that the repository chronology identifies as Sprint 2. Where chronology is uncertain, the wording above remains conservative and evidence-based.
+This retrospective is explicitly about Sprint 1. It does not treat later Sprint 2 work as if it already existed during Sprint 1, including the Playwright login-route fix, the Sprint 2 user-testing evidence page, the later coverage/CI expansion, and the authentication/submission enhancements in `14a1f84`. Initial Firebase authentication, role guards, and submission pages were already introduced in Sprint 1 (`857fe15`, PR #9); Sprint 2 extended that foundation. The supporting commit references above are reachable from the current `main` history. Where chronology is uncertain, the wording above remains conservative and evidence-based.
+
+## Sprint Meeting Summary
+
+Sprint 1 meetings focused mainly on establishing the foundation of the Sports Analytics platform and agreeing on the basic architecture the rest of the project would build on. The team worked through the core routed pages for drivers, races, constructors and statistics, while also establishing Firebase authentication and the role-controlled submitter and administrator interfaces. On the backend, the initial Express APIs, health/error handling and derived statistics were introduced alongside the relational and event-data foundation and the first Belgian Grand Prix sample dataset. The team also established its Git and Scrum workflow, MkDocs documentation structure and initial CI process. By the end of the sprint, the project had moved from an initial concept to a functional full-stack foundation that later sprints could extend.

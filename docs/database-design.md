@@ -2,13 +2,14 @@
 
 ## 1. Overview
 
-The F1 Sport Analytics platform uses Firebase services for authentication and application data storage.
+The F1 Sport Analytics platform uses Firebase for identity and profiles, and PostgreSQL for F1 data and reviewed submissions.
 
 The system uses:
 
 - **Firebase Authentication** for user authentication.
-- **Google Sign-In** as the authentication provider.
-- **Cloud Firestore** for user profiles, roles, submitter approval status, and event submissions.
+- **Google Sign-In and email/password** as authentication providers.
+- **Cloud Firestore** for user profiles, roles, submitter approval state and server-owned deletion markers.
+- **Aiven PostgreSQL**, accessed through the Express backend's `pg` pool, for sports data, submission history, accepted envelopes and SQL account-deletion tombstones.
 
 The database design supports three application roles:
 
@@ -25,7 +26,7 @@ It also supports the event submission and review workflow required by the platfo
 The high-level data flow is:
 
 ```text
-Google Sign-In
+Google / email-password sign-in
       |
       v
 Firebase Authentication
@@ -36,10 +37,20 @@ Firebase UID
       v
 Cloud Firestore
       |
-      +-------------------+
-      |                   |
-      v                   v
-    users             submissions
+      +--> users/{uid} (profiles, roles, access requests)
+      +--> accountDeletions/{uid} (server-owned marker)
+
+Firebase ID token + current Firestore profile
+      |
+      v
+Express authentication + authorization
+      |
+      v
+Aiven PostgreSQL
+      +--> users (submission/reviewer identity mirror)
+      +--> submissions -> accepted_events + normalized event rows
+      +--> seasons, grand_prix, sessions, results, qualifying, ...
+      +--> account_deletions (durable cleanup requests)
 ```
 
 Firebase Authentication is responsible for identifying the user.
@@ -48,20 +59,23 @@ Firestore stores application-specific information that is not part of the Fireba
 
 - application role
 - submitter approval status
-- event submissions
-- submission status
-- validation/rejection information
+- submitter request/review timestamps and reason
+- deletion markers
+
+PostgreSQL stores pending/reviewed event submissions and their rejection information. The backend pool verifies TLS using `DATABASE_CA_CERT` or local `certs/ca.pem`; credentials and certificate contents remain outside the repository. See [Setup](setup.md).
 
 ---
 
 ## 3. Firestore Collections
 
-The current implementation uses two main Firestore collections:
+The current implementation uses these Firestore collections:
 
 ```text
 users
-submissions
+accountDeletions
 ```
+
+There is no client-accessible Firestore submission collection. Firestore rules deny unmatched collections; submissions use the SQL API. The PostgreSQL entities/constraints are in [Data Model](data-model.md), `database/schema.sql` and additive migrations `001`–`007`. Schema/seed files bootstrap a new database; existing databases use the applicable migrations rather than rerunning a bootstrap.
 
 ---
 
@@ -96,6 +110,8 @@ photoURL
 role
 submitterStatus
 createdAt
+requestedAt / reviewedAt / reviewedBy / reviewReason (after a request)
+deletionPending (server-owned during cleanup)
 ```
 
 Example:
@@ -285,51 +301,56 @@ approved             rejected
 
 ---
 
-# 8. Submissions Collection
+# 8. PostgreSQL Submissions
 
-## Collection
+## Table
 
 ```text
 submissions
 ```
 
-Each submission represents Formula 1 event data submitted by an approved submitter or administrator.
-
-Firestore automatically generates the submission document ID.
+Each submission represents Formula 1 event data submitted by an approved submitter or administrator. PostgreSQL generates its integer `submission_id`.
 
 Example:
 
 ```text
-submissions/
-    generated-submission-id/
+submissions (submission_id BIGSERIAL primary key)
 ```
 
 ---
 
-## 9. Submission Document Structure
+## 9. Submission Storage and API Structure
 
 A submission contains:
 
 ```text
-submissions/{submissionId}
-
-submittedBy
-submittedByEmail
-submittedAt
+submission_id
+submitter_user_id -> users.user_id
+session_id -> sessions.session_id
 status
-validationErrors
-event
+event_data (JSONB)
+validation_message
+submitted_at
+reviewed_at
+reviewed_by -> users.user_id
+source_filename (nullable; not used by the current form)
 ```
+
+The API joins the user rows for display and returns snake_case fields. SQL enums use uppercase (`PENDING`, `ACCEPTED`, `REJECTED`); the API status uses lowercase and converts a single `validation_message` into `validation_errors: []` or `[reason]`.
 
 Example:
 
 ```json
 {
-  "submittedBy": "firebase-user-uid",
-  "submittedByEmail": "user@example.com",
-  "submittedAt": "Firestore Timestamp",
+  "submission_id": 42,
+  "submitted_by": "firebase-user-uid",
+  "submitted_by_email": "user@example.com",
+  "submitted_at": "2026-09-10T10:15:00Z",
+  "reviewed_at": null,
+  "reviewed_by": null,
+  "reviewed_by_email": null,
   "status": "pending",
-  "validationErrors": [],
+  "validation_errors": [],
   "event": {
     "event_id": "evt_example",
     "session_id": "2025_R13_RACE",
@@ -351,21 +372,21 @@ Example:
 
 # 10. Submission Fields
 
-### `submittedBy`
+### `submitted_by`
 
 Firebase UID of the user who submitted the event.
 
 This provides traceability between a submission and the authenticated user who created it.
 
-### `submittedByEmail`
+### `submitted_by_email`
 
 Email address of the submitter.
 
-This is stored to make administrative review easier.
+This is read from the joined SQL user mirror to make administrative review easier; it is not copied into each submission row.
 
-### `submittedAt`
+### `submitted_at`
 
-Firestore server timestamp recording when the submission was created.
+PostgreSQL timestamp recording when the submission was created.
 
 ### `status`
 
@@ -379,7 +400,7 @@ accepted
 rejected
 ```
 
-### `validationErrors`
+### `validation_errors`
 
 An array containing validation or rejection information.
 
@@ -538,7 +559,7 @@ Event Submitted
 ACCEPTED  REJECTED
              |
              v
-     validationErrors
+     validation_errors
 ```
 
 An accepted submission has:
@@ -556,10 +577,14 @@ status = rejected
 and contains a reason in:
 
 ```text
-validationErrors
+validation_errors
 ```
 
 This allows rejected submissions to provide useful feedback rather than failing silently.
+
+Approval locks the pending row, revalidates its event and database references, writes the `accepted_events` envelope and its applicable normalized event row, and records review state/time/admin in one transaction. Rejection publishes nothing. Duplicate pending/accepted event IDs or normalized-row conflicts return `409`; failed publication rolls back the whole approval. Reviewed rows cannot transition again.
+
+`accepted_events.submission_id` is unique and all normalized event tables carry nullable `submission_id` references. The public event reader combines accepted envelopes with only source/legacy normalized rows whose `submission_id IS NULL`, preventing double counting. `laps` reads persisted rows directly, including published submissions. No statistics totals or chat conversations are persisted by the chat implementation.
 
 ---
 
@@ -572,12 +597,12 @@ A submission can be traced to:
 ```text
 Submission
     |
-    +-- submittedBy
+    +-- submitter_user_id
     |       |
     |       v
-    |   users/{uid}
+    |   PostgreSQL users (auth_uid matches Firestore users/{uid})
     |
-    +-- event
+    +-- event_data
             |
             v
        F1 event data
@@ -630,7 +655,7 @@ Role changes are controlled by administrators.
 
 ---
 
-## Submission Security
+## Submission API Security
 
 A submission can be created by:
 
@@ -642,7 +667,7 @@ A normal `USER` cannot create event submissions.
 When a submission is created:
 
 ```text
-submittedBy
+submitted_by
 ```
 
 must match the Firebase UID of the authenticated user.
@@ -653,7 +678,11 @@ New submissions must also begin with:
 status = pending
 ```
 
-Only administrators may change submission review status.
+Only administrators may change submission review status. Firebase Admin verifies the bearer token and reads the current Firestore role/status; parameterized SQL performs the validated operation. The SQL `users` mirror is not used as the current authority for privileges.
+
+`GET /submissions` filters ownership for approved submitters and returns all records for admins. `GET /submissions/mine` permits every authenticated owner to read their history; detail access is owner/admin only. Lists are unpaginated and accept only `status`. Reviewer identity is exposed only to administrators.
+
+Firestore `accountDeletions` markers are denied to all client reads/writes. Profile deletion also requires the backend. Account cleanup keeps stable SQL user/submission foreign keys, replaces the UID/contact details and role with anonymized values, and retains the original UID only in deletion tombstones. Pending cleanup is retried; see [Account deletion](member4-account-deletion.md).
 
 ---
 
@@ -663,7 +692,7 @@ This design provides several advantages.
 
 ### Authentication Separation
 
-Firebase Authentication manages user identity while Firestore manages application-specific authorization information.
+Firebase Authentication manages user identity while Firestore manages application-specific authorization information. PostgreSQL holds the reviewed sports-data workflow and relational traceability.
 
 ### Role-Based Access
 
@@ -687,9 +716,9 @@ Submitted F1 events use the event schema already defined elsewhere in the projec
 
 ---
 
-# 17. Current Sprint Scope
+# 17. Current Implementation
 
-For the current sprint, the database implementation provides the foundation for:
+The current database implementation supports:
 
 - Google authentication
 - Firestore user profiles
@@ -700,5 +729,8 @@ For the current sprint, the database implementation provides the foundation for:
 - submission review
 - rejection feedback
 - event-to-submission traceability
+- atomic publication and SQL-backed public lap/event readers
+- Jolpica results/qualifying/pit-stop/retirement ingestion and OpenF1 position-change ingestion
+- durable deletion requests and anonymization
 
-Future sprints can extend this foundation as additional analytics, validation, processing, and publication functionality is implemented.
+Published `race_results` facts supplement lap/event derivation when telemetry is absent. Driver/constructor totals and chat standings select `RACE` sessions only; exports can include ingested `SPRINT` rows. Current mappings and limits are documented in [F1 Statistics](f1-statistics.md) and [Jolpica ingestion](ingestion/jolpica-ingestion.md).

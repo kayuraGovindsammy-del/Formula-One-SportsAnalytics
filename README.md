@@ -2,6 +2,9 @@
 
 A Formula 1 sport analytics platform developed for COMS3011A.
 
+- Production application: [Azure](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/)
+- Interactive API documentation (Swagger UI): [https://f1-sport-analytics-api-production.up.railway.app/api/docs](https://f1-sport-analytics-api-production.up.railway.app/api/docs)
+
 The project supports exploration of Formula 1 drivers, constructors, races, event data, and derived statistics. It also includes authenticated users, approved data submitters, and administrative review of submission records.
 
 ## Project Overview
@@ -13,8 +16,11 @@ The current implementation covers:
 - Formula 1 drivers and constructors
 - race and session metadata
 - race/event data and derived statistics
+- external Formula 1 data from Jolpica and OpenF1
 - authenticated user roles and submitter approval states
 - administrative review of data submissions
+- qualifying results and a frontend performance forecast
+- CSV/JSON dataset downloads and a floating F1 Assistant
 
 ## Technology Stack
 
@@ -24,6 +30,7 @@ The current implementation covers:
 - Vite
 - Firebase Authentication
 - Firestore for user profiles, roles, and submitter approval status
+- Recharts for statistics charts
 
 ### Backend
 - Node.js
@@ -41,20 +48,29 @@ The current implementation covers:
 The project uses a custom backend and shared PostgreSQL database for Formula 1 application data, while Firebase Authentication is used for identity and access control. The application data itself is accessed through the team’s Express API rather than Firebase-generated database endpoints.
 
 ```text
-React Frontend
+Browser
       |
       v
-Custom Express API (Node.js + TypeScript)
+Azure-hosted React Frontend
+      |
+      v
+Railway-hosted Express API (Node.js + TypeScript)
       |
       +---------------------------+
       |                           |
       v                           v
-Firebase Authentication      Neon PostgreSQL
+Firebase Authentication      Aiven PostgreSQL
 Identity + access control    Formula 1 data + app data
 Firestore roles/profiles    Submissions
 ```
 
+The production flow is Browser → Azure frontend → Railway API → Aiven
+PostgreSQL. Firebase Authentication and Firestore provide identity, profiles
+and roles.
+
 The frontend is a Vite + React application, and the backend is a hand-written Express API. The current codebase uses Firebase Authentication and Firebase Admin for identity-related flows, while the main project data model and submission records are handled through the backend and PostgreSQL.
+
+The frontend reads profiles and submitter requests directly from Firestore. The backend verifies Firebase ID tokens and reads those profiles for protected submissions and account deletion. Public read/export routes and `POST /api/v1/chat` do not require a token. The assistant calls Groq, with Gemini as a fallback, using validated tools backed by the project's own data.
 
 ## Repository Structure
 
@@ -73,7 +89,7 @@ The repository is organised as follows:
 Before setting up the project locally, make sure you have:
 
 - Git
-- Node.js 20 LTS (the version used in the current project tooling and CI environment)
+- Node.js 22, at least 22.13 (CI uses 22; the root declares `>=22`, but locked frontend tooling requires a later 22.x release)
 - npm
 - Python 3.12 (used in the docs CI environment for MkDocs builds; match this locally if you want to mirror CI)
 
@@ -139,7 +155,7 @@ The backend expects the following environment variables in its local environment
 
 ```bash
 PORT=3001
-CORS_ORIGIN=http://localhost:5173
+CORS_ORIGINS=http://localhost:5173
 DATABASE_URL=postgres://avnadmin:YOUR_PASSWORD@YOUR_SERVICE-YOUR_PROJECT.a.aivencloud.com:YOUR_PORT/defaultdb
 FIREBASE_PROJECT_ID=your-firebase-project-id
 FIREBASE_CLIENT_EMAIL=your-firebase-service-account-email
@@ -147,6 +163,8 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PR
 ```
 
 These settings correspond to the backend configuration in `src/backend/src/index.ts`, `src/backend/src/app.ts`, `src/backend/src/config/database.ts`, and `src/backend/src/config/firebaseAdmin.ts`.
+
+Copy the Aiven connection string without its `sslmode` query parameter so the explicit CA verification remains in effect. The optional assistant variables (`GROQ_API_KEY`, `GEMINI_API_KEY`, model overrides, and `CHAT_DAILY_LIMIT`) are described in `src/backend/.env.example` and `docs/setup.md`.
 
 ### Database CA certificate (required)
 
@@ -164,19 +182,21 @@ Download it once:
 4. Save it as `src/backend/certs/ca.pem`.
 
 ```bash
-mkdir -p src/backend/certs
-# move the downloaded ca.pem into src/backend/certs/ca.pem
+mkdir -p certs
+# move the downloaded ca.pem into certs/ca.pem
 ```
 
 `src/backend/src/config/database.ts` resolves `certs/ca.pem` relative to the
 process working directory, so run the backend from `src/backend` (as the
 commands in this section do) for the local file to be found.
 
+If you copied `.env.example`, clear or remove its `DATABASE_CA_CERT` placeholder
+when using the local file; a non-empty environment value takes precedence.
+
 **Never commit the certificate.** `certs/` and `*.pem` are in `.gitignore`;
 each developer and each environment downloads its own copy.
 
-Deployed environments (Railway) have no checkout to read the file from, so
-they set `DATABASE_CA_CERT` instead — the PEM contents on a single line with
+Deployed environments (Railway) can supply `DATABASE_CA_CERT` instead — the PEM contents on a single line with
 every newline written as a literal `\n`, which `database.ts` unescapes before
 use. `DATABASE_CA_CERT` takes precedence when both are present, which also
 makes it a usable local override if you would rather not keep the file.
@@ -212,6 +232,10 @@ Run the project checks with the actual repository scripts:
 cd src/frontend
 npm run lint
 npm run build
+npm run test:ui:coverage
+npx --yes firebase-tools emulators:exec --only firestore --project demo-member4-roles "npm run test:rules"
+npx playwright install chromium
+npm run test:e2e
 ```
 
 ### Backend
@@ -268,21 +292,24 @@ The full process is documented in `docs/git-workflow.md`. This project does not 
 
 The repository includes a Gitea CI workflow at `.gitea/workflows/ci.yml`. It is configured to run on pushes to `main` and on pull requests targeting `main`.
 
-The workflow defines three validation jobs:
+The workflow defines four validation jobs (Node.js 22 for the application jobs):
 
-- frontend lint and build
-- backend build and tests
+- frontend lint, build, Vitest coverage, Firestore emulator rules tests (Java 21), and five Playwright login-page smoke tests
+- backend build and Vitest coverage, including submission integration tests against a disposable local PostgreSQL database
+- fresh PostgreSQL schema, seed, and required-object verification
 - MkDocs strict documentation build
 
 This gives the project a repeatable validation pipeline for the main branch and pull-request review flow.
 
+Frontend and backend coverage reports are uploaded as artifacts on a best-effort basis (`continue-on-error: true`); the validation commands remain blocking. After all four validation jobs succeed, pushes to `main` trigger the Railway backend deployment job. Pull requests do not deploy.
+
 ## Deployment
 
-The repository currently proves a frontend deployment to Azure App Service. The workflow in `workflows/deploy-azure.yml` builds the frontend from `src/frontend`, then deploys the packaged app to the Azure Web App named `f1-sport-analytics` on pushes to `main` and via manual workflow dispatch.
+The production application is deployed and operational at [f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/). The frontend is hosted on Azure; the backend API is deployed to Railway and uses Aiven for PostgreSQL. The frontend template points to `https://f1-sport-analytics-api-production.up.railway.app/api/v1`.
 
-The public documentation site remains deployed at https://eagle-stack-documentation.netlify.app/.
+The active Gitea workflow in `.gitea/workflows/ci.yml` deploys the backend with `railway up --ci` after all four validation jobs succeed, using `RAILWAY_TOKEN`, `RAILWAY_PROJECT_ID`, and `RAILWAY_SERVICE_ID` secrets. The root build/start scripts delegate to `src/backend`; the build also packages the OpenAPI specification. Runtime configuration requires the Aiven connection/CA, Firebase Admin credentials for protected operations, allowed CORS origins, and optional chat provider keys. `workflows/deploy-azure.yml` describes Azure App Service deployment for the frontend; it is separate from the Gitea backend deployment workflow.
 
-The current source tree does not provide evidence for a separate Railway deployment for this project. The verified deployment statements in this repository are the Azure frontend deployment and the Netlify documentation site.
+The public documentation site is available at https://eagle-stack-documentation.netlify.app/.
 
 ## Project Management
 
@@ -294,38 +321,18 @@ Taiga project: https://tree.taiga.io/project/andrianos-mastrokolias-f1-analytics
 
 AI tools were used during the development of this project in accordance with the course AI usage policy.
 
-### AI Code Generation
+The following tools were used for code generation, review, development, and documentation assistance:
 
-The following AI tools were used to assist with code generation:
-
-- **ChatGPT-Web [GPT-5.6 Sol]**
-  - Assisted with frontend and backend code generation.
-  - Assisted with Firebase authentication and role-based access integration.
-  - Assisted with the submission and admin review functionality.
-  - Assisted with integrating the frontend with the backend API.
-  - Assisted with PostgreSQL integration, database migration, development seed data, and local setup scripts.
-  - Assisted with debugging and resolving implementation errors.
-
-- **Claude-Web [Claude Sonnet 5]**
+- **Claude Code — Claude Sonnet 5, Claude Opus 4.5, Claude Opus 5**
+  - Assisted with code generation and code review.
+- **Claude Web — Claude Sonnet 5**
   - Assisted with code generation during development.
-
-### AI Code Review
-
-The following AI tool was used for code review:
-
-- **Claude-Code [Claude Sonnet 5]**
-  - Used to review project code and assist with identifying implementation issues.
-
-### AI-Assisted Development
-
-The following AI tool was used to assist with repository inspection, targeted code and documentation edits, validation, and project setup work:
-
-- **OpenAI Codex**
-  - Used to inspect the repository and existing implementation.
-  - Assisted with targeted code and documentation edits under developer instruction.
-  - Helped investigate frontend lint/build issues and backend test/configuration problems.
-  - Assisted with MkDocs documentation refinement and CI workflow configuration.
-  - Helped review completed changes and run validation commands.
+- **ChatGPT Web — GPT-5.6 Sol**
+  - Assisted with frontend and backend code generation, integration, and debugging.
+- **OpenAI Codex — Default model selection**
+  - Used through VS Code for code and documentation assistance, repository inspection, and validation.
+- **GitHub Copilot Chat — Auto model selection**
+  - Used in VS Code for in-editor assistance and documentation work.
 
 ### Human Responsibility
 

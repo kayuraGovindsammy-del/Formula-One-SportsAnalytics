@@ -2,7 +2,7 @@
 
 This project uses a simple Git workflow built around the default branch `main` and short-lived `feature/...` branches.
 
-The repository also includes a Gitea CI pipeline in `.gitea/workflows/ci.yml`. It runs frontend lint/build checks, backend build and tests, and a strict MkDocs documentation build on pushes to `main` and pull requests targeting `main`.
+The repository also includes a Gitea CI pipeline in `.gitea/workflows/ci.yml`. On pushes to `main` and pull requests targeting `main`, it runs frontend lint/build, Vitest coverage, Firestore rules and Playwright smoke tests; backend build/coverage tests with a disposable PostgreSQL database; fresh schema/seed verification; and a strict MkDocs documentation build. A separate Railway backend deployment job depends on all four validation jobs and runs only for pushes to `main`. Coverage artifact uploads are non-blocking; build and test failures still fail their jobs.
 
 The goal is to keep work organised, reviewable, and easy to merge for a five-person university project without overcomplicating the process.
 
@@ -48,6 +48,8 @@ Examples:
 - `feature/readme-dev-setup`
 - `feature/backend-race-endpoints`
 - `feature/firebase-auth-guard`
+
+The merged history also uses purpose-specific prefixes such as `fix/`, `docs/`, `perf/`, `test/`, `ci/`, and `feat/`. These follow the same branch and Pull Request workflow; for example, PR #107 delivered the driver-statistics query optimisation and PR #139 delivered the assistant widget.
 
 Keep names short, specific, and consistent.
 
@@ -101,6 +103,8 @@ The Pull Request should include:
 - the issue being addressed
 
 Where possible, link the Pull Request to the relevant Gitea issue.
+
+The repository includes `.gitea/PULL_REQUEST_TEMPLATE.md` for review summaries and `.gitea/ISSUE_TEMPLATE/bug_report.md` for reproducible bug reports. Use the validation notes to distinguish checks actually run from checks deferred or skipped because their prerequisites were unavailable.
 
 ## 8. Review the Pull Request
 

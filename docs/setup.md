@@ -9,15 +9,15 @@ site, so they are given as repository paths rather than links.
 
 | Requirement | Version | Where that comes from |
 |---|---|---|
-| Node.js | 22 | Root `package.json` declares `"engines": { "node": ">=22" }`, and every job in `.gitea/workflows/ci.yml` pins `node-version: '22'`. |
+| Node.js | 22.13 or later in the 22.x series | Root `package.json` declares `>=22`, and CI selects Node 22. The frontend lockfile requires at least 22.12 for Vite/Vitest and 22.13 for jsdom. |
 | npm | bundled with Node | Lockfiles are committed, so use `npm ci` rather than `npm install`. |
 | Aiven PostgreSQL access | — | Needed for the connection string and the CA certificate below. Ask the team for access to the project's Aiven service. |
 | Java 21 | optional | Only for the frontend Firestore rules tests, which run under the Firebase emulator. |
 | Python 3.12 | optional | Only for building this documentation site. |
 
-> `README.md` currently states Node.js 20 LTS. The root `package.json` and CI
-> both use 22 — that is the version to install. Correcting the README is
-> tracked separately.
+On Windows PowerShell, use `Copy-Item .env.example .env` in place of `cp`.
+If PowerShell blocks `npm.ps1`, use `npm.cmd` (and `npx.cmd`) for the same
+commands without changing the machine's execution policy.
 
 ## Clone
 
@@ -37,8 +37,10 @@ cp .env.example .env
 ```
 
 Fill in `.env` from the template. `src/backend/.env.example` documents every
-variable; the ones you cannot start without are `DATABASE_URL` (the Aiven
-connection string) and the CA certificate covered next.
+variable. Database-backed requests require `DATABASE_URL` (the Aiven
+connection string) and the CA certificate covered next. Initialisation is
+lazy: the process and the health endpoint can run without them. Protected
+submission/account operations also need Firebase Admin credentials.
 
 Paste the Aiven connection string into `DATABASE_URL` **without** its
 `?sslmode=require` suffix. `src/backend/src/config/database.ts` already makes
@@ -76,8 +78,8 @@ mkdir -p certs
 **Never commit the certificate.** `certs/` and `*.pem` are in `.gitignore`;
 each developer and each environment downloads its own copy.
 
-Deployed environments (Railway) have no checkout to read the file from and set
-the `DATABASE_CA_CERT` environment variable instead. Without either source,
+Deployed environments (Railway) can set the `DATABASE_CA_CERT` environment
+variable instead. Without either source,
 startup fails on the first database call with:
 
 ```
@@ -87,10 +89,32 @@ Database CA certificate is not configured. Set DATABASE_CA_CERT or provide certs
 The *Database CA certificate* section of `src/backend/README.md` has the full
 explanation, including the `\n` escaping `DATABASE_CA_CERT` expects.
 
+When using the local file, remove or leave blank the `DATABASE_CA_CERT`
+placeholder copied from `.env.example`: a nonempty value takes precedence
+over `certs/ca.pem`, even if it is still a placeholder.
+
+### Schema and seed
+
+`database/schema.sql` is the consolidated schema for a **fresh, disposable**
+database, including account deletion, submissions, result/grid/fastest-lap
+fields, indexes, and qualifying results. It creates schema objects and cannot
+be rerun over existing objects unchanged. CI loads it, then `database/seed.sql`,
+then `database/verify_schema.sql` with
+`psql -v ON_ERROR_STOP=1`.
+
+For an existing shared database, use the relevant additive migration files
+under `database/migrations` after a backup and review of what is already
+applied. Do not run the fresh schema/seed against that database. See
+[Database Design](database-design.md) for the model and migration details;
+the ingestion commands are in [Jolpica-F1 Pipeline](ingestion/jolpica-ingestion.md)
+and [OpenF1 overtakes](ingestion/openf1-overtakes.md).
+
 ### Chat assistant (optional)
 
-`POST /api/v1/chat` is a small F1 assistant that answers only from this API's
-own data. It needs at least one LLM provider key in `src/backend/.env`:
+`POST /api/v1/chat` is an F1 assistant whose factual answers use validated
+tools backed by this API's data. It can also give clearly framed opinions
+and follow-up explanations. It needs at least one LLM provider key in
+`src/backend/.env`:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
@@ -104,7 +128,7 @@ With neither key set, the endpoint answers `503 SERVICE_UNAVAILABLE` and the
 rest of the API works as normal. Any model you choose must support tool
 (function) calling. Deployed environments set the same variables in Railway.
 See [Third-party services](third-party-services.md) for what is sent to each
-provider and the free-tier terms.
+provider and the provider configuration.
 
 ### Run it
 
@@ -145,6 +169,17 @@ The root `.env.example` holds frontend Firebase variables only and is not read
 by either package at runtime — the backend loads its own `src/backend/.env`,
 and Vite loads `src/frontend/.env`.
 
+Firebase client configuration is currently declared in
+`src/frontend/src/auth/firebase.ts`; `VITE_FIREBASE_*` placeholders do not
+override it. `VITE_API_BASE_URL` is a build-time setting, so rebuild the
+frontend when changing a deployed API URL. Set backend `CORS_ORIGINS` to a
+comma-separated list that includes the frontend's exact origin.
+
+`setup.ps1` installs both packages with `npm install`; `start.ps1` starts
+only the frontend. The setup script's Neon message is historical: the
+current database configuration requires the Aiven CA. Neither script
+creates environments, applies migrations, nor starts a local backend.
+
 ## Run the tests
 
 Backend, from `src/backend`:
@@ -160,7 +195,10 @@ Frontend, from `src/frontend`:
 ```bash
 npm run lint
 npm run build
-npm run test:rules    # Firestore rules, needs the Firebase emulator and Java 21
+npm run test:ui:run
+npm run test:ui:coverage
+npx --yes firebase-tools emulators:exec --only firestore --project demo-member4-roles "npm run test:rules"
+npx playwright install chromium
 npm run test:e2e      # Playwright smoke test
 ```
 
@@ -171,8 +209,12 @@ pip install -r requirements-docs.txt
 mkdocs build --strict
 ```
 
-These are the same checks `.gitea/workflows/ci.yml` runs, so a clean local run
-is a good predictor of a green pipeline. See
+These match the package checks in `.gitea/workflows/ci.yml`. CI also supplies
+a disposable local PostgreSQL database through `TEST_DATABASE_URL` for the
+submission integration suite, which skips when that variable is unset,
+and separately validates the fresh schema/seed. On Linux, CI installs
+Chromium system dependencies with `npx playwright install --with-deps chromium`.
+See
 [Testing Overview](testing.md) for what each layer covers.
 
 ## Where to go next

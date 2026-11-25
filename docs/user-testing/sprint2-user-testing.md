@@ -2,6 +2,12 @@
 
 This page records verified Sprint 2 user-testing evidence for the SportsAnalytics frontend. It uses only repository facts and the local Google Form CSV that was uploaded during the Sprint 2 review process.
 
+The results and screenshots below are retained Sprint 2 evidence. The raw response CSV is not committed in the current repository, so the published response counts and averages cannot be independently recalculated from this checkout. Later Sprint 3/4 changes and automated tests do not constitute additional recorded user feedback.
+
+## Sprint Meeting Summary
+
+Sprint 2 meetings concentrated on moving beyond the initial prototype and making the application work with more realistic data and workflows. Jolpica ingestion, caching and PostgreSQL read models were introduced so that Formula 1 information could be sourced and queried more reliably. The team also strengthened the submission review and history process, role rules and recoverable account-deletion behaviour, while expanding the statistics available to users, including points, consistency, grid-gain and race-result fallbacks. User testing became an important part of the sprint, and the interface was adjusted in response to the feedback collected. Testing also matured substantially through increased backend coverage, Firestore rules testing, Playwright login checks and CI integration.
+
 ## Testing window
 
 - Responses were collected between 11 and 13 September 2026.
@@ -110,7 +116,7 @@ Current verified scope:
 
 - `src/frontend/e2e/navigation.spec.ts`
 - Five unauthenticated tests that verify:
-  1. the login page loads at `/`
+  1. an unauthenticated visit to `/` redirects to `/login`, where the login page loads
   2. the email and password fields are visible
   3. the sign-in and Google sign-in controls are visible
   4. the password reset option is visible
@@ -120,11 +126,25 @@ This means the repository contains meaningful frontend smoke coverage for the lo
 
 ## Evidence and limitations
 
-This Sprint 2 evidence page is intentionally conservative:
+This Sprint 2 evidence page summarizes the recorded feedback and its implementation context:
 
-- It is based on the uploaded Google Form CSV and the verified repository state.
+- Results are based on the uploaded Google Form CSV and the repository changes referenced on this page.
 - It separates external-user results from the stakeholder response.
-- It does not invent or assume unverified outcomes.
-- It does not claim that every suggested improvement has already been implemented.
+- Feedback themes are limited to the recorded responses.
+- Suggested improvements are reported separately from implementation evidence.
 
 The evidence supports the conclusion that Sprint 2 external-user feedback was strongly positive overall, with the main remaining opportunities focused on search affordances, visual polish consistency, and clearer contribution workflow guidance.
+
+## Final Implementation Outcomes
+
+The following outcomes distinguish later implementation evidence from the
+original Sprint 2 feedback. They do not imply that every request was completed.
+
+| Feedback | Final outcome | Evidence |
+| --- | --- | --- |
+| Improve header navigation styling | Implemented: the current navigation has F1-themed styling, active-page treatment, and responsive layout. | [Sprint 2 before/after evidence](#before-and-after-evidence); current implementation in `src/frontend/src/components/layout/Navbar.tsx` and `src/frontend/src/index.css`. |
+| Make search easier to discover with an icon | Implemented on the Drivers, Races, and Constructors search controls. | [Sprint 2 before/after evidence](#before-and-after-evidence); current page controls are recorded in the [User Guide](../user-guide.md#explore-formula-1-data). |
+| Add team grouping when searching for drivers | Team filtering is implemented; the specifically requested grouped-search presentation is not documented as implemented. | [User Guide](../user-guide.md#explore-formula-1-data). |
+| Consider predicted race functionality | A later predictions view was added; it estimates finishing order/pace using qualifying and season statistics. It is not evidence of a calibrated predicted race-time feature. | [Predictions in the User Guide](../user-guide.md#predictions), [Sprint 4 Delivery Evidence](../retrospectives/sprint4-evidence.md#2-current-implementation-additions). |
+| Clarify pending submitter status and next steps | Partially documented: the current guide explains pending approval and where submission access becomes available, but the Sprint 2 retrospective says resolution and follow-up feedback were not established. | [User Guide](../user-guide.md#sign-in-and-account-access), [Sprint 2 Retrospective](../retrospectives/sprint2-retrospective.md#user-and-stakeholder-feedback). |
+| Improve contrast on the China track map | A corresponding contrast change is not documented in the implementation evidence. | Sprint 2 feedback above records the contrast request; no implementation outcome is recorded. |

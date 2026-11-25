@@ -4,14 +4,43 @@ This project is a Formula 1 sport analytics platform built for the course team. 
 
 The application is designed to let users explore drivers, races, statistics, and event data, while approved submitters and administrators can contribute race-related data for review.
 
+The current frontend also includes qualifying results, analytical race predictions,
+driver comparisons and charts, a filtered race timeline, CSV/JSON dataset downloads,
+and a floating F1 Assistant. Predictions use qualifying and whole-season statistics;
+they are estimates rather than official results. Authentication supports Google and
+email/password sign-in, registration and password reset.
+
+The production application is deployed and operational at
+[f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net](https://f1-sport-analytics-ede0h4cfb3augrhn.francecentral-01.azurewebsites.net/).
+Production requests flow from the Azure frontend to the Railway Express API
+and Aiven PostgreSQL; Firebase Authentication and Firestore provide identity,
+profiles, and roles.
+
+## Key Features
+
+- Browse drivers, constructors and races.
+- Explore race, season and driver statistics with rankings and visualisations.
+- View qualifying results and qualifying-specific pages.
+- See race predictions based on qualifying and season statistics.
+- Use the F1 Assistant for read-only Formula 1 queries.
+- Explore interactive race timelines, charts and statistical views.
+- Download and export datasets in CSV and JSON.
+- Sign in with Firebase Authentication and role-based access.
+- Submit data and use review, publication and history workflows.
+- Ingest Formula 1 data from Jolpica and OpenF1.
+
 ## Main documentation
 
 Use the navigation to explore the project documentation:
 
+- [Assessment Evidence](final-submission-evidence.md) maps the milestone rubrics to project evidence
+- [Project Roadmap and Evolution](project-roadmap.md) summarizes the original design and sprint progression
 - Project Methodology and Sprint working approach
 - Git Workflow and delivery process
 - Technical architecture, API design, and data model documentation
 - public documentation site and deployment notes
+- [Local Setup](setup.md), [User Guide](user-guide.md) and [Testing Overview](testing.md)
+- [Repo Overview](repo-overview.md) for the current stack, source layout and implementation limits
 
 The team uses Taiga for Sprint planning and backlog tracking, while Gitea is used for repository management, feature branches, Pull Requests, and review. The public documentation for the project is available at: https://eagle-stack-documentation.netlify.app/
 

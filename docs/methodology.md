@@ -4,6 +4,16 @@ This project uses a lightweight Agile/Scrum-style methodology suited to a five-p
 
 The team’s development process is built around a small number of practical habits: clear task definition, branch-based delivery from `main`, peer review, automated validation, and regular Sprint check-ins. This gives the project enough structure to stay coordinated while remaining focused on implementation and delivery.
 
+## AI Usage
+
+The following AI tools assisted with implementation, review, and documentation:
+
+- **Claude Code — Claude Sonnet 5, Claude Opus 4.5, Claude Opus 5:** code generation and code review.
+- **Claude Web — Claude Sonnet 5:** code generation during development.
+- **ChatGPT Web — GPT-5.6 Sol:** frontend/backend code generation, integration, and debugging.
+- **OpenAI Codex — Default model selection:** code and documentation assistance, repository inspection, and validation through VS Code.
+- **GitHub Copilot Chat — Auto model selection:** in-editor assistance and documentation work in VS Code.
+
 ## 1. Core workflow
 
 The project uses a simple and consistent workflow:
@@ -28,7 +38,7 @@ The Sprint backlog is maintained in Taiga, where product and Sprint work are vis
 
 This project is not large enough to justify a heavy formal process, but it does benefit from a visible backlog, clear ownership, and a regular review of progress. That makes planning practical and keeps the team aligned on what is being delivered next.
 
-## 3. Taiga project management and traceability
+## 3. Work Tracker — Taiga
 
 Taiga provides the project-management layer for the team’s Agile/Scrum work. It is used to record the Sprint, backlog, user stories, tasks, ownership, and progress/status history that keep planning visible and accountable.
 
@@ -41,7 +51,7 @@ A well-formed Taiga item should include:
 
 This makes the team’s planned work visible from Sprint planning through implementation and review. It supports traceability for priority setting, ownership, and progress across the project.
 
-## 4. Gitea development and traceability
+## 4. Bug / Issue Tracking — Gitea
 
 Gitea provides the development and version-control traceability layer. It records the work as it moves from a feature branch into implementation, review, and merge. This is where the team works with `main`, `feature/...` branches, commits, Pull Requests, and code review.
 
@@ -54,7 +64,37 @@ Gitea is used for:
 - CI workflow recognition and validation evidence
 - merge history and repository-level traceability
 
-Together, Taiga and Gitea provide end-to-end traceability from planned work to implementation to review to merge.
+The repository includes `.gitea/ISSUE_TEMPLATE/bug_report.md` and the
+[Gitea Issue Tracking screenshot](#gitea-issue-tracking), which shows actual
+open and closed issue activity. Sprint retrospectives also cite concrete fix
+and feature pull requests, including Sprint 2 PRs #66, #69, #76, and #79 and
+Sprint 4 PRs #130 and #142. These records show issue-tracker use and selected
+delivery examples, not that every project task or bug was tracked. See
+[Git Workflow](git-workflow.md) and the [Sprint 2 Retrospective](retrospectives/sprint2-retrospective.md).
+
+Together, Taiga and Gitea support the project’s planning and implementation
+workflow; representative screenshots and repository artefacts are retained
+here.
+
+## Project Tracking Evidence
+
+The following screenshots provide retained evidence of the project tools being used during development.
+
+### Taiga Work Tracking
+
+![Taiga work tracker showing project activity, user stories and tasks](evidence/project-management/taiga.png)
+
+*Taiga project activity showing user stories, numbered tasks, progress updates and team participation during development.*
+
+The screenshot supports the documented use of Taiga for Scrum/project tracking, user stories, tasks, and sprint work. Its visible activity also shows ownership and progress updates.
+
+### Gitea Issue Tracking
+
+![Gitea issue tracker showing open and closed project issues](evidence/project-management/gitea_issues.png)
+
+*Gitea issue tracker showing open and closed issues, severity labels and concrete implementation/testing tasks.*
+
+The screenshot demonstrates actual issue-tracker use, including open and closed issues, issue numbers, severity labels, bugs, testing tasks, and implementation work. At capture time it showed 47 closed issues and 3 open issues; it does not imply every project bug was recorded there.
 
 ## 5. Feature branches and focused delivery
 
@@ -84,7 +124,7 @@ This keeps quality high while supporting a collaborative development environment
 
 ## 8. Automated validation and testing
 
-The frontend and backend projects both include automated validation scripts. The frontend includes linting and build checks, and the backend includes TypeScript build validation and Vitest test execution.
+The frontend and backend projects both include automated validation scripts. The frontend includes linting, a TypeScript/Vite build, Vitest UI tests with V8 coverage, Firestore rules tests, and a Playwright login-page smoke suite. The backend includes TypeScript build validation and Vitest tests with V8 coverage, including isolated PostgreSQL submission integration tests when `TEST_DATABASE_URL` is supplied.
 
 These checks are part of the team’s expected workflow for validating implementation work before merge. In practice, they help catch issues early and give reviewers clear evidence that a change has been exercised in the relevant project layer.
 
@@ -94,19 +134,30 @@ The team uses automated validation as a normal part of delivery rather than as a
 
 The repository includes a Gitea CI workflow in `.gitea/workflows/ci.yml`. It is configured to run when changes are pushed to `main` and when a pull request targets `main`.
 
-The workflow contains three validation jobs:
+The workflow contains four validation jobs, followed by a backend deployment job:
 
-- frontend lint and build
-- backend build and tests
+- frontend lint, build, Vitest coverage, Firestore emulator rules tests, and Playwright Chromium smoke tests
+- backend build and coverage tests against a disposable local PostgreSQL test database
+- fresh PostgreSQL database creation from `database/schema.sql`, development seed loading, and `database/verify_schema.sql` checks
 - MkDocs strict documentation build
+- Railway backend deployment after all four validation jobs succeed, only for pushes to `main`
 
-This gives the team automated project checks for branch delivery and pull-request review. The checks are designed to support a controlled review workflow before changes are merged into `main`.
+Node jobs use Node 22; the frontend job also installs Java 21 for the Firestore emulator. Frontend and backend coverage reports are uploaded with `continue-on-error: true`, so an artifact-service failure does not itself fail a validation job. Build, test, and database checks remain required. Railway deployment uses repository secrets and is skipped for pull requests. The production application is live on Azure, with its backend API on Railway and PostgreSQL on Aiven.
 
-## 10. Stakeholder interaction and requirement flow
+This gives the team automated project checks for branch delivery and pull-request review. See [Testing](testing.md) and [Local Setup](setup.md) for the commands, prerequisites, and limitations of local validation.
 
-The project is not built in isolation. Tutor or stakeholder feedback is treated as a source of project direction and requirement clarification. When feedback is received, it is translated into concrete technical decisions, backlog items, or issue updates so that the team can act on it consistently.
+## 10. Stakeholder Interaction
 
-This makes stakeholder input part of the delivery process rather than an isolated conversation. In practice, this means requirements can evolve as the project develops, and changes are captured in the same issue and backlog workflow used for all technical work.
+The project is not built in isolation. Tutor or stakeholder feedback is treated as a source of project direction and requirement clarification. When feedback is received, it is translated into concrete technical decisions, backlog items, or issue updates so that the team can act on it consistently. Stakeholder feedback was limited during the project, so most iterative improvements were informed by formal user testing, team review, and the evidence available from sprint activities.
+
+Recorded stakeholder and external-user evidence includes the
+[Sprint 2 stakeholder response](user-testing/sprint2-user-testing.md#stakeholder-feedback-summary)
+and [Sprint 2](user-testing/sprint2-user-testing.md) and
+[Sprint 3](user-testing/sprint3-user-testing.md) external testing. The
+[Sprint Evidence](sprint-evidence.md) page links retained meeting PDFs but
+explicitly limits them to meeting occurrence/attendance evidence; it does not
+reconstruct stakeholder discussions. Sprint 1-specific stakeholder feedback
+is not established by the retained local evidence.
 
 ## 11. Sprint review and retrospective
 
@@ -114,7 +165,7 @@ Sprint reviews are used to check progress against the planned work, identify wha
 
 Retrospectives are used to reflect on what went well, what caused friction, and what should improve in the next Sprint. This is particularly useful in a project with multiple workstreams, where communication, task ownership, and integration work are just as important as the code itself.
 
-For Sprint 2, repository evidence should capture both kinds of review work: Sprint review records should document completed work, unfinished work, feedback, and next priorities, while retrospective records should capture what worked, what caused friction, and the agreed process improvements for the next cycle.
+The [Sprint 1 retrospective](retrospectives/sprint1-retrospective.md) and [Sprint 2 user-testing evidence](user-testing/sprint2-user-testing.md) record the early project reflection and feedback. The [Sprint 3 delivery evidence](retrospectives/sprint3-evidence.md) and [Sprint 4 delivery evidence](retrospectives/sprint4-evidence.md) summarize later implementation and sprint meetings, grouping work by its recorded chronology and attribution.
 
 The goal is not to create bureaucracy, but to keep the team aligned and to improve the process over time as the project matures.
 
